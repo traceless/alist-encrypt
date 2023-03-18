@@ -7,8 +7,8 @@ if (!exist) {
   fs.copyFileSync(path.resolve('temp/config.json'), path.resolve('conf/config.json'))
 }
 
-const configData = fs.readFileSync(path.resolve('conf/config.json'), 'utf8')
-console.log(JSON.parse(configData))
+const configJson = fs.readFileSync(path.resolve('conf/config.json'), 'utf8')
+const configData = JSON.parse(configJson)
 
 /** 会当作Md5的salt，当前预留配置，暂时没用到 */
 export const userPasswd = configData.userPasswd || '123456'
@@ -37,3 +37,5 @@ export const webdavServer = configData.webdavServer || [
     encPath: ['/dav/aliyun/*', '/dav/189cloud/*'], // 要加密的目录，不能是 "/*" 和 "/proxy/*"，因为已经占用
   },
 ]
+
+console.log('configData ', configData)
