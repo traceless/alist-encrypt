@@ -4,8 +4,18 @@ import { userPasswd } from '../config.js'
 
 class FlowEnc {
   constructor(password) {
+    this.password = password
+    this.passwordMd5 = crypto.createHash('md5').digest('hex')
+    // 说明是输入encode的秘钥，用于找回文件加解密
+    let encode
+    if (password.length === 32) {
+      encode = FlowEnc.checkEncode(password)
+      if (!encode) {
+        throw new Error('encode Invalid')
+      }
+    }
     const md5 = crypto.createHash('md5')
-    const encode = md5.update(password).digest()
+    encode = md5.update(password).digest()
     const decode = []
     const length = encode.length
     const decodeCheck = {}
@@ -29,41 +39,44 @@ class FlowEnc {
         }
       }
     }
-    this.password = password
-    this.passwordMd5 = crypto.createHash('md5').digest('hex')
     this.encode = encode
     this.decode = Buffer.from(decode)
-    // MD5
-    this.md5 = function (content) {
-      const md5 = crypto.createHash('md5')
-      return md5.update(this.passwordMd5 + content).digest('hex')
-    }
-    // 加密流转换
-    this.encodeTransform = function () {
-      return new Transform({
-        // 匿名函数确保this是指向 FlowEnc
-        transform: (chunk, encoding, next) => {
-          next(null, this.encodeData(chunk))
-        },
-      })
-    }
+    console.log('@encode:', this.encode.toString('hex'))
+    console.log('@decode:', this.decode.toString('hex'))
+  }
+
+  // MD5
+  md5(content) {
+    const md5 = crypto.createHash('md5')
+    return md5.update(this.passwordMd5 + content).digest('hex')
+  }
+
+  // 加密流转换
+  encodeTransform() {
+    return new Transform({
+      // 匿名函数确保this是指向 FlowEnc
+      transform: (chunk, encoding, next) => {
+        next(null, this.encodeData(chunk))
+      },
+    })
+  }
+
+  decodeTransform() {
     // 解密流转换，不能单实例
-    this.decodeTransform = function () {
-      return new Transform({
-        transform: (chunk, encoding, next) => {
-          // this.push()  用push也可以
-          next(null, this.decodeData(chunk))
-        },
-      })
-    }
-    // 不处理
-    this.testTransform = function () {
-      return new Transform({
-        transform: function (chunk, encoding, callback) {
-          callback(null, chunk)
-        },
-      })
-    }
+    return new Transform({
+      transform: (chunk, encoding, next) => {
+        // this.push()  用push也可以
+        next(null, this.decodeData(chunk))
+      },
+    })
+  }
+
+  testTransform() {
+    return new Transform({
+      transform: function (chunk, encoding, callback) {
+        callback(null, chunk)
+      },
+    })
   }
 
   // 加密方法
@@ -87,8 +100,26 @@ FlowEnc.encMd5 = function (content) {
   const md5 = crypto.createHash('md5')
   return md5.update(userPasswd + content).digest('hex')
 }
+// 检查 encode 是否正确使用的
+FlowEnc.checkEncode = function (_encode) {
+  const encode = Buffer.from(_encode, 'hex')
+  const length = encode.length
+  const decodeCheck = {}
+  for (let i = 0; i < encode.length; i++) {
+    const enc = encode[i] ^ i
+    // 这里会产生冲突
+    if (!decodeCheck[enc % length]) {
+      decodeCheck[enc % length] = encode[i]
+    } else {
+      return null
+    }
+  }
+  return encode
+}
 // const flowEnc = new FlowEnc('abc1234')
 // const encode = flowEnc.encodeData('测试的明文加密1234￥%#')
 // const decode = flowEnc.decodeData(encode)
 // console.log('@@@decode', encode, decode.toString())
+// console.log(new FlowEnc('e10adc3949ba56abbe5be95ff90a8636'))
+
 export default FlowEnc
