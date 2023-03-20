@@ -19,9 +19,9 @@ const app = new Koa()
 
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
-restRouter.all(/\/proxy\/*/, bodyparserMw)
-// TODO
-restRouter.all('/proxy/config', async (ctx) => {
+restRouter.all(/\/enc-api\/*/, bodyparserMw)
+// 拦截自己服务路径
+restRouter.all('/enc-api/config', async (ctx) => {
   console.log('------proxy------', ctx.req.url)
   ctx.body = { success: true }
 })
@@ -60,7 +60,7 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   console.log('----finish redirect---', decode, request.urlAddr, decodeTransform === null)
 })
 
-// 创建middleware，闭包方式
+// 创建webdav的proxy处理逻辑，闭包方式
 function proxyInit(webdavConfig, webdavProxy) {
   const { serverHost, serverPort, flowPassword, encPath } = webdavConfig
   const flowEnc = new FlowEnc(flowPassword)
@@ -80,6 +80,10 @@ function proxyInit(webdavConfig, webdavProxy) {
     // 如果是上传文件，那么进行流加密，目前只支持webdav上传，如果alist页面有上传功能，那么也可以兼容进来
     if (request.method.toLocaleUpperCase() === 'PUT' && pathExec(encPath, request.url)) {
       return await httpProxy(request, response, flowEnc.encodeTransform())
+    }
+    // 如果是下载文件，那么就进行判断是否解密
+    if (~'GET,HEAD,POST'.indexOf(request.method.toLocaleUpperCase()) && pathExec(encPath, request.url)) {
+      return await httpProxy(request, response, null, flowEnc.decodeTransform())
     }
     await httpProxy(request, response)
   }

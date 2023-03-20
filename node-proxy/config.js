@@ -31,8 +31,7 @@ const exist = fs.existsSync(path.resolve('conf/config.json'))
 
 if (!exist) {
   // 把默认数据写入到config.json
-  const configJson = JSON.stringify({ alistServer: alistServerTemp, webdavServer: webdavServerTemp })
-  fs.writeFileSync(path.resolve('conf/config.json'), configJson, { flag: 'w' })
+  fs.copyFileSync(path.resolve('temp/config.json'), path.resolve('conf/config.json'))
 }
 // 读取配置文件
 const configJson = fs.readFileSync(path.resolve('conf/config.json'), 'utf8')
