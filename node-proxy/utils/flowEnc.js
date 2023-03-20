@@ -71,10 +71,22 @@ class FlowEnc {
     })
   }
 
-  testTransform() {
+  // 加密流转换
+  encodeProTransform() {
     return new Transform({
-      transform: function (chunk, encoding, callback) {
-        callback(null, chunk)
+      // 匿名函数确保this是指向 FlowEnc
+      transform: (chunk, encoding, next) => {
+        next(null, this.encodeData(chunk))
+      },
+    })
+  }
+
+  decodeProTransform() {
+    // 解密流转换，不能单实例
+    return new Transform({
+      transform: (chunk, encoding, next) => {
+        // this.push()  用push也可以
+        next(null, this.decodeData(chunk))
       },
     })
   }
@@ -91,6 +103,25 @@ class FlowEnc {
   // 解密方法
   decodeData(data) {
     for (let i = data.length; i--; ) {
+      data[i] = this.decode[data[i] % 16] ^ (data[i] & 0xff)
+    }
+    return data
+  }
+
+  // 升级版加密，重复加密一次，但是无法找回密码，慎用
+  encodePro(data) {
+    data = Buffer.from(data)
+    for (let i = data.length; i--; ) {
+      data[i] = this.encode[data[i] % 16] ^ (data[i] & 0xff)
+      data[i] = this.encode[data[i] % 16] ^ (data[i] & 0xff)
+    }
+    return data
+  }
+
+  // 升级版解密
+  decodePro(data) {
+    for (let i = data.length; i--; ) {
+      data[i] = this.decode[data[i] % 16] ^ (data[i] & 0xff)
       data[i] = this.decode[data[i] % 16] ^ (data[i] & 0xff)
     }
     return data
@@ -117,8 +148,8 @@ FlowEnc.checkEncode = function (_encode) {
   return encode
 }
 // const flowEnc = new FlowEnc('abc1234')
-// const encode = flowEnc.encodeData('测试的明文加密1234￥%#')
-// const decode = flowEnc.decodeData(encode)
+// const encode = flowEnc.encodePro('测试的明文加密1234￥%#')
+// const decode = flowEnc.decodePro(encode)
 // console.log('@@@decode', encode, decode.toString())
 // console.log(new FlowEnc('e10adc3949ba56abbe5be95ff90a8636'))
 
