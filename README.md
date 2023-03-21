@@ -14,7 +14,7 @@ Alist-encrypt 就是为了解决这个问题，它可以结合 webdav 服务器�
 
 ## 三、实现原理
 
-项目的实现比较简单，原始孵化的项目地址在这里：[flow-encryption](https://github.com/traceless/flow-encryption) 它有描述算法的实现，代理服务的实现思路，也有基础版本的代码实现，可以学习参考。
+项目的实现比较简单，原始孵化的项目地址在这里：[tlf-encryption](https://github.com/traceless/tlf-encryption) 它有描述算法的实现，代理服务的实现思路，也有基础版本的代码实现，可以学习参考。
 
 ## 二、安装使用
 
