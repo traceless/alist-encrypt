@@ -78,7 +78,12 @@ function proxyInit(webdavConfig, webdavProxy) {
     const { method, headers, urlAddr } = request
     console.log('@@request_info: ', method, urlAddr, headers)
     // 如果是上传文件，那么进行流加密，目前只支持webdav上传，如果alist页面有上传功能，那么也可以兼容进来
-    if (request.method.toLocaleUpperCase() === 'PUT' && pathExec(encPath, request.url)) {
+    if (request.method.toLocaleUpperCase() === 'PUT') {
+      // 单独处理 alist：/api/fs/put
+      const uploadPath = headers['file-path'] ? decodeURIComponent(headers['file-path']) : '/-'
+      if (pathExec(encPath, request.url) || pathExec(encPath, uploadPath)) {
+        return await httpProxy(request, response, flowEnc.encodeTransform())
+      }
       return await httpProxy(request, response, flowEnc.encodeTransform())
     }
     // 如果是下载文件，那么就进行判断是否解密
