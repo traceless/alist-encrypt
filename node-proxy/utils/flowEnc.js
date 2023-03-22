@@ -41,8 +41,8 @@ class FlowEnc {
     }
     this.encode = encode
     this.decode = Buffer.from(decode)
-    console.log('@encode:', this.encode.toString('hex'))
-    console.log('@decode:', this.decode.toString('hex'))
+    // console.log('@encode:', this.encode.toString('hex'))
+    // console.log('@decode:', this.decode.toString('hex'))
   }
 
   // MD5
