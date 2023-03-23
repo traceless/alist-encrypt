@@ -67,7 +67,7 @@ function httpClient(request, response, redirect = 3) {
     // 如果要解密那么就直接pipe，这里需要判断路径，还有识别当前是下载请求 TODO
     if (~urlAddr.indexOf('https')) {
       // 可以在这里添加条件判断进行加解密 TODO
-      webdavResp.pipe(flowEnc.decodeTransform()).pipe(response)
+      webdavResp.pipe(flowEnc.decryptTransform()).pipe(response)
       return
     }
     // 直接透传
@@ -91,7 +91,7 @@ proxy.on('request', (request, response) => {
   if (request.method.toLocaleUpperCase() === 'PUT') {
     const webdavReq = httpClient(request, response)
     // 这里就进行文件上传，可以进行加解密，一般判断路径 TODO
-    request.pipe(flowEnc.encodeTransform()).pipe(webdavReq)
+    request.pipe(flowEnc.encryptTransform()).pipe(webdavReq)
     return
   }
   const webdavReq = httpClient(request, response)

@@ -1,4 +1,3 @@
-/* eslint-disable comma-dangle */
 import http from 'http'
 import https from 'node:https'
 import crypto from 'crypto'
@@ -11,9 +10,9 @@ const Agents = https.Agent
 const httpsAgent = new Agents({ keepAlive: true })
 const httpAgent = new Agent({ keepAlive: true })
 
-export async function httpProxy(request, response, encodeTransform, decodeTransform) {
+export async function httpProxy(request, response, encryptTransform, decryptTransform) {
   const { method, headers, urlAddr, webdavConfig } = request
-  console.log('request_info: ', method, urlAddr, headers)
+  console.log('@@request_info: ', method, urlAddr, headers)
   // 创建请求
   const options = {
     method,
@@ -33,7 +32,7 @@ export async function httpProxy(request, response, encodeTransform, decodeTransf
         // 跳转到本地服务进行重定向下载 ，简单判断是否https那说明是请求云盘资源，后续完善其他业务判断条件 TODO
         const decode = ~redirectUrl.indexOf('https')
         // 因为天翼云会多次302，所以这里要保持，跳转后的路径保持跟上次一致，经过本服务器代理就可以解密
-        if (decode && decodeTransform) {
+        if (decode && decryptTransform) {
           const key = crypto.randomUUID()
           await levelDB.putValue(key, { redirectUrl, webdavConfig }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
           // 、Referer
@@ -54,17 +53,17 @@ export async function httpProxy(request, response, encodeTransform, decodeTransf
           resolve(resLength)
           console.log('httpResp响应结束...', resLength, request.url)
         })
-      // 是否需要解密，因为alist是有可能配置为直接代理的流量，而不是302，所以要根据headers来判断
-      decodeTransform ? httpResp.pipe(decodeTransform).pipe(response) : httpResp.pipe(response)
+      // 是否需要解密
+      decryptTransform ? httpResp.pipe(decryptTransform).pipe(response) : httpResp.pipe(response)
     })
     // 是否需要加密
-    encodeTransform ? request.pipe(encodeTransform).pipe(httpReq) : request.pipe(httpReq)
+    encryptTransform ? request.pipe(encryptTransform).pipe(httpReq) : request.pipe(httpReq)
   })
 }
 
-export async function httpClient(request, response, encodeTransform, decodeTransform) {
+export async function httpClient(request, response, encryptTransform, decryptTransform) {
   const { method, headers, urlAddr, reqBody } = request
-  console.log('request_info: ', method, urlAddr, headers)
+  console.log('@@request_info-client: ', method, urlAddr, headers)
   // 创建请求
   const options = {
     method,

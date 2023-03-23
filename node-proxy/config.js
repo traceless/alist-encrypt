@@ -11,6 +11,7 @@ const alistServerTemp = {
   path: '/*', // 默认就是代理全部，不建议修改这里
   serverHost: '127.0.0.1',
   serverPort: 5244,
+  encryptType: 'mix', // 密码类型，mix：速度更快适合机顶盒，rc4: 更安全，速度也慢了一点
   flowPassword: '123456', // 加密的密码
   encPath: ['/aliyun/test/*', '/aliyun/photo/*', '/189cloud/*'], // 注意不需要添加/dav 前缀了，程序会自己处理alist的逻辑
 }
@@ -22,6 +23,7 @@ const webdavServerTemp = [
     path: '/dav/*', // 代理全部路径，不能是"/proxy/*"，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
     enable: false, // 是否启动代理
     serverHost: '127.0.0.1',
+    encryptType: 'mix', // 密码类型，mix：速度更快适合机顶盒，rc4: 更安全，速度也慢了一点
     serverPort: 5244,
     flowPassword: '123456', // 加密的密码
     encPath: ['/dav/aliyun/*', '/dav/189cloud/*'], // 要加密的目录，不能是 "/*" 和 "/proxy/*"，因为已经占用

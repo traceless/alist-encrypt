@@ -41,11 +41,16 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
     ctx.body = 'no found'
     return
   }
+  // 要定位请求文件的位置 bytes=98304-
+  const range = request.headers.range
+  const start = range ? range.replace('bytes=', '').split('-')[0] : 0
+
   const { webdavConfig, redirectUrl } = data
   console.log('@@redirect_url: ', request.url, redirectUrl)
   // 设置请求地址和是否要解密
   const decode = ctx.query.decode
-  const flowEnc = new FlowEnc(webdavConfig.flowPassword)
+  const flowEnc = new FlowEnc(webdavConfig.flowPassword, webdavConfig.encryptType, start)
+
   request.url = decodeURIComponent(ctx.query.lastUrl)
   request.urlAddr = redirectUrl
   delete request.headers.host
@@ -53,19 +58,18 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   delete request.headers.referer
   request.webdavConfig = webdavConfig
   // 默认判断路径来识别是否要解密，如果有decode参数，那么则按decode来处理，这样可以让用户手动处理是否解密
-  let decodeTransform = pathExec(webdavConfig.encPath, request.url) ? flowEnc.decodeTransform() : null
+  let decryptTransform = pathExec(webdavConfig.encPath, request.url) ? flowEnc.decryptTransform() : null
   if (decode) {
-    decodeTransform = decode !== '0' ? flowEnc.decodeTransform() : null
+    decryptTransform = decode !== '0' ? flowEnc.decryptTransform() : null
   }
   // 请求实际服务资源
-  await httpProxy(request, response, null, decodeTransform)
-  console.log('----finish redirect---', decode, request.urlAddr, decodeTransform === null)
+  await httpProxy(request, response, null, decryptTransform)
+  console.log('----finish redirect---', decode, request.urlAddr, decryptTransform === null)
 })
 
 // 预处理 request
 function preProxy(webdavConfig, isProxy) {
-  const { serverHost, serverPort, flowPassword, encPath } = webdavConfig
-  const flowEnc = new FlowEnc(flowPassword)
+  const { serverHost, serverPort, flowPassword, encPath, encryptType } = webdavConfig
   let authorization = isProxy
   return async (ctx, next) => {
     const request = ctx.req
@@ -79,10 +83,11 @@ function preProxy(webdavConfig, isProxy) {
     request.headers.host = serverHost + ':' + serverPort
     request.urlAddr = `http://${request.headers.host}${request.url}`
     request.webdavConfig = webdavConfig
-    request.flowEnc = flowEnc
+    // 要定位请求文件的位置 bytes=98304-
+    const range = request.headers.range
+    const start = range ? range.replace('bytes=', '').split('-')[0] : 0
+    request.flowEnc = new FlowEnc(flowPassword, encryptType, start)
     request.encPath = encPath
-    const { method, headers, urlAddr } = request
-    console.log('@@request_info: ', method, urlAddr, headers)
     await next()
   }
 }
@@ -95,12 +100,11 @@ async function webdavHandle(ctx, next) {
   const { flowEnc, encPath } = request
   // 如果是上传文件，那么进行流加密，目前只支持webdav上传，如果alist页面有上传功能，那么也可以兼容进来
   if (request.method.toLocaleUpperCase() === 'PUT' && pathExec(encPath, request.url)) {
-    console.log('@@@@@@@#####', flowEnc, encPath)
-    return await httpProxy(request, response, flowEnc.encodeTransform())
+    return await httpProxy(request, response, flowEnc.encryptTransform())
   }
   // 如果是下载文件，那么就进行判断是否解密
   if (~'GET,HEAD,POST'.indexOf(request.method.toLocaleUpperCase()) && pathExec(encPath, request.url)) {
-    return await httpProxy(request, response, null, flowEnc.decodeTransform())
+    return await httpProxy(request, response, null, flowEnc.decryptTransform())
   }
   await httpProxy(request, response)
 }
@@ -156,7 +160,7 @@ webdavRouter.put('/api/fs/put', async (ctx, next) => {
   const { headers, flowEnc, encPath } = ctx.req
   const uploadPath = headers['file-path'] ? decodeURIComponent(headers['file-path']) : '/-'
   if (pathExec(encPath, uploadPath)) {
-    return await httpProxy(ctx.req, ctx.res, flowEnc.encodeTransform())
+    return await httpProxy(ctx.req, ctx.res, flowEnc.encryptTransform())
   }
   return await httpProxy(ctx.req, ctx.res)
 })
@@ -174,4 +178,4 @@ const port = 5344
 server.listen(port, () => console.log('服务启动成功: ' + port))
 setInterval(() => {
   console.log('server_connections', server._connections)
-}, 5000)
+}, 8000)
