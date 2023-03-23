@@ -41,15 +41,17 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
     ctx.body = 'no found'
     return
   }
+  const { webdavConfig, redirectUrl } = data
   // 要定位请求文件的位置 bytes=98304-
   const range = request.headers.range
   const start = range ? range.replace('bytes=', '').split('-')[0] : 0
-
-  const { webdavConfig, redirectUrl } = data
+  const flowEnc = new FlowEnc(webdavConfig.flowPassword, webdavConfig.encryptType, 0)
+  if (start * 1) {
+    await flowEnc.setPosition(start)
+  }
   console.log('@@redirect_url: ', request.url, redirectUrl)
   // 设置请求地址和是否要解密
   const decode = ctx.query.decode
-  const flowEnc = new FlowEnc(webdavConfig.flowPassword, webdavConfig.encryptType, start)
 
   request.url = decodeURIComponent(ctx.query.lastUrl)
   request.urlAddr = redirectUrl
@@ -86,7 +88,11 @@ function preProxy(webdavConfig, isProxy) {
     // 要定位请求文件的位置 bytes=98304-
     const range = request.headers.range
     const start = range ? range.replace('bytes=', '').split('-')[0] : 0
-    request.flowEnc = new FlowEnc(flowPassword, encryptType, start)
+    const flowEnc = new FlowEnc(flowPassword, encryptType, 0)
+    if (start * 1) {
+      await flowEnc.setPosition(start)
+    }
+    request.flowEnc = flowEnc
     request.encPath = encPath
     await next()
   }

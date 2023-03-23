@@ -20,6 +20,11 @@ class FlowEnc {
     this.encryptFlow = encryptFlow
   }
 
+  // 设置文件开始加密的位置
+  async setPosition(position) {
+    await this.encryptFlow.setPositionAsync(position)
+  }
+
   // 加密流转换
   encryptTransform() {
     return this.encryptFlow.encryptTransform()

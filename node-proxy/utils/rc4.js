@@ -2,6 +2,8 @@
 
 import crypto from 'crypto'
 import { Transform } from 'stream'
+// import PRGAExcuteThread from './PRGAThread.js'
+import PRGAExcuteThread from './PRGAThread.js'
 
 /**
  * RC4算法，安全性相对好很多
@@ -13,22 +15,37 @@ class Rc4 {
     if (password.length !== 32) {
       this.password = crypto.createHash('md5').update(password).digest('hex')
     }
-    this.passwordHex = Buffer.from(this.password, 'hex')
+    this.passwordBuf = Buffer.from(this.password, 'hex')
     this.position = Number(position)
     this.i = 0
     this.j = 0
     this.sbox = []
-    this.resetSbox(position)
+    this.setPosition(position)
   }
 
-  // 重置sbox，i，j ，用于测试
-  resetSbox(position = 0) {
+  // 重置sbox，i，j，数量太大的话，建议使用下面的异步线程
+  setPosition(position = 0) {
     this.position = position
     this.i = 0
     this.j = 0
-    this.KSA(this.passwordHex)
+    this.KSA(this.passwordBuf)
     // 初始化长度，执行一遍就好
     this.PRGAExcute(this.position, () => {})
+    return this
+  }
+
+  async setPositionAsync(position = 0) {
+    this.position = position
+    this.i = 0
+    this.j = 0
+    // 初始化
+    this.KSA(this.passwordBuf)
+    // 初始化长度，执行一遍就好
+    const data = await PRGAExcuteThread(this)
+    const { sbox, i, j } = data
+    this.sbox = sbox
+    this.i = i
+    this.j = j
     return this
   }
 
