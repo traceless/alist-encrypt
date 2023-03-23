@@ -3,7 +3,7 @@
 import crypto from 'crypto'
 import { Transform } from 'stream'
 // import PRGAExcuteThread from './PRGAThread.js'
-import PRGAExcuteThread from './PRGAThread.js'
+import PRGAExcuteThread from './PRGAFork.js'
 
 /**
  * RC4算法，安全性相对好很多
@@ -16,7 +16,7 @@ class Rc4 {
       this.password = crypto.createHash('md5').update(password).digest('hex')
     }
     this.passwordBuf = Buffer.from(this.password, 'hex')
-    this.position = Number(position)
+    this.position = position * 1
     this.i = 0
     this.j = 0
     this.sbox = []
@@ -25,7 +25,7 @@ class Rc4 {
 
   // 重置sbox，i，j，数量太大的话，建议使用下面的异步线程
   setPosition(position = 0) {
-    this.position = position
+    this.position = position * 1
     this.i = 0
     this.j = 0
     this.KSA(this.passwordBuf)
@@ -35,7 +35,7 @@ class Rc4 {
   }
 
   async setPositionAsync(position = 0) {
-    this.position = position
+    this.position = position * 1
     this.i = 0
     this.j = 0
     // 初始化
