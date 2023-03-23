@@ -44,9 +44,9 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   const { webdavConfig, redirectUrl } = data
   // 要定位请求文件的位置 bytes=98304-
   const range = request.headers.range
-  const start = range ? range.replace('bytes=', '').split('-')[0] : 0
+  const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
   const flowEnc = new FlowEnc(webdavConfig.flowPassword, webdavConfig.encryptType, 0)
-  if (start * 1) {
+  if (start) {
     await flowEnc.setPosition(start)
   }
   console.log('@@redirect_url: ', request.url, redirectUrl)
@@ -87,9 +87,9 @@ function preProxy(webdavConfig, isProxy) {
     request.webdavConfig = webdavConfig
     // 要定位请求文件的位置 bytes=98304-
     const range = request.headers.range
-    const start = range ? range.replace('bytes=', '').split('-')[0] : 0
+    const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
     const flowEnc = new FlowEnc(flowPassword, encryptType, 0)
-    if (start * 1) {
+    if (start) {
       await flowEnc.setPosition(start)
     }
     request.flowEnc = flowEnc

@@ -5,6 +5,8 @@ import Rc4 from './rc4.js'
 
 class FlowEnc {
   constructor(password, encryptType = 'mix', position = 0) {
+    // 貌似就是这个字母慢
+    position *= 1
     let encryptFlow = null
     if (encryptType === 'mix') {
       console.log('@@@@mix', encryptType)
@@ -22,7 +24,9 @@ class FlowEnc {
 
   // 设置文件开始加密的位置
   async setPosition(position) {
-    await this.encryptFlow.setPositionAsync(position)
+    if (this.encryptType === 'rc4') {
+      await this.encryptFlow.setPositionAsync(position)
+    }
   }
 
   // 加密流转换
