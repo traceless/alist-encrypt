@@ -4,6 +4,9 @@ import crypto from 'crypto'
 import { Transform } from 'stream'
 import { userPasswd } from '../config.js'
 
+/**
+ * 混淆算法，加密强度低，容易因为文件特征被破解。可以提升encode长度来对抗
+ */
 class MixEnc {
   constructor(password) {
     this.password = password

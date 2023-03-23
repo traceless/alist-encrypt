@@ -4,6 +4,7 @@
     "path": "/*",
     "serverHost": "192.168.8.240",
     "serverPort": 5244,
+    "encryptType": "mix",
     "flowPassword": "123456",
     "encPath": ["/aliy/test/*", "/aliyun/photo/*", "/189cloud/*"]
   },
@@ -14,6 +15,7 @@
       "enable": false,
       "serverHost": "127.0.0.1",
       "serverPort": 5244,
+      "encryptType": "mix",
       "flowPassword": "123456",
       "encPath": ["/dav/aliyun/*", "/dav/189cloud/*"]
     }

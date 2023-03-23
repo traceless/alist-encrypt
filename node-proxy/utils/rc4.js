@@ -3,6 +3,9 @@
 import crypto from 'crypto'
 import { Transform } from 'stream'
 
+/**
+ * RC4算法，安全性相对好很多
+ */
 class Rc4 {
   // password，position：伪随机开始位置
   constructor(password, position = 0) {
@@ -18,7 +21,7 @@ class Rc4 {
     this.resetSbox(position)
   }
 
-  // 重置sbox，用于测试，因为这个plainLen是会增加的。
+  // 重置sbox，i，j ，用于测试
   resetSbox(position = 0) {
     this.position = position
     this.i = 0
