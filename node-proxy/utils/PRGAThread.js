@@ -15,7 +15,7 @@ if (isMainThread) {
 
   PRGAExcuteThread = function (data) {
     return new Promise((resolve, reject) => {
-      const worker = workerList[index++ % 4]
+      const worker = workerList[index++ % workerList.length]
       worker.once('message', (res) => {
         resolve(res)
       })

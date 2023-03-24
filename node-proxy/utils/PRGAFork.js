@@ -10,7 +10,7 @@ for (let i = index; i--; ) {
 
 const PRGAExcuteThread = function (workerData) {
   return new Promise((resolve, reject) => {
-    const child = childList[index++ % 4]
+    const child = childList[index++ % childList.length]
     // 只监听一次，这样就可以重复监听
     child.once('message', (res) => {
       resolve(res)
