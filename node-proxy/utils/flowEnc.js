@@ -20,6 +20,7 @@ class FlowEnc {
       throw new Error('FlowEnc error')
     }
     this.encryptFlow = encryptFlow
+    this.encryptType = encryptType
   }
 
   // 设置文件开始加密的位置

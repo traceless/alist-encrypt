@@ -1,25 +1,29 @@
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads'
 import os from 'os'
-let index = parseInt(os.cpus().length / 2)
 
-const workerList = []
-for (let i = index; i--; ) {
-  const worker = new Worker('./utils/PRGAThread.js', {
-    workerData: 'work-name-' + i,
-  })
-  workerList[i] = worker
-}
-
-const PRGAExcuteThread = function (data) {
-  return new Promise((resolve, reject) => {
-    const worker = workerList[index++ % 4]
-    worker.once('message', (res) => {
-      resolve(res)
+let PRGAExcuteThread = null
+// 一定要加上这个，不然会产生递归，创建无数线程
+if (isMainThread) {
+  let index = parseInt(os.cpus().length / 2)
+  const workerList = []
+  for (let i = index; i--; ) {
+    const worker = new Worker('./utils/PRGAThread.js', {
+      workerData: 'work-name-' + i,
     })
-    worker.once('error', reject)
-    // 发送数据
-    worker.postMessage(data)
-  })
+    workerList[i] = worker
+  }
+
+  PRGAExcuteThread = function (data) {
+    return new Promise((resolve, reject) => {
+      const worker = workerList[index++ % 4]
+      worker.once('message', (res) => {
+        resolve(res)
+      })
+      worker.once('error', reject)
+      // 发送数据
+      worker.postMessage(data)
+    })
+  }
 }
 
 // 如果是线程执行了这个文件，就开始处理
@@ -40,10 +44,11 @@ if (!isMainThread) {
   }
   // workerData 由主线程发送过来的信息
   parentPort.on('message', (data) => {
-    console.log('@@@PRGAExcuteThread-strat', data.position, workerData)
+    const startTime = Date.now()
+    console.log('@@@PRGAExcuteThread-strat', data.position, Date.now())
     const res = PRGAExcute(data)
     parentPort.postMessage(res)
-    console.log('@@@PRGAExcuteThread-end', data.position, workerData)
+    console.log('@@@PRGAExcuteThread-end', data.position, 'time:' + Date.now() - startTime)
   })
 }
 export default PRGAExcuteThread
