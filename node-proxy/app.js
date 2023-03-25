@@ -8,8 +8,8 @@ import { httpProxy, httpClient } from './utils/httpClient.js'
 import bodyparser from 'koa-bodyparser'
 import FlowEnc from './utils/flowEnc.js'
 import levelDB from './utils/levelDB.js'
-import { webdavServer, alistServer } from './config.js'
-import { pathExec } from './utils/commonUtil.js'
+import { webdavServer, alistServer, port } from './config.js'
+import { pathExec, pathFindPasswd } from './utils/commonUtil.js'
 import globalHandle from './middleware/globalHandle.js'
 import allRouter from './router.js'
 import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
@@ -37,11 +37,11 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
     ctx.body = 'no found'
     return
   }
-  const { webdavConfig, redirectUrl, fileSize } = data
+  const { passwdInfo, redirectUrl, fileSize } = data
   // 要定位请求文件的位置 bytes=98304-
   const range = request.headers.range
   const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
-  const flowEnc = new FlowEnc(webdavConfig.flowPassword, webdavConfig.encryptType, fileSize)
+  const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, fileSize)
   if (start) {
     await flowEnc.setPosition(start)
   }
@@ -57,9 +57,9 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   delete request.headers.host
   // aliyun不允许这个referer，不然会出现403
   delete request.headers.referer
-  request.webdavConfig = webdavConfig
+  request.passwdInfo = passwdInfo
   // 默认判断路径来识别是否要解密，如果有decode参数，那么则按decode来处理，这样可以让用户手动处理是否解密？(那还不如直接在alist下载)
-  let decryptTransform = pathExec(webdavConfig.encPath, request.url) ? flowEnc.decryptTransform() : null
+  let decryptTransform = pathExec(passwdInfo.encPath, request.url) ? flowEnc.decryptTransform() : null
   if (decode) {
     decryptTransform = decode !== '0' ? flowEnc.decryptTransform() : null
   }
@@ -70,7 +70,7 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
 
 // 预处理 request，处理地址，加密钥匙等
 function preProxy(webdavConfig, isWebdav) {
-  const { serverHost, serverPort, encPath } = webdavConfig
+  const { serverHost, serverPort } = webdavConfig
   let authorization = isWebdav
   return async (ctx, next) => {
     const request = ctx.req
@@ -85,7 +85,6 @@ function preProxy(webdavConfig, isWebdav) {
     request.headers.host = serverHost + ':' + serverPort
     request.urlAddr = `http://${request.headers.host}${request.url}`
     request.webdavConfig = webdavConfig
-    request.encPath = encPath
     await next()
   }
 }
@@ -93,16 +92,16 @@ function preProxy(webdavConfig, isWebdav) {
 async function webdavHandle(ctx, next) {
   const request = ctx.req
   const response = ctx.res
-  const { flowPassword, encryptType } = request.webdavConfig
-  const { headers, encPath } = request
+  const { passwdList } = request.webdavConfig
+  const { headers } = request
   // 要定位请求文件的位置 bytes=98304-
   const range = request.headers.range
   const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
   // 检查路径是否满足加密要求
-  const pathInfo = pathExec(encPath, request.url)
-
+  const { passwdInfo, pathInfo } = pathFindPasswd(passwdList, request.url)
+  console.log('@@@@passwdInfo', passwdList )
   // 如果是上传文件，那么进行流加密，目前只支持webdav上传，如果alist页面有上传功能，那么也可以兼容进来
-  if (request.method.toLocaleUpperCase() === 'PUT' && pathInfo) {
+  if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo) {
     // 兼容macos的webdav客户端x-expected-entity-length
     const contentLength = headers['content-length'] || headers['x-expected-entity-length'] || 0
     request.fileSize = contentLength * 1
@@ -110,11 +109,11 @@ async function webdavHandle(ctx, next) {
     if (request.fileSize === 0) {
       return await httpProxy(request, response)
     }
-    const flowEnc = new FlowEnc(flowPassword, encryptType, request.fileSize)
+    const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
     return await httpProxy(request, response, flowEnc.encryptTransform())
   }
   // 如果是下载文件，那么就进行判断是否解密
-  if (~'GET,HEAD,POST'.indexOf(request.method.toLocaleUpperCase()) && pathInfo) {
+  if (~'GET,HEAD,POST'.indexOf(request.method.toLocaleUpperCase()) && passwdInfo) {
     // 根据文件路径来获取文件的大小
     const urlPath = ctx.req.url.split('?')[0]
     const filePath = urlPath.substring(urlPath.indexOf(pathInfo[0]), urlPath.length)
@@ -139,7 +138,7 @@ async function webdavHandle(ctx, next) {
       // 说明不用加密
       return await httpProxy(request, response)
     }
-    const flowEnc = new FlowEnc(flowPassword, encryptType, request.fileSize)
+    const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
     if (start) {
       await flowEnc.setPosition(start)
     }
@@ -158,13 +157,17 @@ webdavServer.forEach((webdavConfig) => {
 /* =================================== 单独处理alist的逻辑 ====================================== */
 
 // 初始化alist的路由，新增/d/* 路由
-const downloads = []
-for (const key in alistServer.encPath) {
-  downloads.push('/d' + alistServer.encPath[key])
-  downloads.push('/p' + alistServer.encPath[key])
-  downloads.push('/dav' + alistServer.encPath[key])
+let downloads = []
+for (const passData of alistServer.passwdList) {
+  for (const key in passData.encPath) {
+    downloads.push('/d' + passData.encPath[key])
+    downloads.push('/p' + passData.encPath[key])
+    downloads.push('/dav' + passData.encPath[key])
+  }
+  // 处理alist的逻辑
+  passData.encPath = passData.encPath.concat(downloads)
+  downloads = []
 }
-alistServer.encPath = alistServer.encPath.concat(downloads)
 // 先处理webdav，然后再处理普通的http
 webdavRouter.all(/\/dav\/*/, preProxy(alistServer, true), webdavHandle)
 
@@ -184,11 +187,13 @@ webdavRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
   const respBody = await httpClient(ctx.req)
   const result = JSON.parse(respBody)
   const { headers } = ctx.req
-  if (pathExec(alistServer.encPath, path)) {
+  const { passwdInfo } = pathFindPasswd(alistServer.passwdList, path)
+
+  if (passwdInfo) {
     // 修改返回的响应，匹配到要解密，就302跳转到本服务上进行代理流量
     console.log('@@getFile ', path, result)
     const key = crypto.randomUUID()
-    await levelDB.setExpire(key, { redirectUrl: result.data.raw_url, webdavConfig: alistServer, fileSize: result.data.size }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
+    await levelDB.setExpire(key, { redirectUrl: result.data.raw_url, passwdInfo, fileSize: result.data.size }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
     result.data.raw_url = `${headers.origin}/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(path)}`
   }
   ctx.body = result
@@ -217,15 +222,15 @@ webdavRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
 // 处理网页上传文件
 webdavRouter.put('/api/fs/put', async (ctx, next) => {
   const request = ctx.req
-  const { headers, encPath } = request
+  const { headers, webdavConfig } = request
   // 兼容macos的webdav客户端x-expected-entity-length
   const contentLength = headers['content-length'] || headers['x-expected-entity-length'] || 0
   request.fileSize = contentLength * 1
 
   const uploadPath = headers['file-path'] ? decodeURIComponent(headers['file-path']) : '/-'
-  if (pathExec(encPath, uploadPath)) {
-    const { flowPassword, encryptType } = request.webdavConfig
-    const flowEnc = new FlowEnc(flowPassword, encryptType, request.fileSize)
+  const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, uploadPath)
+  if (passwdInfo) {
+    const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
     return await httpProxy(ctx.req, ctx.res, flowEnc.encryptTransform())
   }
   return await httpProxy(ctx.req, ctx.res)
@@ -238,9 +243,10 @@ webdavRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
 // 使用路由控制
 app.use(webdavRouter.routes()).use(webdavRouter.allowedMethods())
 
+// 配置创建好了，就启动
+
 const server = http.createServer(app.callback())
 server.maxConnections = 1000
-const port = 5344
 server.listen(port, () => console.log('服务启动成功: ' + port))
 setInterval(() => {
   console.log('server_connections', server._connections, Date.now())

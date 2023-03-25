@@ -14,10 +14,10 @@ export async function cacheFileInfo(fileInfo) {
   const path = fileInfo.path
   const value = await levelDB.getValue(fileInfoTable)
   value[path] = fileInfo
-  await levelDB.setExpire(fileInfoTable, value, 60 * 60 * 24 * 7)
+  await levelDB.setValue(fileInfoTable, value)
 }
 
-// 获取文件信息
+// 获取文件信息，偶尔要清理一下缓存
 export async function getFileInfo(path) {
   const value = await levelDB.getValue(fileInfoTable)
   return value[path]

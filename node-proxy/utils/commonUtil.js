@@ -10,3 +10,15 @@ export function pathExec(encPath, url) {
   }
   return null
 }
+// 检查
+export function pathFindPasswd(passwdList, url) {
+  for (const passwdInfo of passwdList) {
+    for (const path of passwdInfo.encPath) {
+      const result = pathToRegexp(new RegExp(path)).exec(url)
+      if (result) {
+        return { passwdInfo, pathInfo: result }
+      }
+    }
+  }
+  return {}
+}

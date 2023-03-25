@@ -11,7 +11,7 @@ const httpsAgent = new Agents({ keepAlive: true })
 const httpAgent = new Agent({ keepAlive: true })
 
 export async function httpProxy(request, response, encryptTransform, decryptTransform) {
-  const { method, headers, urlAddr, webdavConfig } = request
+  const { method, headers, urlAddr, passwdInfo } = request
   console.log('@@request_info: ', method, urlAddr, headers)
   // 创建请求
   const options = {
@@ -33,7 +33,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
         if (decryptTransform) {
           const key = crypto.randomUUID()
           console.log()
-          await levelDB.setExpire(key, { redirectUrl, webdavConfig, fileSize: request.fileSize }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
+          await levelDB.setExpire(key, { redirectUrl, passwdInfo, fileSize: request.fileSize }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
           // 、Referer
           httpResp.headers.location = `/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(request.url)}`
         }
