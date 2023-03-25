@@ -4,17 +4,17 @@ import MixEnc from './mixEnc.js'
 import Rc4 from './rc4.js'
 
 class FlowEnc {
-  constructor(password, encryptType = 'mix', position = 0) {
+  constructor(password, encryptType = 'mix', fileSize = 0) {
     // 貌似就是这个字母慢
-    position *= 1
+    fileSize *= 1
     let encryptFlow = null
     if (encryptType === 'mix') {
-      console.log('@@@@mix', encryptType)
+      console.log('@@mix', encryptType)
       encryptFlow = new MixEnc(password)
     }
     if (encryptType === 'rc4') {
-      console.log('@@@@rc4', encryptType, position)
-      encryptFlow = new Rc4(password, position)
+      console.log('@@rc4', encryptType, fileSize)
+      encryptFlow = new Rc4(password, fileSize)
     }
     if (encryptType === null) {
       throw new Error('FlowEnc error')

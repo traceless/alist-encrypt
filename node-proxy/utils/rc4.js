@@ -7,28 +7,45 @@ import PRGAExcuteThread from './PRGAThread.js'
 
 /**
  * RC4算法，安全性相对好很多
+ * 可以对 512345678进行 缓存计算节点，这样下次就可以不用计算那么大
  */
 class Rc4 {
-  // password，position：伪随机开始位置
-  constructor(password, position = 0) {
-    this.password = password
-    if (password.length !== 32) {
-      this.password = crypto.createHash('md5').update(password).digest('hex')
+  // password，salt: 一般用文件的长度作为salt，确保每个文件密码流不一样
+  constructor(password, sizeSalt) {
+    if (!sizeSalt) {
+      throw new Error('salt is null')
     }
-    this.passwordBuf = Buffer.from(this.password, 'hex')
-    this.position = position * 1
+    this.password = password
+    // 对外的文件夹密码，可用于分享作用
+    this.passwdOutward = password
+    if (password.length !== 32) {
+      this.passwdOutward = crypto.createHash('md5').update(password).digest('hex')
+    }
+    // 加入盐
+    const passwdSalt = this.passwdOutward + sizeSalt
+    // fileHexKey: 实际文件密码，可用于分享作用
+    this.fileHexKey = crypto.createHash('md5').update(passwdSalt).digest('hex')
+    // 开始初始化
+    const seedKeyBuf = Buffer.from(this.fileHexKey, 'hex')
+    this.position = 0
     this.i = 0
     this.j = 0
     this.sbox = []
-    this.setPosition(position)
+    this.initKSA(seedKeyBuf)
+    // 获取128长度的key
+    const randomKey = []
+    this.PRGAExcute(128, (random) => {
+      randomKey.push(random)
+    })
+    this.realRc4Key = Buffer.from(randomKey)
+    // 真正的初始化
+    this.initKSA(this.realRc4Key)
   }
 
   // 重置sbox，i，j，数量太大的话，建议使用下面的异步线程
   setPosition(position = 0) {
     this.position = position * 1
-    this.i = 0
-    this.j = 0
-    this.KSA(this.passwordBuf)
+    this.initKSA(this.realRc4Key)
     // 初始化长度，执行一遍就好
     this.PRGAExcute(this.position, () => {})
     return this
@@ -36,10 +53,8 @@ class Rc4 {
 
   async setPositionAsync(position = 0) {
     this.position = position * 1
-    this.i = 0
-    this.j = 0
     // 初始化
-    this.KSA(this.passwordBuf)
+    this.initKSA(this.realRc4Key)
     // 初始化长度，执行一遍就好
     const data = await PRGAExcuteThread(this)
     const { sbox, i, j } = data
@@ -102,8 +117,8 @@ class Rc4 {
     this.j = j
   }
 
-  // key 128个字节比较好？
-  KSA(key) {
+  // KSA初始化sbox，key长度为128比较好？
+  initKSA(key) {
     const K = []
     //  对S表进行初始赋值
     for (let i = 0; i < 256; i++) {
@@ -114,13 +129,14 @@ class Rc4 {
       K[i] = key[i % key.length]
     }
     //  对S表进行置换
-    let j = 0
-    for (let i = 0; i < 256; i++) {
+    for (let i = 0, j = 0; i < 256; i++) {
       j = (j + this.sbox[i] + K[i]) % 256
       const temp = this.sbox[i]
       this.sbox[i] = this.sbox[j]
       this.sbox[j] = temp
     }
+    this.i = 0
+    this.j = 0
   }
 }
 

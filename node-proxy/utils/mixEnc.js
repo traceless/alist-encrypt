@@ -2,7 +2,6 @@
 
 import crypto from 'crypto'
 import { Transform } from 'stream'
-import { userPasswd } from '../config.js'
 
 /**
  * 混淆算法，加密强度低，容易因为文件特征被破解。可以提升encode长度来对抗
@@ -28,17 +27,14 @@ class MixEnc {
       const enc = encode[i] ^ i
       // 这里会产生冲突
       if (!decodeCheck[enc % length]) {
-        // console.log("取模 " + enc % length)
         decode[enc % length] = encode[i] & 0xff
         decodeCheck[enc % length] = encode[i]
       } else {
         for (let j = 0; j < length; j++) {
           if (!decodeCheck[j]) {
-            // 兜底，把 encode[i]后四位转成 j ^ i 的二进制值，确保decode的后四位不冲突
             encode[i] = (encode[i] & 0xf0) | (j ^ i)
             decode[j] = encode[i] & 0xff
             decodeCheck[j] = encode[i]
-            // console.log("#取模 " + j)
             break
           }
         }
@@ -93,10 +89,7 @@ class MixEnc {
     return data
   }
 }
-MixEnc.encMd5 = function (content) {
-  const md5 = crypto.createHash('md5')
-  return md5.update(userPasswd + content).digest('hex')
-}
+
 // 检查 encode 是否正确使用的
 MixEnc.checkEncode = function (_encode) {
   const encode = Buffer.from(_encode, 'hex')
