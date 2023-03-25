@@ -29,14 +29,13 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
       if (response.statusCode % 300 < 5) {
         // 可能出现304，redirectUrl = undefined
         const redirectUrl = httpResp.headers.location || '-'
-        // 跳转到本地服务进行重定向下载 ，简单判断是否https那说明是请求云盘资源，后续完善其他业务判断条件 TODO
-        const decode = ~redirectUrl.indexOf('https')
-        // 因为天翼云会多次302，所以这里要保持，跳转后的路径保持跟上次一致，经过本服务器代理就可以解密
-        if (decode && decryptTransform) {
+        // 百度云盘不是https，坑爹，因为天翼云会多次302，所以这里要保持，跳转后的路径保持跟上次一致，经过本服务器代理就可以解密
+        if (decryptTransform) {
           const key = crypto.randomUUID()
-          await levelDB.putValue(key, { redirectUrl, webdavConfig }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
+          console.log()
+          await levelDB.setExpire(key, { redirectUrl, webdavConfig, fileSize: request.fileSize }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
           // 、Referer
-          httpResp.headers.location = `/redirect/${key}?decode=${decode}&lastUrl=${encodeURIComponent(request.url)}`
+          httpResp.headers.location = `/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(request.url)}`
         }
         console.log('302 redirectUrl:', redirectUrl)
       }
@@ -45,13 +44,15 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
         response.setHeader(key, httpResp.headers[key])
       }
       let resLength = 0
+      const dataStr = ''
       httpResp
         .on('data', (chunk) => {
           resLength += chunk.length
+          // dataStr += chunk
         })
         .on('end', () => {
           resolve(resLength)
-          console.log('httpResp响应结束...', resLength, request.url)
+          console.log('httpResp响应结束...', resLength, dataStr, request.url)
         })
       // 是否需要解密
       decryptTransform ? httpResp.pipe(decryptTransform).pipe(response) : httpResp.pipe(response)
@@ -63,7 +64,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
 
 export async function httpClient(request, response, encryptTransform, decryptTransform) {
   const { method, headers, urlAddr, reqBody } = request
-  console.log('@@request_info-client: ', method, urlAddr, headers)
+  console.log('@@request_client: ', method, urlAddr, headers)
   // 创建请求
   const options = {
     method,
@@ -76,10 +77,11 @@ export async function httpClient(request, response, encryptTransform, decryptTra
     // 处理重定向的请求，让下载的流量经过代理服务器
     const httpReq = httpRequest.request(urlAddr, options, async (httpResp) => {
       console.log('@@statusCode', httpResp.statusCode, httpResp.headers)
-      response.statusCode = httpResp.statusCode
-      // 设置headers
-      for (const key in httpResp.headers) {
-        response.setHeader(key, httpResp.headers[key])
+      if (response) {
+        response.statusCode = httpResp.statusCode
+        for (const key in httpResp.headers) {
+          response.setHeader(key, httpResp.headers[key])
+        }
       }
       let result = ''
       httpResp
@@ -88,11 +90,11 @@ export async function httpClient(request, response, encryptTransform, decryptTra
         })
         .on('end', () => {
           resolve(result)
-          console.log('httpResp响应结束...', result, request.url)
+          console.log('httpResp响应结束...', request.url)
         })
     })
-    // 是否需要加密
-    httpReq.write(reqBody)
+    // 发送请求
+    typeof reqBody === 'string' ? httpReq.write(reqBody) : httpReq.write(JSON.stringify(reqBody))
     httpReq.end()
   })
 }

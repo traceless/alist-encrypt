@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs'
-
+import { addUserInfo, initUserTable, getUserInfo } from './dao/userDao.js'
+import { initFileTable } from './dao/fileDao.js'
 // 初始化目录
 if (!fs.existsSync(path.resolve('conf'))) {
   fs.mkdirSync(path.resolve('conf'))
@@ -29,8 +30,8 @@ const webdavServerTemp = [
     encPath: ['/dav/aliyun/*', '/dav/189cloud/*'], // 要加密的目录，不能是 "/*" 和 "/proxy/*"，因为已经占用
   },
 ]
+// 初始化config
 const exist = fs.existsSync(path.resolve('conf/config.json'))
-
 if (!exist) {
   // 把默认数据写入到config.json
   fs.copyFileSync(path.resolve('temp/config.json'), path.resolve('conf/config.json'))
@@ -39,8 +40,21 @@ if (!exist) {
 const configJson = fs.readFileSync(path.resolve('conf/config.json'), 'utf8')
 const configData = JSON.parse(configJson)
 
-/** 会当作Md5的salt，当前预留配置，暂时没用到 */
-export const userPasswd = configData.userPasswd || '123456'
+/** 初始化用户的数据库 */
+async function init() {
+  try {
+    initFileTable()
+    await initUserTable()
+    let admin = await getUserInfo('admin')
+    // 初始化admin账号
+    if (admin == null) {
+      admin = { username: 'admin', headImgUrl: '/public/logo.svg', password: '123456', roleId: '[13]' }
+      await addUserInfo(admin)
+    }
+    console.log('@@', admin)
+  } catch (e) {}
+}
+init()
 
 /** 代理服务的端口 */
 export const port = configData.port || 5344

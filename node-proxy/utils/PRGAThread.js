@@ -4,9 +4,10 @@ import os from 'os'
 let PRGAExcuteThread = null
 // 一定要加上这个，不然会产生递归，创建无数线程
 if (isMainThread) {
-  let index = parseInt(os.cpus().length / 2)
+  // 避免消耗光资源，加一用于后续的预加载RC4的位置
+  const workerNum = parseInt(os.cpus().length / 2 + 1)
   const workerList = []
-  for (let i = index; i--; ) {
+  for (let i = workerNum; i--; ) {
     const worker = new Worker('./utils/PRGAThread.js', {
       workerData: 'work-name-' + i,
     })
@@ -14,8 +15,9 @@ if (isMainThread) {
   }
 
   PRGAExcuteThread = function (data) {
+    let index = 0
     return new Promise((resolve, reject) => {
-      const worker = workerList[index++ % workerList.length]
+      const worker = workerList[index++ % workerNum]
       worker.once('message', (res) => {
         resolve(res)
       })
@@ -45,10 +47,10 @@ if (!isMainThread) {
   // workerData 由主线程发送过来的信息
   parentPort.on('message', (data) => {
     const startTime = Date.now()
-    console.log('@@@PRGAExcuteThread-strat', data.position, Date.now())
+    console.log('@@@PRGAExcute-strat', data.position, Date.now(), workerData)
     const res = PRGAExcute(data)
     parentPort.postMessage(res)
-    console.log('@@@PRGAExcuteThread-end', data.position, 'time:' + Date.now() - startTime)
+    console.log('@@@PRGAExcute-end', data.position, '@time:' + (Date.now() - startTime), workerData)
   })
 }
 export default PRGAExcuteThread
