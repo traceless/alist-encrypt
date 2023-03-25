@@ -48,7 +48,10 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   console.log('@@redirect_url: ', request.url, redirectUrl)
   // 设置请求地址和是否要解密
   const decode = ctx.query.decode
-
+  // 修改百度头
+  if (~redirectUrl.indexOf('baidupcs.com')) {
+    request.headers['User-Agent'] = 'pan.baidu.com'
+  }
   request.url = decodeURIComponent(ctx.query.lastUrl)
   request.urlAddr = redirectUrl
   delete request.headers.host
