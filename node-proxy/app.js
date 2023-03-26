@@ -72,9 +72,9 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
 
 // 预处理 request，处理地址，加密钥匙等
 function preProxy(webdavConfig, isWebdav) {
-  const { serverHost, serverPort } = webdavConfig
   let authorization = isWebdav
   return async (ctx, next) => {
+    const { serverHost, serverPort } = webdavConfig
     const request = ctx.req
     if (authorization) {
       // 缓存起来，提高webdav的请求效率

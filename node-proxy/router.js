@@ -91,6 +91,12 @@ router.all('/getAlistConfig', async (ctx, next) => {
 
 router.all('/saveAlistConfig', async (ctx, next) => {
   let alistConfig = ctx.request.body
+  for (const index in alistConfig.passwdList) {
+    const passwdInfo = alistConfig.passwdList[index]
+    if (typeof passwdInfo.encPath === 'string') {
+      passwdInfo.encPath = passwdInfo.encPath.split(',')
+    }
+  }
   const _snapshot = JSON.parse(JSON.stringify(alistConfig))
   // 写入到文件中，这里并不是真正的同步，，
   fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify({ alistServer: _snapshot, webdavServer, port }, '', '\t'))
@@ -106,6 +112,12 @@ router.all('/getWebdavonfig', async (ctx, next) => {
 
 router.all('/saveWebdavConfig', async (ctx, next) => {
   const config = ctx.request.body
+  for (const index in config.passwdList) {
+    const passwdInfo = config.passwdList[index]
+    if (typeof passwdInfo.encPath === 'string') {
+      passwdInfo.encPath = passwdInfo.encPath.split(',')
+    }
+  }
   config.id = crypto.randomUUID()
   webdavServer.push(config)
   fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
@@ -114,6 +126,13 @@ router.all('/saveWebdavConfig', async (ctx, next) => {
 
 router.all('/updateWebdavConfig', async (ctx, next) => {
   const config = ctx.request.body
+  for (const index in config.passwdList) {
+    const passwdInfo = config.passwdList[index]
+    if (typeof passwdInfo.encPath === 'string') {
+      passwdInfo.encPath = passwdInfo.encPath.split(',')
+    }
+  }
+
   for (const index in webdavServer) {
     if (webdavServer[index].id === config.id) {
       webdavServer[index] = config
