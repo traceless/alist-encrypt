@@ -57,6 +57,10 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
       // 是否需要解密
       decryptTransform ? httpResp.pipe(decryptTransform).pipe(response) : httpResp.pipe(response)
     })
+    httpReq.on('error', (err) => {
+      console.log('@@httpProxy request error ', err)
+      response.end('server proxy error')
+    })
     // 是否需要加密
     encryptTransform ? request.pipe(encryptTransform).pipe(httpReq) : request.pipe(httpReq)
   })
@@ -92,6 +96,10 @@ export async function httpClient(request, response) {
           resolve(result)
           console.log('httpResp响应结束...', request.url)
         })
+    })
+    httpReq.on('error', (err) => {
+      console.log('@@httpClient request error ', err)
+      response.end('server req error')
     })
     // 透传请求，不透传response
     if (!reqBody) {
