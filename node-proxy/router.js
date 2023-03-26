@@ -70,12 +70,12 @@ router.all('/getUserInfo', async (ctx, next) => {
 
 // 更新用户信息
 router.all('/updatePasswd', async (ctx, next) => {
-  const userInfo = ctx.userInfo
-  const { password, newpassword } = ctx.request.body
+  const { password, newpassword, username } = ctx.request.body
   if (newpassword.length < 7) {
     ctx.body = { msg: 'password too short, at less 8 digits', code: 500 }
     return
   }
+  const userInfo = await getUserInfo(username)
   if (password !== userInfo.password) {
     ctx.body = { msg: 'password error', code: 500 }
     return
