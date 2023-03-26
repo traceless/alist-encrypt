@@ -129,11 +129,13 @@ async function webdavHandle(ctx, next) {
     } else if (request.headers.authorization) {
       // 这里要判断是否webdav进行请求, 这里默认就是webdav请求了
       const authorization = request.headers.authorization
-      const webdavFileInfo = await getWebdavFileInfo(request.urlAddr.replace(filePath, ''), authorization, decodeURIComponent(filePath))
-      console.log('@@webdavFileInfo:', filePath, webdavFileInfo)
-      webdavFileInfo.path = filePath
-      cacheFileInfo(webdavFileInfo)
-      request.fileSize = webdavFileInfo.size * 1
+      try {
+        const webdavFileInfo = await getWebdavFileInfo(request.urlAddr.replace(filePath, ''), authorization, decodeURIComponent(filePath))
+        console.log('@@webdavFileInfo:', filePath, webdavFileInfo)
+        webdavFileInfo.path = filePath
+        cacheFileInfo(webdavFileInfo)
+        request.fileSize = webdavFileInfo.size * 1
+      } catch (e) {}
     }
     // console.log('@@@@request.filePath ', request.filePath, result)
     if (request.fileSize === 0) {

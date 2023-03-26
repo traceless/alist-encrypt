@@ -1,7 +1,6 @@
 // import PRGAExcuteThread from './utils/PRGAThread.js'
-import os from 'os'
 import Rc4 from './utils/rc4.js'
-import { cacheFileInfo, initFileTable, getFileInfo, getAllFileInfo } from './dao/fileDao.js'
+import { cacheFileInfo, initFileTable, getFileInfo } from './dao/fileDao.js'
 
 // 初始化目录
 const rc4 = new Rc4('123456', 12)
