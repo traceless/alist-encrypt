@@ -4,6 +4,7 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import http from 'http'
 import crypto from 'crypto'
+import path from 'path'
 import { httpProxy, httpClient } from './utils/httpClient.js'
 import bodyparser from 'koa-bodyparser'
 import FlowEnc from './utils/flowEnc.js'
@@ -14,9 +15,11 @@ import globalHandle from './middleware/globalHandle.js'
 import allRouter from './router.js'
 import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
 import { getWebdavFileInfo } from './utils/webdavClient.js'
+import staticServer from 'koa-static'
 
 const webdavRouter = new Router()
 const app = new Koa()
+app.use(staticServer(path.resolve(), 'public'))
 app.use(globalHandle)
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
@@ -45,7 +48,6 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   if (start) {
     await flowEnc.setPosition(start)
   }
-  console.log('@@redirect_url: ', request.url, redirectUrl)
   // 设置请求地址和是否要解密
   const decode = ctx.query.decode
   // 修改百度头
@@ -59,7 +61,7 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   delete request.headers.referer
   request.passwdInfo = passwdInfo
   // 默认判断路径来识别是否要解密，如果有decode参数，那么则按decode来处理，这样可以让用户手动处理是否解密？(那还不如直接在alist下载)
-  let decryptTransform = pathExec(passwdInfo.encPath, request.url) ? flowEnc.decryptTransform() : null
+  let decryptTransform = passwdInfo.enable && pathExec(passwdInfo.encPath, request.url) ? flowEnc.decryptTransform() : null
   if (decode) {
     decryptTransform = decode !== '0' ? flowEnc.decryptTransform() : null
   }
@@ -99,7 +101,7 @@ async function webdavHandle(ctx, next) {
   const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
   // 检查路径是否满足加密要求
   const { passwdInfo, pathInfo } = pathFindPasswd(passwdList, request.url)
-  console.log('@@@@passwdInfo', passwdList )
+  console.log('@@@@passwdInfo', passwdList)
   // 如果是上传文件，那么进行流加密，目前只支持webdav上传，如果alist页面有上传功能，那么也可以兼容进来
   if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo) {
     // 兼容macos的webdav客户端x-expected-entity-length
@@ -156,18 +158,6 @@ webdavServer.forEach((webdavConfig) => {
 
 /* =================================== 单独处理alist的逻辑 ====================================== */
 
-// 初始化alist的路由，新增/d/* 路由
-let downloads = []
-for (const passData of alistServer.passwdList) {
-  for (const key in passData.encPath) {
-    downloads.push('/d' + passData.encPath[key])
-    downloads.push('/p' + passData.encPath[key])
-    downloads.push('/dav' + passData.encPath[key])
-  }
-  // 处理alist的逻辑
-  passData.encPath = passData.encPath.concat(downloads)
-  downloads = []
-}
 // 先处理webdav，然后再处理普通的http
 webdavRouter.all(/\/dav\/*/, preProxy(alistServer, true), webdavHandle)
 
@@ -212,7 +202,7 @@ webdavRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
   }
   for (let i = 0; i < content.length; i++) {
     const fileInfo = content[i]
-    fileInfo.path = path + '/' + encodeURIComponent(fileInfo.name)
+    fileInfo.path = encodeURI(path + '/' + fileInfo.name)
     // 这里要注意闭包问题，mad
     await cacheFileInfo(fileInfo)
   }
@@ -238,7 +228,13 @@ webdavRouter.put('/api/fs/put', async (ctx, next) => {
 
 // 初始化alist的路由
 webdavRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
-  await httpProxy(ctx.req, ctx.res)
+  let respBody = await httpClient(ctx.req, ctx.res)
+  respBody = respBody.replace(
+    '<body>',
+    '<body><div style="position: fixed;z-index:10010; top:8px; margin-left: 50%">' +
+      '<img style="width:40px;height:40px;" src="/public/logo.png" /></div>'
+  )
+  ctx.body = respBody
 })
 // 使用路由控制
 app.use(webdavRouter.routes()).use(webdavRouter.allowedMethods())

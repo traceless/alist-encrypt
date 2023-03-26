@@ -8,7 +8,7 @@ export default async function (ctx, next) {
     if (typeof ctx.body === 'object') {
       const { flag, msg, code, data } = ctx.body
       const body = {
-        flag: flag || false,
+        flag: flag || true,
         msg,
         code: code || 200,
         data,

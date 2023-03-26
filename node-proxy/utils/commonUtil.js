@@ -14,7 +14,7 @@ export function pathExec(encPath, url) {
 export function pathFindPasswd(passwdList, url) {
   for (const passwdInfo of passwdList) {
     for (const path of passwdInfo.encPath) {
-      const result = pathToRegexp(new RegExp(path)).exec(url)
+      const result = passwdInfo.enable ? pathToRegexp(new RegExp(path)).exec(url) : null
       if (result) {
         return { passwdInfo, pathInfo: result }
       }

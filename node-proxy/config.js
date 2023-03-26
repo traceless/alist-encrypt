@@ -11,14 +11,16 @@ if (!fs.existsSync(path.resolve('conf'))) {
 const alistServerTemp = {
   name: 'alist',
   path: '/*', // 默认就是代理全部，不建议修改这里
+  describe: 'alist 配置',
   serverHost: '127.0.0.1',
   serverPort: 5244,
   passwdList: [
     {
       password: '123456',
-      encType: 'rc4',
-      enable: true,
-      encPath: ['/aliyun/test/*', '/189cloud/atest/*'],
+      describe: 'my video', // 加密内容描述
+      encType: 'rc4', // 算法类型，可选mix，rc4，默认mix
+      enable: true, // 是否开启
+      encPath: ['/aliyun/test/*', '/189cloud/atest/*'], // 路径支持正则表达式，常用的就是 尾巴带*，此目录的所文件都加密
     },
   ],
 }
@@ -26,18 +28,20 @@ const alistServerTemp = {
 /** 支持其他普通的webdav，当然也可以挂载alist的webdav，但是上面配置更加适合 */
 const webdavServerTemp = [
   {
-    name: 'aliyun',
-    path: '/dav/*', // 代理全部路径，不能是"/proxy/*"，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
-    enable: false, // 是否启动代理
+    id: 'abcdefg',
+    name: 'other-webdav',
+    describe: 'webdav 电影',
+    path: '/dav/*', // 代理全部路径，需要重启后生效。不能是"/enc-api/*"，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
+    enable: false, // 是否启动代理，需要重启后生效
     serverHost: '127.0.0.1',
-    encryptType: 'mix', // 密码类型，mix：速度更快适合机顶盒，rc4: 更安全，速度也慢了一点
     serverPort: 5244,
     passwdList: [
       {
         password: '123456',
-        encType: 'rc4',
+        encType: 'rc4', // 密码类型，mix：速度更快适合电视盒子之类，rc4: 更安全，速度比mix慢一点，几乎无感知。
+        describe: 'my video',
         enable: false,
-        encPath: ['/dav/aliyun/*', '/dav/189cloud/*'],
+        encPath: ['/dav/aliyun/*', '/dav/189cloud/*'], // 子路径
       },
     ],
   },
@@ -65,6 +69,7 @@ if (configData.alistServer.flowPassword) {
   delete alistServer.flowPassword
   delete alistServer.encryptType
   delete alistServer.encPath
+  configData.webdavServer = webdavServerTemp
   fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify(configData, '', '\t'))
 }
 
@@ -84,11 +89,31 @@ async function init() {
 }
 init()
 
+// 副本用于前端更新, Object.assign({}, configData.alistServer) 只有第一层的拷贝
+configData.alistServer._snapshot = JSON.parse(JSON.stringify(configData.alistServer))
+export function initAlistConfig(alistServerConfig) {
+  // 初始化alist的路由，新增/d/* 路由
+  let downloads = []
+  for (const passwdData of alistServerConfig.passwdList) {
+    for (const key in passwdData.encPath) {
+      downloads.push('/d' + passwdData.encPath[key])
+      downloads.push('/p' + passwdData.encPath[key])
+      downloads.push('/dav' + passwdData.encPath[key])
+    }
+    // 处理alist的逻辑
+    passwdData.encPath = passwdData.encPath.concat(downloads)
+    downloads = []
+  }
+  return alistServerConfig
+}
+/** 初始化alist的一些路径 */
+initAlistConfig(configData.alistServer)
+
 /** 代理服务的端口 */
 export const port = configData.port || 5344
 
-// 防止用户修改错了
 export const alistServer = configData.alistServer || alistServerTemp
+
 export const webdavServer = configData.webdavServer || webdavServerTemp
 
 console.log('configData ', configData)

@@ -30,7 +30,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
         // 可能出现304，redirectUrl = undefined
         const redirectUrl = httpResp.headers.location || '-'
         // 百度云盘不是https，坑爹，因为天翼云会多次302，所以这里要保持，跳转后的路径保持跟上次一致，经过本服务器代理就可以解密
-        if (decryptTransform) {
+        if (decryptTransform && passwdInfo.enable) {
           const key = crypto.randomUUID()
           console.log()
           await levelDB.setExpire(key, { redirectUrl, passwdInfo, fileSize: request.fileSize }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
@@ -62,7 +62,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
   })
 }
 
-export async function httpClient(request, response, encryptTransform, decryptTransform) {
+export async function httpClient(request, response) {
   const { method, headers, urlAddr, reqBody } = request
   console.log('@@request_client: ', method, urlAddr, headers)
   // 创建请求
@@ -93,6 +93,11 @@ export async function httpClient(request, response, encryptTransform, decryptTra
           console.log('httpResp响应结束...', request.url)
         })
     })
+    // 透传请求，不透传response
+    if (!reqBody) {
+      request.pipe(httpReq)
+      return
+    }
     // 发送请求
     typeof reqBody === 'string' ? httpReq.write(reqBody) : httpReq.write(JSON.stringify(reqBody))
     httpReq.end()

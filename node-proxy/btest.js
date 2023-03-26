@@ -24,17 +24,16 @@ async function start() {
   }
   fileInfo.path = '/aliy/test/test3/9A%84%E5%89%AF%E6%9C%AC36.txt'
 
-  for (let i = 0; i < 100; i++) {
-    fileInfo.path = fileInfo.path + i
-    await cacheFileInfo(fileInfo)
-  }
-
   await cacheFileInfo(fileInfo)
   const data = await getFileInfo(fileInfo.path)
 
-  const data2 = await getAllFileInfo(fileInfo.path)
-  console.log(data2)
+  console.log(data)
+
+  setTimeout(() => {
+    cacheFileInfo(fileInfo)
+  }, 12 * 1000)
 }
+
 setTimeout(() => {
   start()
 }, 200)
