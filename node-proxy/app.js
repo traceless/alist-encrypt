@@ -137,6 +137,7 @@ async function webdavHandle(ctx, next) {
         request.fileSize = webdavFileInfo.size * 1
       } catch (e) {}
     }
+    request.passwdInfo = passwdInfo
     // console.log('@@@@request.filePath ', request.filePath, result)
     if (request.fileSize === 0) {
       // 说明不用加密
