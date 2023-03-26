@@ -72,6 +72,10 @@ router.all('/getUserInfo', async (ctx, next) => {
 router.all('/updatePasswd', async (ctx, next) => {
   const userInfo = ctx.userInfo
   const { password, newpassword } = ctx.request.body
+  if (newpassword.length < 7) {
+    ctx.body = { msg: 'password too short, at less 8 digits', code: 500 }
+    return
+  }
   if (password !== userInfo.password) {
     ctx.body = { msg: 'password error', code: 500 }
     return
@@ -123,7 +127,7 @@ router.all('/delWebdavConfig', async (ctx, next) => {
   const { id } = ctx.request.body
   for (const index in webdavServer) {
     if (webdavServer[index].id === id) {
-      webdavServer.splice(index, 1) 
+      webdavServer.splice(index, 1)
     }
   }
   fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
