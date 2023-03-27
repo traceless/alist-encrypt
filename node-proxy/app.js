@@ -82,7 +82,7 @@ function preProxy(webdavConfig, isWebdav) {
       request.headers.authorization = request.headers.authorization ? (authorization = request.headers.authorization) : authorization
     }
     // 原来的host保留，以后可能会用到
-    request.host = request.headers.host
+    request.selfHost = request.headers.host
     request.origin = request.headers.origin
     request.headers.host = serverHost + ':' + serverPort
     request.urlAddr = `http://${request.headers.host}${request.url}`
@@ -239,8 +239,13 @@ webdavRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
   let respBody = await httpClient(ctx.req, ctx.res)
   respBody = respBody.replace(
     '<body>',
-    '<body><div style="position: fixed;z-index:10010; top:8px; margin-left: 50%">' +
-      '<img style="width:40px;height:40px;" src="/public/logo.png" /></div>'
+    `<body><div style="position: fixed;z-index:10010; top:8px; margin-left: 50%">
+      <a target="_blank" href="http://${ctx.req.selfHost}/public/index.html">
+        <div style="width:100px;height:50px">
+          <img style="width:40px;height:40px;" src="/public/logo.png" />
+        </div>
+      </a>
+    </div>`
   )
   ctx.body = respBody
 })
