@@ -52,6 +52,11 @@ Alist-encrypt 就是为了解决这个问题，它可以结合 webdav 服务器�
 
 > docker run -d -p 5344:5344 -v /etc/conf:/node-proxy/conf --name=alist-encrypt prophet310/alist-encrypt:beta
 
+arm版本目前单独打包 beta-arm，后续再放一起
+
+> docker run -d -p 5344:5344 -v /etc/conf:/node-proxy/conf --name=alist-encrypt prophet310/alist-encrypt:beta-arm 
+
+
 启动后就打开代理服务器地址 http://127.0.0.1:5344/public/index.html 即可进入配置页面，账号admin，密码默认123456。配置后之后，打开http://127.0.0.1:5344 即可访问到alist的服务了
 
 ### 操作使用
