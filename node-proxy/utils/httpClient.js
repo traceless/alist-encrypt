@@ -12,7 +12,7 @@ const httpAgent = new Agent({ keepAlive: true })
 
 export async function httpProxy(request, response, encryptTransform, decryptTransform) {
   const { method, headers, urlAddr, passwdInfo } = request
-  console.log('@@request_info: ', method, urlAddr, headers)
+  console.log('@@request_info: ', method, urlAddr, headers, !!encryptTransform, !!decryptTransform)
   // 创建请求
   const options = {
     method,

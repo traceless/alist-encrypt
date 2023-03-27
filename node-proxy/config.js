@@ -31,7 +31,7 @@ const webdavServerTemp = [
     id: 'abcdefg',
     name: 'other-webdav',
     describe: 'webdav 电影',
-    path: '/dav/*', // 代理全部路径，需要重启后生效。不能是"/enc-api/*"，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
+    path: '/test/*', // 代理全部路径，需要重启后生效。不能是"/enc-api/*" ，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
     enable: false, // 是否启动代理，需要重启后生效
     serverHost: '127.0.0.1',
     serverPort: 5244,

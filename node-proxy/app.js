@@ -133,9 +133,14 @@ async function webdavHandle(ctx, next) {
         const webdavFileInfo = await getWebdavFileInfo(request.urlAddr.replace(filePath, ''), authorization, decodeURIComponent(filePath))
         console.log('@@webdavFileInfo:', filePath, webdavFileInfo)
         webdavFileInfo.path = filePath
-        cacheFileInfo(webdavFileInfo)
+        // 这里有可能返回O-size，应该是webdav的坑，，某些get请求返回的size=0，不要缓存起来
+        if (webdavFileInfo.size * 1 > 0) {
+          cacheFileInfo(webdavFileInfo)
+        }
         request.fileSize = webdavFileInfo.size * 1
-      } catch (e) {}
+      } catch (e) {
+        console.log('@@webdavFileInfo_error:', filePath)
+      }
     }
     request.passwdInfo = passwdInfo
     // console.log('@@@@request.filePath ', request.filePath, result)
