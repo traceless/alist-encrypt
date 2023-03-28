@@ -35,16 +35,17 @@ allRouter.all('/enc-api/login', async (ctx, next) => {
     ctx.body = { data: { userInfo, jwtToken: token } }
     return
   }
-  ctx.body = { msg: '密码不正确 ', code: 500 }
+  ctx.body = { msg: 'passwword error', code: 500 }
 })
 
 // 拦截登录
 allRouter.all(/\/enc-api\/*/, async (ctx, next) => {
-  const { authorize_token: authorizeToken } = ctx.request.headers
+  // nginx不支持下划线headers
+  const { authorizetoken: authorizeToken } = ctx.request.headers
   // 查询数据库是否有密码
   const userInfo = await getUserByToken(authorizeToken)
   if (userInfo == null) {
-    ctx.body = { code: 401, msg: '当前用户未登录' }
+    ctx.body = { code: 401, msg: 'user unlogin' }
     return
   }
   ctx.userInfo = userInfo

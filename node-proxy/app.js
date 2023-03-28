@@ -1,7 +1,7 @@
 'use strict'
 
 import Koa from 'koa'
-import Router from '@koa/router'
+import Router from 'koa-router'
 import http from 'http'
 import crypto from 'crypto'
 import path from 'path'
@@ -74,7 +74,7 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
 function preProxy(webdavConfig, isWebdav) {
   let authorization = isWebdav
   return async (ctx, next) => {
-    const { serverHost, serverPort } = webdavConfig
+    const { serverHost, serverPort, https } = webdavConfig
     const request = ctx.req
     if (authorization) {
       // 缓存起来，提高webdav的请求效率
@@ -85,7 +85,8 @@ function preProxy(webdavConfig, isWebdav) {
     request.selfHost = request.headers.host
     request.origin = request.headers.origin
     request.headers.host = serverHost + ':' + serverPort
-    request.urlAddr = `http://${request.headers.host}${request.url}`
+    const protocol = https ? 'https' : 'http'
+    request.urlAddr = `${protocol}://${request.headers.host}${request.url}`
     request.webdavConfig = webdavConfig
     await next()
   }
