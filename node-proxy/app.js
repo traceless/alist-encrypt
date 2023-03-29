@@ -61,6 +61,8 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   // aliyun不允许这个referer，不然会出现403
   delete request.headers.referer
   request.passwdInfo = passwdInfo
+  // 123网盘和天翼网盘多次302
+  request.fileSize = fileSize
   // 默认判断路径来识别是否要解密，如果有decode参数，那么则按decode来处理，这样可以让用户手动处理是否解密？(那还不如直接在alist下载)
   let decryptTransform = passwdInfo.enable && pathExec(passwdInfo.encPath, request.url) ? flowEnc.decryptTransform() : null
   if (decode) {
@@ -218,7 +220,6 @@ webdavRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
     const fileInfo = content[i]
     fileInfo.path = encodeURI(path + '/' + fileInfo.name)
     // 这里要注意闭包问题，mad
-    console.log('@@@cacheFileInfoPath', fileInfo.path)
     await cacheFileInfo(fileInfo)
   }
   ctx.body = result

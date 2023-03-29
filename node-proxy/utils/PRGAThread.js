@@ -40,7 +40,7 @@ if (!isMainThread) {
       S[i] = S[j]
       S[j] = temp
     }
-    // 记录位置，下次继续伪随机
+    // return this position info
     return { sbox: S, i, j }
   }
   // workerData 由主线程发送过来的信息

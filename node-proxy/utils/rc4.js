@@ -9,59 +9,143 @@ import PRGAExcuteThread from './PRGAThread.js'
  * RC4算法，安全性相对好很多
  * 可以对 512345678进行 缓存计算节点，这样下次就可以不用计算那么大
  */
+const segmentPosition = 523456789
+const globalPositionData = {}
+
 class Rc4 {
-  // password，salt: 一般用文件的长度作为salt，确保每个文件密码流不一样
+  // password，salt: ensure that each file has a different password
   constructor(password, sizeSalt) {
     if (!sizeSalt) {
       throw new Error('salt is null')
     }
     this.password = password
-    // 对外的文件夹密码，可用于分享作用
+    // share you folder passwdOutward safety
     this.passwdOutward = password
     if (password.length !== 32) {
       this.passwdOutward = crypto.createHash('md5').update(password).digest('hex')
     }
-    // 加入盐
+    // add salt
     const passwdSalt = this.passwdOutward + sizeSalt
-    // fileHexKey: 实际文件密码，可用于分享作用
+    // fileHexKey: file passwd，can be share
     this.fileHexKey = crypto.createHash('md5').update(passwdSalt).digest('hex')
-    // 开始初始化
+    // get seedKey
     const seedKeyBuf = Buffer.from(this.fileHexKey, 'hex')
     this.position = 0
     this.i = 0
     this.j = 0
     this.sbox = []
     this.initKSA(seedKeyBuf)
-    // 获取128长度的key
+    // get 128 length key
     const randomKey = []
     this.PRGAExcute(128, (random) => {
       randomKey.push(random)
     })
     this.realRc4Key = Buffer.from(randomKey)
-    // 真正的初始化
+    // last init
     this.initKSA(this.realRc4Key)
+    // cache file position
+    if (sizeSalt > segmentPosition) {
+      this.cachePosition(parseInt(sizeSalt / segmentPosition))
+    }
   }
 
-  // 重置sbox，i，j，数量太大的话，建议使用下面的异步线程
-  setPosition(position = 0) {
-    this.position = position * 1
+  async cachePosition(num) {
+    // if it has already cache this file postion info, that return
+    if (globalPositionData[this.fileHexKey]) {
+      console.log('@@@@globalPositionData ', globalPositionData)
+      return
+    }
+    globalPositionData[this.fileHexKey] = []
+    const rc4 = new Rc4(this.password, 1)
+    rc4.realRc4Key = this.realRc4Key
+    rc4.setPosition(0)
+    const { sbox, i, j } = this
+    // must be i = 0
+    globalPositionData[this.fileHexKey].push({ sbox, i, j, position: 0 })
+    for (let i = 1; i < num + 1; i++) {
+      rc4.position = segmentPosition
+      const data = await PRGAExcuteThread(rc4)
+      rc4.sbox = data.sbox
+      rc4.i = data.i
+      rc4.j = data.j
+      data.position = segmentPosition * i
+      globalPositionData[this.fileHexKey].push(data)
+    }
+    console.log('@@@@globalPositionData data', globalPositionData)
+  }
+
+  // reset sbox，i，j
+  setPosition(newPosition = 0) {
+    newPosition *= 1
+    this.position = newPosition
+    const positionArray = globalPositionData[this.fileHexKey]
+    if (positionArray) {
+      for (const index in positionArray) {
+        if (newPosition < positionArray[index].position) {
+          // reset sbox, i, j
+          const data = positionArray[index - 1]
+          const { sbox, i, j, position } = data
+          this.sbox = Object.assign([], sbox)
+          this.i = i
+          this.j = j
+          // init position
+          console.log('@@setPosition in cache', newPosition)
+          this.PRGAExcute(newPosition - position, () => {})
+          return this
+        }
+      }
+    }
     this.initKSA(this.realRc4Key)
-    // 初始化长度，执行一遍就好
+    // init position
     this.PRGAExcute(this.position, () => {})
     return this
   }
 
-  async setPositionAsync(position = 0) {
-    this.position = position * 1
-    // 初始化
+  // back
+  setPositionBack(newPosition = 0) {
+    newPosition *= 1
+    this.position = newPosition
     this.initKSA(this.realRc4Key)
-    // 初始化长度，执行一遍就好
+    // init position
+    this.PRGAExcute(this.position, () => {})
+    return this
+  }
+
+  // reset sbox，i，j, use thread
+  async setPositionAsync(newPosition = 0) {
+    newPosition *= 1
+    this.position = newPosition
+    const positionArray = globalPositionData[this.fileHexKey]
+    if (positionArray) {
+      for (const index in positionArray) {
+        if (newPosition < positionArray[index].position) {
+          // reset sbox, i, j
+          const positionInfo = positionArray[index - 1]
+          const { sbox, i, j, position } = positionInfo
+          // assign new Object，because sbox will change in next enccrypt
+          this.sbox = Object.assign([], sbox)
+          this.i = i
+          this.j = j
+          // init position
+          console.log('@@setPositionAsync in cache', newPosition)
+          const data = await PRGAExcuteThread({ sbox, i, j, position: newPosition - position })
+          this.sbox = data.sbox
+          this.i = data.i
+          this.j = data.j
+          return data
+        }
+      }
+    }
+    // no cache
+    this.initKSA(this.realRc4Key)
+    // init position
     const data = await PRGAExcuteThread(this)
+    // cache sbox data
     const { sbox, i, j } = data
     this.sbox = sbox
     this.i = i
     this.j = j
-    return this
+    return data
   }
 
   encryptText(plainTextLen) {
@@ -75,14 +159,13 @@ class Rc4 {
     this.PRGAExcute(plainBuffer.length, (random) => {
       plainBuffer[index] = random ^ plainBuffer[index++]
     })
-    // 复用plainBuffer内存
     return plainBuffer
   }
 
   // 加密流转换
   encryptTransform() {
     return new Transform({
-      // 匿名函数确保this是指向本实例
+      // use anonymous func make sure `this` point to rc4
       transform: (chunk, encoding, next) => {
         next(null, this.encrypt(chunk))
       },
