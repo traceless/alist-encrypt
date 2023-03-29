@@ -1,6 +1,6 @@
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads'
 import os from 'os'
-
+let index = 0
 let PRGAExcuteThread = null
 // 一定要加上这个，不然会产生递归，创建无数线程
 if (isMainThread) {
@@ -15,7 +15,6 @@ if (isMainThread) {
   }
 
   PRGAExcuteThread = function (data) {
-    let index = 0
     return new Promise((resolve, reject) => {
       const worker = workerList[index++ % workerNum]
       worker.once('message', (res) => {
@@ -47,10 +46,10 @@ if (!isMainThread) {
   // workerData 由主线程发送过来的信息
   parentPort.on('message', (data) => {
     const startTime = Date.now()
-    console.log('@@@PRGAExcute-strat', data.position, Date.now(), workerData)
     const res = PRGAExcute(data)
     parentPort.postMessage(res)
-    console.log('@@@PRGAExcute-end', data.position, '@time:' + (Date.now() - startTime), workerData)
+    const time = Date.now() - startTime
+    console.log('@@@PRGAExcute-end', data.position, Date.now(), '@time:' + time, workerData)
   })
 }
 export default PRGAExcuteThread
