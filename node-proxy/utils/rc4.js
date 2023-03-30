@@ -59,7 +59,7 @@ class Rc4 {
     const rc4 = new Rc4(this.password, 1)
     rc4.realRc4Key = this.realRc4Key
     rc4.setPosition(0)
-    const { sbox, i, j } = this
+    const { sbox, i, j } = rc4
     // must be i = 0
     globalPositionData[this.fileHexKey].push({ sbox, i, j, position: 0 })
     for (let i = 1; i < num + 1; i++) {
