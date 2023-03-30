@@ -23,9 +23,7 @@ class Rc4 {
     this.passwdOutward = password
     if (password.length !== 32) {
       // add 'RC4' as salt
-      const sha256 = crypto.createHash('sha256')
-      const key = sha256.update(password + 'RC4').digest('hex')
-      this.passwdOutward = crypto.createHash('md5').update(key).digest('hex')
+      this.passwdOutward = crypto.createHash('md5').update(password).digest('hex')
     }
     // add salt
     const passwdSalt = this.passwdOutward + sizeSalt

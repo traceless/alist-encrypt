@@ -129,6 +129,9 @@ async function webdavHandle(ctx, next) {
     if (filePath.indexOf('/p') === 0) {
       filePath = filePath.replace('/p', '')
     }
+    if (filePath.indexOf('/d') === 0) {
+      filePath = filePath.replace('/d', '')
+    }
     const fileInfo = await getFileInfo(filePath)
     console.log('@@getFileInfo:', filePath, fileInfo, request.urlAddr)
     if (fileInfo) {

@@ -9,17 +9,16 @@ import { Transform } from 'stream'
 class MixEnc {
   constructor(password) {
     this.password = password
-    this.passwordMd5 = crypto.createHash('md5').update(password).digest('hex')
     // 说明是输入encode的秘钥，用于找回文件加解密
-    let encode
-    if (password.length === 32) {
-      encode = MixEnc.checkEncode(password)
-      if (!encode) {
-        throw new Error('encode Invalid')
-      }
+    this.passwdOutward = password
+    if (password.length !== 32) {
+      const sha256 = crypto.createHash('sha256')
+      const key = sha256.update(password + 'MIX').digest('hex')
+      this.passwdOutward = crypto.createHash('md5').update(key).digest('hex')
     }
-    const md5 = crypto.createHash('md5')
-    encode = md5.update(password).digest()
+    console.log('this.passwdOutward', this.passwdOutward)
+    const sha256 = crypto.createHash('sha256')
+    const encode = sha256.update(this.passwdOutward).digest()
     const decode = []
     const length = encode.length
     const decodeCheck = {}
@@ -32,7 +31,7 @@ class MixEnc {
       } else {
         for (let j = 0; j < length; j++) {
           if (!decodeCheck[j]) {
-            encode[i] = (encode[i] & 0xf0) | (j ^ i)
+            encode[i] = (encode[i] & length) | (j ^ i)
             decode[j] = encode[i] & 0xff
             decodeCheck[j] = encode[i]
             break
@@ -49,7 +48,7 @@ class MixEnc {
   // MD5
   md5(content) {
     const md5 = crypto.createHash('md5')
-    return md5.update(this.passwordMd5 + content).digest('hex')
+    return md5.update(this.passwdOutward + content).digest('hex')
   }
 
   // 加密流转换
@@ -76,7 +75,7 @@ class MixEnc {
   encodeData(data) {
     data = Buffer.from(data)
     for (let i = data.length; i--; ) {
-      data[i] ^= this.encode[data[i] % 16]
+      data[i] ^= this.encode[data[i] % 32]
     }
     return data
   }
@@ -84,7 +83,7 @@ class MixEnc {
   // 解密方法
   decodeData(data) {
     for (let i = data.length; i--; ) {
-      data[i] ^= this.decode[data[i] % 16]
+      data[i] ^= this.decode[data[i] % 32]
     }
     return data
   }
@@ -106,10 +105,11 @@ MixEnc.checkEncode = function (_encode) {
   }
   return encode
 }
-// const flowEnc = new MixEnc('abc1234')
+
+// const flowEnc = new MixEnc('abc1234', 1234)
 // const encode = flowEnc.encodeData('测试的明文加密1234￥%#')
-// const decode = flowEnc.decodeData(encode)
+// const nwe = new MixEnc('5fc8482ac3a7b3fd9325566dfdd31673', 1234)
+// const decode = nwe.decodeData(encode)
 // console.log('@@@decode', encode, decode.toString())
-// console.log(new MixEnc('e10adc3949ba56abbe5be95ff90a8636'))
 
 export default MixEnc

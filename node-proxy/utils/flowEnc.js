@@ -2,6 +2,7 @@
 
 import MixEnc from './mixEnc.js'
 import Rc4 from './rc4.js'
+import Rc4back from './rc4back.js'
 
 class FlowEnc {
   constructor(password, encryptType = 'mix', fileSize = 0) {
@@ -15,6 +16,10 @@ class FlowEnc {
     if (encryptType === 'rc4') {
       console.log('@@rc4', encryptType, fileSize)
       encryptFlow = new Rc4(password, fileSize)
+    }
+    if (encryptType === 'rc4back') {
+      console.log('@@Rc4back', encryptType, fileSize)
+      encryptFlow = new Rc4back(password, fileSize)
     }
     if (encryptType === null) {
       throw new Error('FlowEnc error')
