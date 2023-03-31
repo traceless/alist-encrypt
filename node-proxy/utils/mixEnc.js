@@ -51,6 +51,10 @@ class MixEnc {
     return md5.update(this.passwdOutward + content).digest('hex')
   }
 
+  async setPositionAsync() {
+    console.log('in the mix ')
+  }
+
   // 加密流转换
   encryptTransform() {
     return new Transform({

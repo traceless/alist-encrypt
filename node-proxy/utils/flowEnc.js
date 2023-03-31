@@ -33,6 +33,9 @@ class FlowEnc {
     if (this.encryptType === 'rc4') {
       await this.encryptFlow.setPositionAsync(position)
     }
+    if (this.encryptType === 'rc4back') {
+      await this.encryptFlow.setPositionAsync(position)
+    }
   }
 
   // 加密流转换
