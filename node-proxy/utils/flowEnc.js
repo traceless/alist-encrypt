@@ -6,7 +6,6 @@ import Rc4back from './rc4back.js'
 
 class FlowEnc {
   constructor(password, encryptType = 'mix', fileSize = 0) {
-    // 貌似就是这个字母慢
     fileSize *= 1
     let encryptFlow = null
     if (encryptType === 'mix') {
@@ -28,14 +27,12 @@ class FlowEnc {
     this.encryptType = encryptType
   }
 
-  // 设置文件开始加密的位置
   async setPosition(position) {
-    if (this.encryptType === 'rc4') {
-      await this.encryptFlow.setPositionAsync(position)
-    }
-    if (this.encryptType === 'rc4back') {
-      await this.encryptFlow.setPositionAsync(position)
-    }
+    await this.encryptFlow.setPositionAsync(position)
+  }
+
+  async cachePosition() {
+    await this.encryptFlow.cachePosition()
   }
 
   // 加密流转换

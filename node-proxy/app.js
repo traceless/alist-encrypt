@@ -68,6 +68,7 @@ webdavRouter.all('/redirect/:key', async (ctx) => {
   if (decode) {
     decryptTransform = decode !== '0' ? flowEnc.decryptTransform() : null
   }
+  flowEnc.cachePosition()
   // 请求实际服务资源
   await httpProxy(request, response, null, decryptTransform)
   console.log('----finish redirect---', decode, request.urlAddr, decryptTransform === null)
@@ -160,6 +161,8 @@ async function webdavHandle(ctx, next) {
       return await httpProxy(request, response)
     }
     const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
+    // if he get the video , cache position
+    flowEnc.cachePosition()
     if (start) {
       await flowEnc.setPosition(start)
     }

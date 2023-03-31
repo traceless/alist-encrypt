@@ -19,6 +19,7 @@ class Rc4 {
       throw new Error('salt is null')
     }
     this.password = password
+    this.sizeSalt = sizeSalt
     // share you folder passwdOutward safety
     this.passwdOutward = password
     if (password.length !== 32) {
@@ -44,14 +45,16 @@ class Rc4 {
     this.realRc4Key = Buffer.from(randomKey)
     // last init
     this.initKSA(this.realRc4Key)
-    // cache file position
-    if (sizeSalt > segmentPosition) {
-      this.cachePosition(parseInt(sizeSalt / segmentPosition))
-    }
   }
 
-  async cachePosition(num) {
+  async cachePosition() {
     // if it has already cache this file postion info, that return
+    if (this.sizeSalt < segmentPosition) {
+      return
+    }
+    console.log('@@cachePosition: ', this.sizeSalt)
+    const num = parseInt(this.sizeSalt / segmentPosition)
+
     if (globalPositionData[this.fileHexKey]) {
       console.log('@@@@globalPositionData ', globalPositionData)
       return
