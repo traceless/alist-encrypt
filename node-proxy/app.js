@@ -127,11 +127,11 @@ async function webdavHandle(ctx, next) {
     // 如果是alist的话，那么必然有这个文件的size缓存（进过list就会被缓存起来）
     request.fileSize = 0
     // 这里需要处理掉/p 路径
-    if (filePath.indexOf('/p') === 0) {
-      filePath = filePath.replace('/p', '')
+    if (filePath.indexOf('/p/') === 0) {
+      filePath = filePath.replace('/p/', '/')
     }
-    if (filePath.indexOf('/d') === 0) {
-      filePath = filePath.replace('/d', '')
+    if (filePath.indexOf('/d/') === 0) {
+      filePath = filePath.replace('/d/', '/')
     }
     const fileInfo = await getFileInfo(filePath)
     console.log('@@getFileInfo:', filePath, fileInfo, request.urlAddr)
@@ -217,6 +217,10 @@ webdavRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
   ctx.req.reqBody = JSON.stringify(ctx.request.body)
   const respBody = await httpClient(ctx.req)
   const result = JSON.parse(respBody)
+  if (!result.data) {
+    ctx.body = result
+    return
+  }
   const content = result.data.content
   if (!content) {
     ctx.body = result
