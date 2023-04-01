@@ -99,9 +99,9 @@ export async function httpClient(request, response) {
     httpReq.on('error', (err) => {
       console.log('@@httpClient request error ', err)
     })
-    // 透传请求，不透传response
+    // check request type
     if (!reqBody) {
-      request.pipe(httpReq)
+      request.url ? request.pipe(httpReq) : httpReq.end()
       return
     }
     // 发送请求

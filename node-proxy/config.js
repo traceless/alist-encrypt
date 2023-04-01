@@ -1,10 +1,11 @@
-import path from 'path'
 import fs from 'fs'
 import { addUserInfo, initUserTable, getUserInfo } from './dao/userDao.js'
 import { initFileTable } from './dao/fileDao.js'
+
 // 初始化目录
-if (!fs.existsSync(path.resolve('conf'))) {
-  fs.mkdirSync(path.resolve('conf'))
+if (!fs.existsSync(process.cwd() + '/conf')) {
+  // fs.mkdirSync(path.resolve('conf'))
+  fs.mkdirSync(process.cwd() + '/conf')
 }
 
 /** 全局代理alist，包括它的webdav和http服务，要配置上 */
@@ -48,15 +49,19 @@ const webdavServerTemp = [
     ],
   },
 ]
-// 初始化config
-const exist = fs.existsSync(path.resolve('conf/config.json'))
+// inti config, fix ncc get local conf
+function getConfFilePath() {
+  return process.cwd() + '/conf/config.json'
+}
+
+const exist = fs.existsSync(getConfFilePath())
 if (!exist) {
   // 把默认数据写入到config.json
   const configData = { alistServer: alistServerTemp, webdavServer: webdavServerTemp, port: 5344 }
-  fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify(configData, '', '\t'))
+  fs.writeFileSync(getConfFilePath(), JSON.stringify(configData, '', '\t'))
 }
 // 读取配置文件
-const configJson = fs.readFileSync(path.resolve('conf/config.json'), 'utf8')
+const configJson = fs.readFileSync(getConfFilePath(), 'utf8')
 const configData = JSON.parse(configJson)
 
 // 兼容之前的数据进来，保留2个版
@@ -72,7 +77,7 @@ if (configData.alistServer.flowPassword) {
   delete alistServer.encryptType
   delete alistServer.encPath
   configData.webdavServer = webdavServerTemp
-  fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify(configData, '', '\t'))
+  fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify(configData, '', '\t'))
 }
 
 /** 初始化用户的数据库 */

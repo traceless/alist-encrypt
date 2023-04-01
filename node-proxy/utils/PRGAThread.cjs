@@ -1,15 +1,5 @@
-import { Worker, isMainThread, parentPort, workerData } from 'worker_threads'
-import os from 'os'
-import fs from 'fs'
-import path from 'path'
-import dotenv from 'dotenv'
-dotenv.config('./env')
-
-// ncc will take this file in out dist
-fs.existsSync(path.resolve() + '/utils/PRGAThread.cjs')
-
-const threadPath = path.resolve() + '/utils/PRGAThread.js'
-const nccThreadPathPath = path.resolve() + '/PRGAThread.cjs'
+const { Worker, isMainThread, parentPort, workerData } = require('worker_threads')
+const os = require('os')
 
 let index = 0
 let PRGAExcuteThread = null
@@ -19,12 +9,7 @@ if (isMainThread) {
   const workerNum = parseInt(os.cpus().length / 2 + 1)
   const workerList = []
   for (let i = workerNum; i--; ) {
-    console.log('@@Worker path', path.resolve())
-    let basePath = nccThreadPathPath
-    if (process.env.NODE_ENV === 'dev') {
-      basePath = threadPath
-    }
-    const worker = new Worker(basePath, {
+    const worker = new Worker('./utils/PRGAThread.js', {
       workerData: 'work-name-' + i,
     })
     workerList[i] = worker
@@ -68,4 +53,4 @@ if (!isMainThread) {
     console.log('@@@PRGAExcute-end', data.position, Date.now(), '@time:' + time, workerData)
   })
 }
-export default PRGAExcuteThread
+module.exports = PRGAExcuteThread

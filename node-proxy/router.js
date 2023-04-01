@@ -100,7 +100,7 @@ router.all('/saveAlistConfig', async (ctx, next) => {
   }
   const _snapshot = JSON.parse(JSON.stringify(alistConfig))
   // 写入到文件中，这里并不是真正的同步，，
-  fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify({ alistServer: _snapshot, webdavServer, port }, '', '\t'))
+  fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: _snapshot, webdavServer, port }, '', '\t'))
   alistConfig = initAlistConfig(alistConfig)
   Object.assign(alistServer, alistConfig)
   alistServer._snapshot = _snapshot
@@ -121,7 +121,7 @@ router.all('/saveWebdavConfig', async (ctx, next) => {
   }
   config.id = crypto.randomUUID()
   webdavServer.push(config)
-  fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
+  fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
   ctx.body = { data: webdavServer }
 })
 
@@ -139,7 +139,7 @@ router.all('/updateWebdavConfig', async (ctx, next) => {
       webdavServer[index] = config
     }
   }
-  fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
+  fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
   ctx.body = { data: webdavServer }
 })
 
@@ -150,7 +150,7 @@ router.all('/delWebdavConfig', async (ctx, next) => {
       webdavServer.splice(index, 1)
     }
   }
-  fs.writeFileSync(path.resolve('conf/config.json'), JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
+  fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
   ctx.body = { data: webdavServer }
 })
 

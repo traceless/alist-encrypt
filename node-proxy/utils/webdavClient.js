@@ -1,15 +1,26 @@
 'use strict'
 
-import { createClient } from 'webdav'
+import { httpClient } from './httpClient.js'
+import { XMLParser } from 'fast-xml-parser'
 
-export async function getWebdavFileInfo(url, authorization, filePath) {
-  console.log('@@getWebdavFileInfo', filePath)
-  const userAndPw = Buffer.from(authorization.replace('Basic ', ''), 'base64').toString('utf8')
-  const userPassws = userAndPw.split(':')
-  const client = createClient(url, {
-    username: userPassws[0],
-    password: userPassws[1],
-  })
-  const webdavFileInfo = await client.stat(decodeURIComponent(filePath))
-  return webdavFileInfo
+// get file info from webdav
+export async function getWebdavFileInfo(urlAddr, authorization) {
+  const request = {
+    method: 'PROPFIND',
+    headers: {
+      depth: 1,
+      authorization,
+    },
+    urlAddr,
+  }
+  const parser = new XMLParser({ removeNSPrefix: true })
+  const XMLdata = await httpClient(request)
+  const respBody = parser.parse(XMLdata)
+  const res = respBody.multistatus.response
+  console.log(res)
+  const filePath = res.href
+  const size = res.propstat.prop.getcontentlength || 0
+  const name = res.propstat.prop.displayname
+  const isDir = size === 0
+  return { size, name, isDir, filePath }
 }

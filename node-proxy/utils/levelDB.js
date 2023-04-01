@@ -35,7 +35,7 @@ class LevelDB extends Level {
     return null
   }
 }
-const levelDB = new LevelDB(path.resolve('conf/db-data'), { valueEncoding: 'json' })
+const levelDB = new LevelDB(process.cwd() + '/conf/db-data', { valueEncoding: 'json' })
 // 定时清除过期的数据
 setInterval(async () => {
   for await (const [key, data] of levelDB.iterator()) {
