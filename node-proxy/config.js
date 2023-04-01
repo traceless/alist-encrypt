@@ -2,8 +2,13 @@ import fs from 'fs'
 import { addUserInfo, initUserTable, getUserInfo } from './dao/userDao.js'
 import { initFileTable } from './dao/fileDao.js'
 
+// inti config, fix ncc get local conf
+function getConfPath() {
+  return process.cwd() + '/conf'
+}
+
 // 初始化目录
-if (!fs.existsSync(process.cwd() + '/conf')) {
+if (!fs.existsSync(getConfPath())) {
   // fs.mkdirSync(path.resolve('conf'))
   fs.mkdirSync(process.cwd() + '/conf')
 }
@@ -49,6 +54,7 @@ const webdavServerTemp = [
     ],
   },
 ]
+
 // inti config, fix ncc get local conf
 function getConfFilePath() {
   return process.cwd() + '/conf/config.json'
