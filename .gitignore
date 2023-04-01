@@ -17,11 +17,13 @@ cobertura.ser
 .settings/
 node_modules/
 conf/
+dist/
+ncc/
 bin
 .vscode
 .project
 .classpath
-
+*.env
 # idea ignore 33
 .idea/
 *.ipr

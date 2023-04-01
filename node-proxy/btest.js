@@ -1,30 +1,26 @@
 // import PRGAExcuteThread from './utils/PRGAThread.js'
 import Rc4 from './utils/rc4.js'
+import { httpClient } from './utils/httpClient.js'
+
+import { XMLParser } from 'fast-xml-parser'
 
 const startTime = Date.now()
 console.log('@@@PRGAExcute-strat', Date.now())
 // 初始化目录
 const size = 123456
-const rc4 = new Rc4('123456', size)
+console.log(process.env)
 
-const rc41 = new Rc4('123456', size)
-const rc42 = new Rc4('123456', size)
+const request = {
+  method: 'PROPFIND',
+  headers: {
+    depth: 1,
+    authorization: 'Basic YWRtaW46WWl1Tkg3bHk=',
+  },
+  urlAddr: 'http://192.168.8.240:5244/dav/aliyun/test4',
+}
+const parser = new XMLParser({ removeNSPrefix: true })
 
-setTimeout(() => {
-  const position = 52346
-
-  const data1 = rc41.setPosition(position)
-  console.log('@@@setPosition1', data1)
-
-  const data2 = rc42.setPositionAsync(position).then((res) => {
-    console.log('@@@setPosition2', res)
-  })
-
-  // rc43.getPositionAsync(position).then((res) => {
-  //   console.log('@@@getPositionAsync1', res)
-  // })
-
-  // rc44.setPositionAsync(position).then((res) => {
-  //   console.log('@@@setPositionAsync2', res)
-  // })
-}, 2000)
+httpClient(request).then((XMLdata) => {
+  let jObj = parser.parse(XMLdata)
+  console.log(jObj.multistatus.response[1].propstat)
+})
