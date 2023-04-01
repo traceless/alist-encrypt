@@ -1,4 +1,4 @@
-FROM node:16
+FROM node:16.20.0-alpine
 WORKDIR /node-proxy
 
 COPY . /node-proxy
