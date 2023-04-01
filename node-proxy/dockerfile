@@ -1,4 +1,4 @@
-FROM node:16.20.0-alpine
+FROM node:gallium-bullseye-slim
 WORKDIR /node-proxy
 
 COPY . /node-proxy
