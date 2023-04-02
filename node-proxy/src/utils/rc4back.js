@@ -23,7 +23,9 @@ class Rc4 {
     this.passwdOutward = password
     if (password.length !== 32) {
       // add 'RC4' as salt
-      this.passwdOutward = crypto.createHash('md5').update(password).digest('hex')
+      const sha256 = crypto.createHash('sha256')
+      const key = sha256.update(password + 'RC4').digest('hex')
+      this.passwdOutward = crypto.createHash('md5').update(key).digest('hex')
     }
     // add salt
     const passwdSalt = this.passwdOutward + sizeSalt
@@ -46,16 +48,16 @@ class Rc4 {
     this.initKSA(this.realRc4Key)
   }
 
+  // cache position info
   async cachePosition() {
-    // if it has already cache this file postion info, that return
     if (this.sizeSalt < segmentPosition) {
       return
     }
     console.log('@@cachePosition: ', this.sizeSalt)
     const num = parseInt(this.sizeSalt / segmentPosition)
-
+    // if it has already cache this file postion info, that return
     if (globalPositionData[this.fileHexKey]) {
-      console.log('@@@@globalPositionData ', globalPositionData)
+      console.log('@@@globalPositionData cache ', globalPositionData)
       return
     }
     globalPositionData[this.fileHexKey] = []
@@ -74,7 +76,7 @@ class Rc4 {
       data.position = segmentPosition * i
       globalPositionData[this.fileHexKey].push(data)
     }
-    console.log('@@@@globalPositionData data', globalPositionData)
+    console.log('@@@@globalPositionData init', globalPositionData)
   }
 
   // reset sbox，i，j

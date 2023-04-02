@@ -2,11 +2,12 @@
 
 import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
-import crypto from 'crypto'
+import crypto, { randomUUID } from 'crypto'
 import fs from 'fs'
 import { alistServer, webdavServer, port, initAlistConfig } from './config.js'
 import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao.js'
 import responseHandle from './middleware/responseHandle.js'
+import MixBase64 from './utils/mixBase64.js'
 
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
@@ -151,6 +152,31 @@ router.all('/delWebdavConfig', async (ctx, next) => {
   }
   fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
   ctx.body = { data: webdavServer }
+})
+
+// get folder passwd encode
+router.all('/encodeFoldName', async (ctx, next) => {
+  const { password, folderPw, encType } = ctx.request.body
+  crypto.randomInt(3)
+  const salt = MixBase64.randomStr(4)
+  const mix64 = new MixBase64(password, salt)
+  const passwdInfo = encType + '_' + folderPw
+  let name = mix64.encode(passwdInfo)
+  name += '_' + salt
+  ctx.body = { data: { name } }
+})
+
+router.all('/decodeFoldName', async (ctx, next) => {
+  const { password, folderName } = ctx.request.body
+  const arr = folderName.split('_')
+  if (arr.length < 3) {
+    ctx.body = { msg: 'folderName not encdoe', code: 500 }
+    return
+  }
+  const mix64 = new MixBase64(password, arr[arr.length - 1])
+  const passwdInfo = mix64.encode(arr[arr.length - 2])
+  const typePW = passwdInfo.split('_')
+  ctx.body = { data: { typePW } }
 })
 
 // 用这种方式代替前缀的功能，{ prefix: } 不能和正则联合使用

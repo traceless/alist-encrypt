@@ -47,7 +47,8 @@
     ],
     "assets": [
       "ncc/public/**/*",
-      "ncc/prebuilds/**/*"
+      "ncc/prebuilds/**/*",
+      "ncc/build/**/*"
     ],
     "outputPath": "dist"
   }
