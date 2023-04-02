@@ -1,32 +1,4 @@
-const { Worker, isMainThread, parentPort, workerData } = require('worker_threads')
-const os = require('os')
-
-let index = 0
-let PRGAExcuteThread = null
-// 一定要加上这个，不然会产生递归，创建无数线程
-if (isMainThread) {
-  // 避免消耗光资源，加一用于后续的预加载RC4的位置
-  const workerNum = parseInt(os.cpus().length / 2 + 1)
-  const workerList = []
-  for (let i = workerNum; i--; ) {
-    const worker = new Worker('./PRGAThread.js', {
-      workerData: 'work-name-' + i,
-    })
-    workerList[i] = worker
-  }
-
-  PRGAExcuteThread = function (data) {
-    return new Promise((resolve, reject) => {
-      const worker = workerList[index++ % workerNum]
-      worker.once('message', (res) => {
-        resolve(res)
-      })
-      worker.once('error', reject)
-      // 发送数据
-      worker.postMessage(data)
-    })
-  }
-}
+const { isMainThread, parentPort, workerData } = require('worker_threads')
 
 // 如果是线程执行了这个文件，就开始处理
 if (!isMainThread) {
@@ -53,4 +25,3 @@ if (!isMainThread) {
     console.log('@@@PRGAExcute-end', data.position, Date.now(), '@time:' + time, workerData)
   })
 }
-module.exports = PRGAExcuteThread

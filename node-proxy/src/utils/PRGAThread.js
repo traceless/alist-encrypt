@@ -21,9 +21,8 @@ if (isMainThread) {
   const workerNum = parseInt(os.cpus().length / 2 + 1)
   const workerList = []
   for (let i = workerNum; i--; ) {
-    console.log('@@Worker path', pkgThreadPath)
     let basePath = pkgThreadPath
-    if (process.env.NODE_ENV === 'dev') {
+    if (process.env.RUN_MODE === 'script') {
       basePath = threadPath
     }
     const worker = new Worker(basePath, {

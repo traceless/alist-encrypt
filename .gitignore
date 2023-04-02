@@ -23,7 +23,6 @@ bin
 .vscode
 .project
 .classpath
-*.env
 # idea ignore 33
 .idea/
 *.ipr
