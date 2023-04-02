@@ -19,7 +19,10 @@ import staticServer from 'koa-static'
 
 const webdavRouter = new Router()
 const app = new Koa()
-app.use(staticServer(path.resolve(), 'public'))
+// compatible ncc and pkg
+const pkgDirPath = path.dirname(process.argv[1])
+
+app.use(staticServer(pkgDirPath, 'public'))
 app.use(globalHandle)
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })

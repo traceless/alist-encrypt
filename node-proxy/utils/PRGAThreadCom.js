@@ -9,7 +9,7 @@ if (isMainThread) {
   const workerNum = parseInt(os.cpus().length / 2 + 1)
   const workerList = []
   for (let i = workerNum; i--; ) {
-    const worker = new Worker('./utils/PRGAThread.js', {
+    const worker = new Worker('./PRGAThread.js', {
       workerData: 'work-name-' + i,
     })
     workerList[i] = worker

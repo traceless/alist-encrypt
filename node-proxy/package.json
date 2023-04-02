@@ -7,7 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "ncc": "ncc build app.js -o ncc ",
-    "build": "npm run ncc && pkg --compress GZip . "
+    "build": "npm run ncc && cp -r public ncc && pkg --compress GZip . "
   },
   "keywords": [],
   "author": "",
@@ -41,8 +41,14 @@
     "options": [
       "experimental-modules"
     ],
-    "scripts": "ncc/**/*.js",
-    "outputPath": "dist",
-    "o": "enc-cli"
+    "scripts": [
+      "ncc/index.js",
+      "ncc/PRGAThreadCom.js"
+    ],
+    "assets": [
+      "ncc/public/**/*",
+      "ncc/prebuilds/**/*"
+    ],
+    "outputPath": "dist"
   }
 }

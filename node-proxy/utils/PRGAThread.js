@@ -6,10 +6,11 @@ import dotenv from 'dotenv'
 dotenv.config('./env')
 
 // ncc will take this file in out dist
-fs.existsSync(path.resolve() + '/utils/PRGAThread.cjs')
+fs.existsSync(path.resolve() + '/utils/PRGAThreadCom.js')
 
+const pkgDirPath = path.dirname(process.argv[1])
+const nccThreadPath = pkgDirPath + '/PRGAThreadCom.js'
 const threadPath = path.resolve() + '/utils/PRGAThread.js'
-const nccThreadPathPath = path.resolve() + '/PRGAThread.cjs'
 
 let index = 0
 let PRGAExcuteThread = null
@@ -19,8 +20,8 @@ if (isMainThread) {
   const workerNum = parseInt(os.cpus().length / 2 + 1)
   const workerList = []
   for (let i = workerNum; i--; ) {
-    console.log('@@Worker path', path.resolve())
-    let basePath = nccThreadPathPath
+    console.log('@@Worker path', path.resolve(), nccThreadPath)
+    let basePath = nccThreadPath
     if (process.env.NODE_ENV === 'dev') {
       basePath = threadPath
     }
