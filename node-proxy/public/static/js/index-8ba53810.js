@@ -1,1 +1,0 @@
-import{d as e,V as o,e as t,i as a,j as c,l as s}from"./index-104bf41b.js";const _={class:"scroll-y"},n=s("h3",{class:"mb-20px"},"功能",-1),r=s("div",{class:"rowSS"},"文件转存，可以把任意文件转到加密文件夹中，建议1G内的文件使用",-1),i=[n,r],d=e({}),h=Object.assign(d,{__name:"index",setup(l){return o(t()),(p,m)=>(a(),c("div",_,i))}});export{h as default};
