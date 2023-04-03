@@ -28,18 +28,11 @@ class Rc4 {
     // fileHexKey: file passwd，can be share
     this.fileHexKey = crypto.createHash('md5').update(passwdSalt).digest('hex')
     // get seedKey
-    const seedKeyBuf = Buffer.from(this.fileHexKey, 'hex')
+    this.realRc4Key = Buffer.from(this.fileHexKey, 'hex')
     this.position = 0
     this.i = 0
     this.j = 0
     this.sbox = []
-    this.initKSA(seedKeyBuf)
-    // get 128 length key
-    const randomKey = []
-    this.PRGAExcute(128, (random) => {
-      randomKey.push(random)
-    })
-    this.realRc4Key = Buffer.from(randomKey)
     // last init
     this.initKSA(this.realRc4Key)
   }

@@ -95,17 +95,7 @@ class Rc4 {
     }
     this.initKSA(this.realRc4Key)
     // init position
-    this.PRGAExcute(this.position, () => {})
-    return this
-  }
-
-  // back
-  setPositionBack(newPosition = 0) {
-    newPosition *= 1
-    this.position = newPosition
-    this.initKSA(this.realRc4Key)
-    // init position
-    this.PRGAExcute(this.position, () => {})
+    this.PRGAExecPostion(this.position)
     return this
   }
 
@@ -190,10 +180,25 @@ class Rc4 {
       const temp = S[i]
       S[i] = S[j]
       S[j] = temp
-      // 产生伪随机
       callback(S[(S[i] + S[j]) % 256])
     }
-    // 记录位置，下次继续伪随机
+    // save the i,j
+    this.i = i
+    this.j = j
+  }
+
+  PRGAExecPostion(plainLen) {
+    let { sbox: S, i, j } = this
+    // k-- is inefficient
+    for (let k = 0; k < plainLen; k++) {
+      i = (i + 1) % 256
+      j = (j + S[i]) % 256
+      // swap
+      const temp = S[i]
+      S[i] = S[j]
+      S[j] = temp
+    }
+    // save the i,j
     this.i = i
     this.j = j
   }
