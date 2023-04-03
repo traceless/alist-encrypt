@@ -5,6 +5,7 @@
   "type": "module",
   "main": "app.js",
   "scripts": {
+    "dev": "node-dev app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "ncc": "ncc build app.js -o ncc ",
     "build": "npm run ncc && cp -r public ncc && pkg --compress GZip . "
@@ -33,6 +34,7 @@
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-n": "^15.6.1",
     "eslint-plugin-promise": "^6.1.1",
+    "node-dev": "^8.0.0",
     "pkg": "^5.8.1",
     "prettier": "^2.8.4"
   },

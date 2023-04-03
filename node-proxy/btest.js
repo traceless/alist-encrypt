@@ -1,73 +1,60 @@
 import crypto from 'crypto'
-import JSSalsa20 from './src/utils/JSSalsa20.js'
-import ChaCha20 from './src/utils/ChaCha20.js'
+import ChaCha20 from './src/utils/chaCha20.js'
+import Rc4 from './src/utils/rc4.js'
+import ChaCha20Poly from './src/utils/chaCha20Poly.js'
 
-import { XMLParser } from 'fast-xml-parser'
+let decrypted = null
+const iv = crypto.pbkdf2Sync('123456', 'salt', 5, 12, 'sha512')
+const keyenc = crypto.pbkdf2Sync('123456', 'salt', 1, 32, 'sha512')
 
+const rc4System = crypto.createCipheriv('rc4', 'MY SECRET KEY', '')
 const decipher = crypto.createDecipheriv('rc4', 'MY SECRET KEY', '')
+decrypted = rc4System.update(Buffer.from('test rc4 encrypt'), 'binary', 'hex')
+// decrypted += encipher.final('hex')
+console.log('@@@@', decrypted, decipher.update(decrypted, 'hex', 'utf8'))
 
-const text = 'HELL我的的O'
-let decrypted = decipher.update(text, 'utf8', 'hex')
-const hex = decipher.final('hex')
-// decrypted += hex
-console.log('@@@@' + hex, hex, decrypted)
+const chaCha20System = new ChaCha20Poly(keyenc, iv)
+const chaCha20Local = new ChaCha20(keyenc, iv)
 
-const key = crypto.randomBytes(32)
+const rc4Local = new Rc4('1234', 33)
+const textPlain =
+  '123412舞蹈服士士大夫无法大夫我的士我的地1234方的大蹈服士士大夫无法对方文舞蹈服士士大夫无法对方文说道士大夫士大蹈服士士大夫无法对方文舞蹈服士士大夫无法对方文说道士大夫士大蹈服士士大夫无法对方文舞蹈服士士大夫无法对方文说道士大夫士大蹈服士士大夫无法对方文对方文说道士大夫士大蹈服士士大夫无法对方文说道士大夫士大夫对方士大蹈服士士大夫无法对方文说道士大夫士大夫对方士大蹈服士士大夫无法对方文说道士大夫士大夫对方士大蹈服士士大夫无法对方文说道士大夫士大夫对方士大夫对方士大夫无法对方文说道士大夫士大夫对方士大夫无法对方文说道士大夫士大夫对方士大夫无法对方文说道士大夫士大夫对方士大夫无法对方文说道士大夫士大夫对方大夫无法对方文说道士大夫士大夫对方士大夫第三方第三方士大夫士大夫士大夫士大夫342134'
+const textBuf = Buffer.from(textPlain)
+console.log('@textBuf.length', textBuf.length)
 
-function encChaPoly(key, data, cb) {
-  try {
-    const iv = crypto.randomBytes(12)
-    const cipher = crypto.createCipheriv('chacha20-poly1305', key, iv, {
-      authTagLength: 16,
-    })
-    const encrypted = Buffer.concat([cipher.update(Buffer.from(data), 'utf8'), cipher.final()])
-    const tag = cipher.getAuthTag()
-    const final = Buffer.concat([iv, tag, encrypted]).toString('hex')
-    cb(false, final)
-  } catch (err) {
-    if (err) {
-      cb(err, null)
-    }
-  }
+const startDate = Date.now()
+for (let i = 0; i < 523456; i++) {
+  // chaCha20Local.encrypt(textBuf)
+  // rc4Local.encrypt(textBuf)
+  // chaCha20System.encChaPoly(textBuf)
+  // rc4System.update(textBuf, 'binary')
 }
-
-function decChaPoly(key, data, cb) {
-  try {
-    const decipher = crypto.createDecipheriv('chacha20-poly1305', key, Buffer.from(data.substring(0, 24), 'hex'), {
-      authTagLength: 16,
-    })
-    decipher.setAuthTag(Buffer.from(data.substring(24, 56), 'hex'))
-    decrypted = [decipher.update(Buffer.from(data.substring(56), 'hex'), 'binary', 'utf8'), decipher.final('utf8')].join('')
-    cb(false, decrypted)
-  } catch (err) {
-    if (err) {
-      cb(err, null)
-    }
-  }
-}
-
-encChaPoly(key, text, function (err, res) {
-  if (err) {
-    return console.log(err)
-  }
-  console.log('@@@encChaPoly', res)
-  decChaPoly(key, res, function (err, res) {
-    if (err) {
-      return console.log(err)
-    }
-    console.log('@@@decChaPoly', res)
-  })
+const cipher = crypto.createCipheriv('chacha20-poly1305', keyenc, iv, {
+  authTagLength: 16,
 })
 
-const keyBuffer = new Uint8Array(32)
-for (let i = 0; i < 32; i++) {
-  keyBuffer[i] = i
-}
-const nonceBuffer = new Uint8Array(12)
-for (let i = 0; i < 12; i++) {
-  nonceBuffer[i] = i
-}
+let data = cipher.update('cesdd', 'utf8')
+console.log('@@@@@@cipher', JSON.stringify(cipher))
 
-const salsa = new ChaCha20(keyBuffer, nonceBuffer, 0)
-const enc = salsa.encrypt(nonceBuffer)
-console.log(enc)
+const cipher22 = crypto.createCipheriv('chacha20-poly1305', keyenc, iv, {
+  authTagLength: 16,
+})
+
+
+const buf = Buffer.from('folder13额的NameEnc')
+let ff = 0
+for (const bytes of buf) {
+  ff+=bytes
+}
+console.log(ff)
+
+const startPosition = Date.now()
+// chaCha20Local.setPosition(12345678)
+// rc4Local.setPosition(123456788)
+// console.log('startPosition time: ' + (Date.now() - startPosition))
+
+// rc4Local.setPositionAsync(523456024).then((res) => {
+//   console.log('rc4 startPosition async time: ' + (Date.now() - startPosition))
+// })
+
+console.log('end', 'time: ' + (Date.now() - startDate))

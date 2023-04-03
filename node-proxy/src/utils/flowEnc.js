@@ -11,14 +11,17 @@ class FlowEnc {
     if (encryptType === 'mix') {
       console.log('@@mix', encryptType)
       encryptFlow = new MixEnc(password)
+      this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === 'rc4') {
       console.log('@@rc4', encryptType, fileSize)
       encryptFlow = new Rc4(password, fileSize)
+      this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === 'rc4back') {
       console.log('@@Rc4back', encryptType, fileSize)
       encryptFlow = new Rc4back(password, fileSize)
+      this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === null) {
       throw new Error('FlowEnc error')

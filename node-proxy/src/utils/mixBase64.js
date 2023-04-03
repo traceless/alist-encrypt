@@ -43,6 +43,7 @@ function MixBase64(passwd, salt = 'mix64') {
   chars.forEach((e, index) => {
     mapChars[e] = index
   })
+  this.chars = chars
   // 编码加密
   this.encode = function (bufferOrStr, encoding = 'utf-8') {
     const buffer = bufferOrStr instanceof Buffer ? bufferOrStr : Buffer.from(bufferOrStr, encoding)
@@ -98,6 +99,16 @@ function MixBase64(passwd, salt = 'mix64') {
     }
     return buffer
   }
+
+  this.getCheckBit = function (base64Str) {
+    const bufferArr = Buffer.from(base64Str)
+    let count = 0
+    for (const num of bufferArr) {
+      count += num
+    }
+    count %= 64
+    return this.chars[count]
+  }
 }
 
 MixBase64.randomSecret = function () {
@@ -115,7 +126,7 @@ MixBase64.randomSecret = function () {
 
 MixBase64.randomStr = function (length) {
   // 不能使用 = 号，url穿参数不支持
-  const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*~_'
+  const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*~$'
   const chars = source.split('')
   const newChars = []
   while (length-- > 0) {
@@ -130,6 +141,7 @@ MixBase64.initKSA = initKSA
 
 export default MixBase64
 // Buffer.from(str, 'base64').toString('base64') === str
+
 // function test() {
 //   const secret = '123456'
 //   const mybase64 = new MixBase64(secret)
