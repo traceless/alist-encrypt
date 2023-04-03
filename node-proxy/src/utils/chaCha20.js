@@ -172,25 +172,34 @@ JSChaCha20.prototype._update = function (data) {
     throw new Error('Data should be type of bytes (Uint8Array) and not empty!')
   }
 
-  var output = new Uint8Array(data.length)
-
   // core function, build block and xor with input data //
-  for (var i = 0; i < data.length; i++) {
+  for (let i = data.length; i--; ) {
     if (this._byteCounter === 0 || this._byteCounter === 64) {
       // generate new block //
-
       this._chacha()
       // counter increment //
       this._param[12]++
-
       // reset internal counter //
       this._byteCounter = 0
     }
-
-    output[i] = data[i] ^ this._keystream[this._byteCounter++]
+    data[i] ^= this._keystream[this._byteCounter++]
   }
+  return data
+}
 
-  return output
+JSChaCha20.prototype.setPosition = function (length) {
+  // core function, build block and xor with input data //
+  for (let i = length; i--; ) {
+    if (this._byteCounter === 0 || this._byteCounter === 64) {
+      // generate new block //
+      this._chacha()
+      // counter increment //
+      this._param[12]++
+      // reset internal counter //
+      this._byteCounter = 0
+    }
+    this._byteCounter++
+  }
 }
 
 // EXPORT //
