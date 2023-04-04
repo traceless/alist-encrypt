@@ -29,7 +29,7 @@ class Rc4 {
     }
     // add salt
     const passwdSalt = this.passwdOutward + sizeSalt
-    // fileHexKey: file passwd，can be share
+    // fileHexKey: file passwd，could be share
     this.fileHexKey = crypto.createHash('md5').update(passwdSalt).digest('hex')
     // get seedKey
     this.realRc4Key = Buffer.from(this.fileHexKey, 'hex')
@@ -49,17 +49,17 @@ class Rc4 {
     console.log('@@cachePosition: ', this.sizeSalt)
     const num = parseInt(this.sizeSalt / segmentPosition)
     // if it has already cache this file postion info, that return
-    if (globalPositionData[this.fileHexKey]) {
+    if (globalPositionData[this.realRc4Key]) {
       console.log('@@@globalPositionData cache ', globalPositionData)
       return
     }
-    globalPositionData[this.fileHexKey] = []
+    globalPositionData[this.realRc4Key] = []
     const rc4 = new Rc4(this.password, 1)
     rc4.realRc4Key = this.realRc4Key
     rc4.setPosition(0)
     const { sbox, i, j } = rc4
     // must be i = 0
-    globalPositionData[this.fileHexKey].push({ sbox, i, j, position: 0 })
+    globalPositionData[this.realRc4Key].push({ sbox, i, j, position: 0 })
     for (let i = 1; i < num + 1; i++) {
       rc4.position = segmentPosition
       const data = await PRGAExcuteThread(rc4)
@@ -67,7 +67,7 @@ class Rc4 {
       rc4.i = data.i
       rc4.j = data.j
       data.position = segmentPosition * i
-      globalPositionData[this.fileHexKey].push(data)
+      globalPositionData[this.realRc4Key].push(data)
     }
     console.log('@@@@globalPositionData init', globalPositionData)
   }
@@ -76,7 +76,7 @@ class Rc4 {
   setPosition(newPosition = 0) {
     newPosition *= 1
     this.position = newPosition
-    const positionArray = globalPositionData[this.fileHexKey]
+    const positionArray = globalPositionData[this.realRc4Key]
     if (positionArray) {
       for (const index in positionArray) {
         if (newPosition < positionArray[index].position) {
@@ -103,7 +103,7 @@ class Rc4 {
   async setPositionAsync(newPosition = 0) {
     newPosition *= 1
     this.position = newPosition
-    const positionArray = globalPositionData[this.fileHexKey]
+    const positionArray = globalPositionData[this.realRc4Key]
     if (positionArray) {
       for (const index in positionArray) {
         if (newPosition < positionArray[index].position) {
