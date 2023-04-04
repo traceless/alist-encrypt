@@ -1,16 +1,14 @@
 FROM node:gallium-bullseye-slim
 WORKDIR /node-proxy
 
-COPY . /node-proxy
+COPY ./ncc /node-proxy
 
 RUN pwd
 
 RUN ls -la
 
-RUN npm install
-
 RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 EXPOSE 5344
  
-ENTRYPOINT ["node", "app.js"]
+ENTRYPOINT ["node", "index.js"]

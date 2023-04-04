@@ -7,8 +7,9 @@
   "scripts": {
     "dev": "node-dev app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "ncc": "ncc build app.js -o ncc ",
-    "build": "npm run ncc && cp -r public ncc && pkg --compress GZip . "
+    "ncc": "ncc build app.js -o ncc && cp -r public ncc ",
+    "build": "npm run ncc && pkg --compress GZip . ",
+    "docker": "npm run ncc && sudo docker build -t prophet310/alist-encrypt:beta . "
   },
   "keywords": [],
   "author": "",
