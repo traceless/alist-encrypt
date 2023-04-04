@@ -1,14 +1,61 @@
 import crypto from 'crypto'
+import { Transform } from 'stream'
 
 class ChaCha20Poly {
-  constructor(key, iv) {
-    this.key = key
-    this.iv = iv
-    this.cipher = crypto.createCipheriv('chacha20-poly1305', this.key, iv, {
+  constructor(password, sizeSalt) {
+    this.password = password
+    this.sizeSalt = sizeSalt
+    // share you folder passwdOutward safety
+    this.passwdOutward = password
+    if (password.length !== 32) {
+      // add 'RC4' as salt
+      const sha256 = crypto.createHash('sha256')
+      const key = sha256.update(password + 'CHA20').digest('hex')
+      this.passwdOutward = crypto.createHash('md5').update(key).digest('hex')
+    }
+    // add salt
+    const passwdSalt = this.passwdOutward + sizeSalt
+    // fileHexKey: file passwd，could be share
+    const fileHexKey = crypto.createHash('sha256').update(passwdSalt).digest()
+    const iv = crypto.pbkdf2Sync(this.passwdOutward, sizeSalt + '', 10, 12, 'sha512')
+    this.cipher = crypto.createCipheriv('chacha20-poly1305', fileHexKey, iv, {
       authTagLength: 16,
     })
-    this.decipher = crypto.createDecipheriv('chacha20-poly1305', this.key, iv, {
+    this.decipher = crypto.createDecipheriv('chacha20-poly1305', fileHexKey, iv, {
       authTagLength: 16,
+    })
+  }
+
+  async cachePosition() {
+    console.log('cachePosition the chacha20 ')
+  }
+
+  async setPositionAsync(_position) {
+    const buf = Buffer.alloc(1024)
+    const position = parseInt(_position / 1024)
+    const mod = _position % 1024
+    for (let i = 0; i < position; i++) {
+      this.decChaPoly(buf)
+    }
+    const modBuf = Buffer.alloc(mod)
+    for (let i = 0; i < mod; i++) {
+      this.decChaPoly(modBuf)
+    }
+  }
+
+  encryptTransform() {
+    return new Transform({
+      transform: (chunk, encoding, next) => {
+        next(null, this.encChaPoly(chunk))
+      },
+    })
+  }
+
+  decryptTransform() {
+    return new Transform({
+      transform: (chunk, encoding, next) => {
+        next(null, this.decChaPoly(chunk, false))
+      },
     })
   }
 
@@ -34,15 +81,22 @@ class ChaCha20Poly {
 
   decChaPoly(bufferData, authTag) {
     try {
-      if (authTag === false) {
-        return Buffer.concat([this.decipher.update(bufferData), this.decipher.final()]).toString('utf8')
+      if (authTag) {
+        this.decipher.setAuthTag(this.cipher.getAuthTag())
       }
-      this.decipher.setAuthTag(this.cipher.getAuthTag())
       if (typeof authTag === 'string') {
         this.decipher.setAuthTag(authTag)
       }
-      const decryptData = Buffer.concat([this.decipher.update(bufferData), this.decipher.final()]).toString('utf8')
-      return decryptData
+      return this.decipher.update(bufferData)
+      // const decryptData = Buffer.concat([this.decipher.update(bufferData), this.decipher.final()]).toString('utf8')
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+  decChaPolyFinal() {
+    try {
+      this.decipher.final()
     } catch (err) {
       console.log(err)
     }

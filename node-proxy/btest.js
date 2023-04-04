@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import ChaCha20 from './src/utils/chaCha20.js'
 import Rc4 from './src/utils/rc4.js'
 import ChaCha20Poly from './src/utils/chaCha20Poly.js'
+import { chownSync } from 'fs'
 
 let decrypted = null
 const iv = crypto.pbkdf2Sync('123456', 'salt', 5, 12, 'sha512')
@@ -22,6 +23,11 @@ const textPlain =
 const textBuf = Buffer.from(textPlain)
 console.log('@textBuf.length', textBuf.length)
 
+const encData = Buffer.concat([chaCha20System.encChaPoly(textBuf), chaCha20System.encChaPoly(textBuf)])
+const cdd = chaCha20System.decChaPoly(encData.subarray(0, 1253), false)
+const utt = cdd.toString('utf8')
+console.log('2@@utt', utt)
+
 const startDate = Date.now()
 for (let i = 0; i < 523456; i++) {
   // chaCha20Local.encrypt(textBuf)
@@ -39,14 +45,6 @@ console.log('@@@@@@cipher', JSON.stringify(cipher))
 const cipher22 = crypto.createCipheriv('chacha20-poly1305', keyenc, iv, {
   authTagLength: 16,
 })
-
-
-const buf = Buffer.from('folder13额的NameEnc')
-let ff = 0
-for (const bytes of buf) {
-  ff+=bytes
-}
-console.log(ff)
 
 const startPosition = Date.now()
 // chaCha20Local.setPosition(12345678)

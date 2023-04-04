@@ -7,7 +7,7 @@ import { Transform } from 'stream'
  * 混淆算法，加密强度低，容易因为文件特征被破解。可以提升encode长度来对抗
  */
 class MixEnc {
-  constructor(password) {
+  constructor(password, fileSize) {
     this.password = password
     // 说明是输入encode的秘钥，用于找回文件加解密
     this.passwdOutward = password
@@ -18,7 +18,7 @@ class MixEnc {
     }
     console.log('this.passwdOutward', this.passwdOutward)
     const sha256 = crypto.createHash('sha256')
-    const encode = sha256.update(this.passwdOutward).digest()
+    const encode = sha256.update(this.passwdOutward + fileSize).digest()
     const decode = []
     const length = encode.length
     const decodeCheck = {}

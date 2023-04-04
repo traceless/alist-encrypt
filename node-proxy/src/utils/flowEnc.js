@@ -3,6 +3,7 @@
 import MixEnc from './mixEnc.js'
 import Rc4 from './rc4.js'
 import Rc4back from './rc4back.js'
+import ChaCha20Poly from './chaCha20Poly.js'
 
 class FlowEnc {
   constructor(password, encryptType = 'mix', fileSize = 0) {
@@ -10,7 +11,7 @@ class FlowEnc {
     let encryptFlow = null
     if (encryptType === 'mix') {
       console.log('@@mix', encryptType)
-      encryptFlow = new MixEnc(password)
+      encryptFlow = new MixEnc(password, fileSize)
       this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === 'rc4') {
@@ -21,6 +22,11 @@ class FlowEnc {
     if (encryptType === 'rc4back') {
       console.log('@@Rc4back', encryptType, fileSize)
       encryptFlow = new Rc4back(password, fileSize)
+      this.passwdOutward = encryptFlow.passwdOutward
+    }
+    if (encryptType === 'cha20') {
+      console.log('@@ChaCha20Poly', encryptType, fileSize)
+      encryptFlow = new ChaCha20Poly(password, fileSize)
       this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === null) {

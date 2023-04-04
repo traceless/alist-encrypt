@@ -58,7 +58,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
       decryptTransform ? httpResp.pipe(decryptTransform).pipe(response) : httpResp.pipe(response)
     })
     httpReq.on('error', (err) => {
-      console.log('@@httpProxy request error ', err)
+      console.log('@@httpProxy request error ', err, urlAddr, headers)
     })
     // 是否需要加密
     encryptTransform ? request.pipe(encryptTransform).pipe(httpReq) : request.pipe(httpReq)
