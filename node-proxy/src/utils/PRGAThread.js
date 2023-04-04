@@ -3,6 +3,7 @@ import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import dotenv from 'dotenv'
+import { randomUUID } from 'crypto'
 dotenv.config('./env')
 
 // ncc will take this file in out dist
@@ -28,18 +29,26 @@ if (isMainThread) {
     const worker = new Worker(basePath, {
       workerData: 'work-name-' + i,
     })
+    worker._name = 'work-name-' + i
     workerList[i] = worker
+    worker.on('error', (err) => {
+      console.log('@@worker_error', worker, err)
+    })
+    // Message distribution by msgId
+    worker.on('message', ({ msgId, resData }) => {
+      worker.emit(msgId, resData)
+    })
   }
 
   PRGAExcuteThread = function (data) {
     return new Promise((resolve, reject) => {
       const worker = workerList[index++ % workerNum]
-      worker.once('message', (res) => {
+      const msgId = randomUUID()
+      worker.once(msgId, (res) => {
         resolve(res)
       })
-      worker.once('error', reject)
-      // 发送数据
-      worker.postMessage(data)
+      // send msg
+      worker.postMessage({ msgId, data })
     })
   }
 }
@@ -61,10 +70,10 @@ if (!isMainThread) {
     return { sbox: S, i, j }
   }
   // workerData 由主线程发送过来的信息
-  parentPort.on('message', (data) => {
+  parentPort.on('message', ({ msgId, data }) => {
     const startTime = Date.now()
-    const res = PRGAExcute(data)
-    parentPort.postMessage(res)
+    const resData = PRGAExcute(data)
+    parentPort.postMessage({ msgId, resData })
     const time = Date.now() - startTime
     console.log('@@@PRGAExcute-end', data.position, Date.now(), '@time:' + time, workerData)
   })

@@ -12,8 +12,8 @@ const PRGAExcute = function (data) {
   return { sbox: S, i, j }
 }
 
-process.on('message', function (data) {
-  console.log('来自父进程的消息: ' + JSON.stringify(data))
-  const resData = PRGAExcute(data)
-  process.send(resData)
+process.on('message', function ({ msgId, workerData }) {
+  console.log('来自父进程的消息: ' + JSON.stringify(workerData))
+  const resData = PRGAExcute(workerData)
+  process.send({ msgId, resData })
 })
