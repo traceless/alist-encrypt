@@ -1,1 +1,0 @@
-import{_ as t,h as n,i as o,j as c,c as s}from"./index-e394d0e9.js";const a={},r={style:{padding:"30px"}};function l(_,i){const e=n("el-alert");return o(),c("div",r,[s(e,{closable:!1,title:"menu 1-2-2",type:"warning"})])}const p=t(a,[["render",l]]);export{p as default};
