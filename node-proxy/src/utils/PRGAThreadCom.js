@@ -19,8 +19,8 @@ if (!isMainThread) {
   // workerData 由主线程发送过来的信息
   parentPort.on('message', ({ msgId, data }) => {
     const startTime = Date.now()
-    const res = PRGAExcute(data)
-    parentPort.postMessage({ msgId, data: res })
+    const resData = PRGAExcute(data)
+    parentPort.postMessage({ msgId, resData })
     const time = Date.now() - startTime
     console.log('@@@PRGAExcute-end', data.position, Date.now(), '@time:' + time, workerData)
   })
