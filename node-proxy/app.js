@@ -261,7 +261,7 @@ webdavRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
   respBody = respBody.replace(
     '<body>',
     `<body><div style="position: fixed;z-index:10010; top:8px; margin-left: 50%">
-      <a target="_blank" href="http://${ctx.req.selfHost}/public/index.html">
+      <a target="_blank" href="/index">
         <div style="width:100px;height:50px">
           <img style="width:40px;height:40px;" src="/public/logo.png" />
         </div>
