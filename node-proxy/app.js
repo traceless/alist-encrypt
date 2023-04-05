@@ -145,7 +145,7 @@ async function webdavHandle(ctx, next) {
       // 这里要判断是否webdav进行请求, 这里默认就是webdav请求了
       const authorization = request.headers.authorization
       try {
-        const webdavFileInfo = await getWebdavFileInfo(request.urlAddr.replace(filePath, ''), authorization, decodeURIComponent(filePath))
+        const webdavFileInfo = await getWebdavFileInfo(request.urlAddr, authorization, decodeURIComponent(filePath))
         console.log('@@webdavFileInfo:', filePath, webdavFileInfo)
         webdavFileInfo.path = filePath
         // 这里有可能返回O-size，应该是webdav的坑，，某些get请求返回的size=0，不要缓存起来
