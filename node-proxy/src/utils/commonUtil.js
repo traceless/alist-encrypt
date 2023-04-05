@@ -22,7 +22,7 @@ export function encodeFolderName(password, encType, folderPasswd, folderEncType)
   const mix64 = new MixBase64(flowEnc.passwdOutward, salt)
   const passwdInfo = folderEncType + '_' + folderPasswd
   let folderNameEnc = mix64.encode(passwdInfo)
-  const checkBit = mix64.getCheckBit(folderNameEnc)
+  const checkBit = MixBase64.getCheckBit(folderNameEnc)
   folderNameEnc += checkBit + salt
   return folderNameEnc
 }
@@ -40,7 +40,7 @@ export function decodeFolderName(password, encType, folderNameEnc) {
   // start dec
   let folderName = arr[arr.length - 1]
   folderName = folderName.substring(0, folderName.length - 2)
-  if (mix64.getCheckBit(folderName) !== checkBit) {
+  if (MixBase64.getCheckBit(folderName) !== checkBit) {
     return false
   }
 

@@ -100,16 +100,19 @@ function MixBase64(passwd, salt = 'mix64') {
     }
     return buffer
   }
+}
 
-  this.getCheckBit = function (base64Str) {
-    const bufferArr = Buffer.from(base64Str)
-    let count = 0
-    for (const num of bufferArr) {
-      count += num
-    }
-    count %= 64
-    return this.chars[count]
+MixBase64.sourceChars = source.split('')
+
+// plaintext check bit
+MixBase64.getCheckBit = function (text) {
+  const bufferArr = Buffer.from(text)
+  let count = 0
+  for (const num of bufferArr) {
+    count += num
   }
+  count %= 64
+  return MixBase64.sourceChars[count]
 }
 
 MixBase64.randomSecret = function () {
