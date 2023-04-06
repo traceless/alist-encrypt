@@ -6,12 +6,12 @@ import PRGAExcuteThread from './PRGAThread.js'
 
 /**
  * RC4算法，安全性相对好很多
- * 可以对 512345678进行 缓存计算节点，这样下次就可以不用计算那么大
+ * 可以对 312345678 进行缓存sbox节点，这样下次就可以不用计算那么大
  */
-const segmentPosition = 523456789
+const segmentPosition = 312345678
 const globalPositionData = {}
 
-class Rc4 {
+class Rc4Md5 {
   // password，salt: ensure that each file has a different password
   constructor(password, sizeSalt) {
     if (!sizeSalt) {
@@ -21,29 +21,22 @@ class Rc4 {
     this.sizeSalt = sizeSalt
     // share you folder passwdOutward safety
     this.passwdOutward = password
-    if (password.length !== 32) {
-      // add 'RC4' as salt
-      const sha256 = crypto.createHash('sha256')
-      const key = sha256.update(password + 'RC4').digest('hex')
-      this.passwdOutward = crypto.createHash('md5').update(key).digest('hex')
+    // check base64，create passwdOutward
+    if (Buffer.from(password, 'base64').toString('base64') === password) {
+      this.passwdOutward = Buffer.from(password, 'base64').toString('hex')
+    } else if (password.length !== 32) {
+      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'RC4', 10000, 16, 'sha256').toString('hex')
     }
     // add salt
     const passwdSalt = this.passwdOutward + sizeSalt
-    // fileHexKey: file passwd，can be share
+    // fileHexKey: file passwd，could be share
     this.fileHexKey = crypto.createHash('md5').update(passwdSalt).digest('hex')
     // get seedKey
-    const seedKeyBuf = Buffer.from(this.fileHexKey, 'hex')
+    this.realRc4Key = Buffer.from(this.fileHexKey, 'hex')
     this.position = 0
     this.i = 0
     this.j = 0
     this.sbox = []
-    this.initKSA(seedKeyBuf)
-    // get 128 length key
-    const randomKey = []
-    this.PRGAExcute(128, (random) => {
-      randomKey.push(random)
-    })
-    this.realRc4Key = Buffer.from(randomKey)
     // last init
     this.initKSA(this.realRc4Key)
   }
@@ -56,17 +49,17 @@ class Rc4 {
     console.log('@@cachePosition: ', this.sizeSalt)
     const num = parseInt(this.sizeSalt / segmentPosition)
     // if it has already cache this file postion info, that return
-    if (globalPositionData[this.fileHexKey]) {
+    if (globalPositionData[this.realRc4Key]) {
       console.log('@@@globalPositionData cache ', globalPositionData)
       return
     }
-    globalPositionData[this.fileHexKey] = []
-    const rc4 = new Rc4(this.password, 1)
+    globalPositionData[this.realRc4Key] = []
+    const rc4 = new Rc4Md5(this.password, 1)
     rc4.realRc4Key = this.realRc4Key
     rc4.setPosition(0)
     const { sbox, i, j } = rc4
     // must be i = 0
-    globalPositionData[this.fileHexKey].push({ sbox, i, j, position: 0 })
+    globalPositionData[this.realRc4Key].push({ sbox, i, j, position: 0 })
     for (let i = 1; i < num + 1; i++) {
       rc4.position = segmentPosition
       const data = await PRGAExcuteThread(rc4)
@@ -74,7 +67,7 @@ class Rc4 {
       rc4.i = data.i
       rc4.j = data.j
       data.position = segmentPosition * i
-      globalPositionData[this.fileHexKey].push(data)
+      globalPositionData[this.realRc4Key].push(data)
     }
     console.log('@@@@globalPositionData init', globalPositionData)
   }
@@ -83,7 +76,7 @@ class Rc4 {
   setPosition(newPosition = 0) {
     newPosition *= 1
     this.position = newPosition
-    const positionArray = globalPositionData[this.fileHexKey]
+    const positionArray = globalPositionData[this.realRc4Key]
     if (positionArray) {
       for (const index in positionArray) {
         if (newPosition < positionArray[index].position) {
@@ -102,25 +95,15 @@ class Rc4 {
     }
     this.initKSA(this.realRc4Key)
     // init position
-    this.PRGAExcute(this.position, () => {})
+    this.PRGAExecPostion(this.position)
     return this
   }
 
-  // back
-  setPositionBack(newPosition = 0) {
-    newPosition *= 1
-    this.position = newPosition
-    this.initKSA(this.realRc4Key)
-    // init position
-    this.PRGAExcute(this.position, () => {})
-    return this
-  }
-
-  // reset sbox，i，j, use thread
+  // reset sbox，i，j, in other thread
   async setPositionAsync(newPosition = 0) {
     newPosition *= 1
     this.position = newPosition
-    const positionArray = globalPositionData[this.fileHexKey]
+    const positionArray = globalPositionData[this.realRc4Key]
     if (positionArray) {
       for (const index in positionArray) {
         if (newPosition < positionArray[index].position) {
@@ -197,10 +180,25 @@ class Rc4 {
       const temp = S[i]
       S[i] = S[j]
       S[j] = temp
-      // 产生伪随机
       callback(S[(S[i] + S[j]) % 256])
     }
-    // 记录位置，下次继续伪随机
+    // save the i,j
+    this.i = i
+    this.j = j
+  }
+
+  PRGAExecPostion(plainLen) {
+    let { sbox: S, i, j } = this
+    // k-- is inefficient
+    for (let k = 0; k < plainLen; k++) {
+      i = (i + 1) % 256
+      j = (j + S[i]) % 256
+      // swap
+      const temp = S[i]
+      S[i] = S[j]
+      S[j] = temp
+    }
+    // save the i,j
     this.i = i
     this.j = j
   }
@@ -234,4 +232,4 @@ class Rc4 {
 // const plainBy = rc4.resetSbox().encrypt(buffer)
 // console.log('@@@', buffer, Buffer.from(plainBy).toString('utf-8'))
 
-export default Rc4
+export default Rc4Md5

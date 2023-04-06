@@ -1,9 +1,8 @@
 'use strict'
 
 import MixEnc from './mixEnc.js'
-import Rc4 from './rc4.js'
-import Rc4back from './rc4back.js'
-import ChaCha20Poly from './chaCha20Poly.js'
+import Rc4Md5 from './rc4Md5.js'
+import AesCTR from './aesCTR.js'
 
 class FlowEnc {
   constructor(password, encryptType = 'mix', fileSize = 0) {
@@ -16,17 +15,12 @@ class FlowEnc {
     }
     if (encryptType === 'rc4') {
       console.log('@@rc4', encryptType, fileSize)
-      encryptFlow = new Rc4(password, fileSize)
+      encryptFlow = new Rc4Md5(password, fileSize)
       this.passwdOutward = encryptFlow.passwdOutward
     }
-    if (encryptType === 'rc4back') {
-      console.log('@@Rc4back', encryptType, fileSize)
-      encryptFlow = new Rc4back(password, fileSize)
-      this.passwdOutward = encryptFlow.passwdOutward
-    }
-    if (encryptType === 'cha20') {
-      console.log('@@ChaCha20Poly', encryptType, fileSize)
-      encryptFlow = new ChaCha20Poly(password, fileSize)
+    if (encryptType === 'aesctr') {
+      console.log('@@AesCTR', encryptType, fileSize)
+      encryptFlow = new AesCTR(password, fileSize)
       this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === null) {

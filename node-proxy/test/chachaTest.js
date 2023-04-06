@@ -1,8 +1,8 @@
 import crypto from 'crypto'
 import ChaCha20 from '../src/utils/chaCha20.js'
-import Rc4 from '../src/utils/rc4.js'
+import Rc4 from '../src/utils/rc4Md5.js'
 import ChaCha20Poly from '../src/utils/chaCha20Poly.js'
-import AesCRT from '../src/utils/aesCRT.js'
+import AesCTR from '../src/utils/aesCTR.js'
 
 let decrypted = null
 const rc4System = crypto.createCipheriv('rc4', 'MY SECRET KEY', '')
@@ -19,7 +19,7 @@ const ivaes = crypto.randomBytes(16)
 const chaCha20System = new ChaCha20Poly(keyenc, iv)
 const chaCha20Local = new ChaCha20(keyenc, iv)
 const rc4Local = new Rc4('1234', 33)
-const aseCRTSystem = new AesCRT(keyaes, ivaes)
+const aseCTRSystem = new AesCTR(keyaes, ivaes)
 
 const textPlain = `test测试性能速度-测试性能速度-测试性能速度-测试性能速度-测试性能速度-测试性能速度-测试性能速度
                     测试性能速度-测试性能速度-测试性能速度-测试性能速度-测试性能速度-测试性能速度-测试性能速度
@@ -37,7 +37,7 @@ for (let i = 0; i < 523456; i++) {
   // chaCha20Local.encrypt(textBuf)
   // rc4Local.encrypt(textBuf)
   // chaCha20System.encChaPoly(textBuf)
-  aseCRTSystem.encrypt(textBuf)
+  aseCTRSystem.encrypt(textBuf)
 }
 
 const startPosition = Date.now()

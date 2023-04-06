@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import ChaCha20 from './src/utils/chaCha20.js'
-import AesCRT from './src/utils/aesCRT.js'
+import AesCRT from './src/utils/aesCTR.js'
 import ChaCha20Poly from './src/utils/chaCha20Poly.js'
 import { chownSync, copyFileSync } from 'fs'
 

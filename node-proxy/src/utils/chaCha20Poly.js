@@ -17,7 +17,7 @@ class ChaCha20Poly {
     const passwdSalt = this.passwdOutward + sizeSalt
     // fileHexKey: file passwd，could be share
     const fileHexKey = crypto.createHash('sha256').update(passwdSalt).digest()
-    const iv = crypto.pbkdf2Sync(this.passwdOutward, sizeSalt + '', 10, 12, 'sha512')
+    const iv = crypto.pbkdf2Sync(this.passwdOutward, sizeSalt + '', 10000, 12, 'sha256')
     this.cipher = crypto.createCipheriv('chacha20-poly1305', fileHexKey, iv, {
       authTagLength: 16,
     })

@@ -1,16 +1,25 @@
 import crypto from 'crypto'
 import { Transform } from 'stream'
 
-class AesCRT {
-  constructor(key, iv) {
-    if (iv.length !== 16) throw new Error('Only implemented for 16 bytes IV')
-    this.key = key
-    const ivBuffer = Buffer.alloc(iv.length)
-    iv.copy(ivBuffer)
+class AesCTR {
+  constructor(password, sizeSalt) {
+    this.password = password
+    this.sizeSalt = sizeSalt + ''
+    // check base64
+    if (Buffer.from(password, 'base64').toString('base64') === password) {
+      this.passwdOutward = Buffer.from(password, 'base64').toString('hex')
+    } else if (password.length !== 32) {
+      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'AES-CTR', 10000, 16, 'sha256').toString('hex')
+    }
+    // create file aes-ctr key
+    const passwdSalt = this.passwdOutward + sizeSalt
+    this.key = crypto.createHash('md5').update(passwdSalt).digest()
+    this.iv = crypto.createHash('md5').update(this.sizeSalt).digest()
+    // copy to soureIv
+    const ivBuffer = Buffer.alloc(this.iv.length)
+    this.iv.copy(ivBuffer)
     this.soureIv = ivBuffer
-    console.log('@@@this.soureIv', iv, this.soureIv)
-    this.iv = iv
-    this.cipher = crypto.createCipheriv('aes-128-ctr', key, iv)
+    this.cipher = crypto.createCipheriv('aes-128-ctr', this.key, this.iv)
   }
 
   encrypt(messageBytes) {
@@ -22,8 +31,7 @@ class AesCRT {
   }
 
   // reset position
-  async setPosition(position) {
-    console.log('@@#', this.soureIv)
+  async setPositionAsync(position) {
     const ivBuffer = Buffer.alloc(this.soureIv.length)
     this.soureIv.copy(ivBuffer)
     this.iv = ivBuffer
@@ -33,7 +41,6 @@ class AesCRT {
     this.cipher = crypto.createCipheriv('aes-128-ctr', this.key, this.iv)
     const offset = position % 16
     const buffer = Buffer.alloc(offset)
-    console.log('@@@offset', offset)
     this.encrypt(buffer)
   }
 
@@ -78,4 +85,4 @@ class AesCRT {
   }
 }
 
-export default AesCRT
+export default AesCTR
