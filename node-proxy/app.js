@@ -15,6 +15,7 @@ import globalHandle from './src/middleware/globalHandle.js'
 import allRouter from './src/router.js'
 import { cacheFileInfo, getFileInfo } from './src/dao/fileDao.js'
 import { getWebdavFileInfo } from './src/utils/webdavClient.js'
+import { convertFile } from './src/utils/convertFile.js'
 import staticServer from 'koa-static'
 
 const webdavRouter = new Router()
@@ -109,7 +110,7 @@ async function webdavHandle(ctx, next) {
   const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
   // 检查路径是否满足加密要求，要拦截的路径可能有中文
   const { passwdInfo, pathInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  console.log('@@@@passwdInfo', passwdList)
+  console.log('@@@@passwdInfo', passwdList, pathInfo)
   // 如果是上传文件，那么进行流加密，目前只支持webdav上传，如果alist页面有上传功能，那么也可以兼容进来
   if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo) {
     // 兼容macos的webdav客户端x-expected-entity-length
@@ -126,7 +127,7 @@ async function webdavHandle(ctx, next) {
   if (~'GET,HEAD,POST'.indexOf(request.method.toLocaleUpperCase()) && passwdInfo) {
     // 根据文件路径来获取文件的大小
     const urlPath = ctx.req.url.split('?')[0]
-    let filePath = urlPath.substring(urlPath.indexOf(pathInfo[0]), urlPath.length)
+    let filePath = urlPath
     // 如果是alist的话，那么必然有这个文件的size缓存（进过list就会被缓存起来）
     request.fileSize = 0
     // 这里需要处理掉/p 路径
@@ -274,10 +275,15 @@ webdavRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
 app.use(webdavRouter.routes()).use(webdavRouter.allowedMethods())
 
 // 配置创建好了，就启动
-
-const server = http.createServer(app.callback())
-server.maxConnections = 1000
-server.listen(port, () => console.log('服务启动成功: ' + port))
-setInterval(() => {
-  console.log('server_connections', server._connections, Date.now())
-}, 8000)
+const arg = process.argv.slice(2)
+if (arg.length > 1) {
+  // convertFile command
+  convertFile(arg)
+} else {
+  const server = http.createServer(app.callback())
+  server.maxConnections = 1000
+  server.listen(port, () => console.log('服务启动成功: ' + port))
+  setInterval(() => {
+    console.log('server_connections', server._connections, Date.now())
+  }, 8000)
+}
