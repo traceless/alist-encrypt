@@ -95,6 +95,7 @@ function preProxy(webdavConfig, isWebdav) {
     request.headers.host = serverHost + ':' + serverPort
     const protocol = https ? 'https' : 'http'
     request.urlAddr = `${protocol}://${request.headers.host}${request.url}`
+    request.serverAddr = `${protocol}://${request.headers.host}`
     request.webdavConfig = webdavConfig
     await next()
   }
@@ -106,11 +107,17 @@ async function webdavHandle(ctx, next) {
   const { passwdList } = request.webdavConfig
   const { headers } = request
   // 要定位请求文件的位置 bytes=98304-
-  const range = request.headers.range
+  const range = headers.range
   const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
   // 检查路径是否满足加密要求，要拦截的路径可能有中文
   const { passwdInfo, pathInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  console.log('@@@@passwdInfo', passwdList, pathInfo)
+  console.log('@@@@passwdInfo', pathInfo)
+  // fix webdav move file
+  if (request.method.toLocaleUpperCase() === 'MOVE' && headers.destination) {
+    let destination = headers.destination
+    destination = request.serverAddr + destination.substring(destination.indexOf(path.dirname(request.url)), destination.length)
+    request.headers.destination = destination
+  }
   // 如果是上传文件，那么进行流加密，目前只支持webdav上传，如果alist页面有上传功能，那么也可以兼容进来
   if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo) {
     // 兼容macos的webdav客户端x-expected-entity-length

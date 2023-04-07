@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { addUserInfo, getUserInfo } from './dao/userDao.js'
-import nedb from './utils/nedb.js'
+import nedb from './utils/levelDB.js'
 
 // inti config, fix ncc get local conf
 function getConfPath() {
@@ -86,13 +86,6 @@ if (configData.alistServer.flowPassword) {
   fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify(configData, '', '\t'))
 }
 
-async function sleep(time) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve()
-    }, time || 1000)
-  })
-}
 /** 初始化用户的数据库 */
 async function init() {
   try {
