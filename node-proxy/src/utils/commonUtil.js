@@ -3,6 +3,9 @@ import FlowEnc from './flowEnc.js'
 import path from 'path'
 
 import MixBase64 from './mixBase64.js'
+import Crcn from './crc6-8.js'
+
+const crc6 = new Crcn(6)
 
 // 判断是否为匹配的路径
 export function pathExec(encPath, url) {
@@ -22,8 +25,9 @@ export function encodeFolderName(password, encType, folderPasswd, folderEncType)
   const mix64 = new MixBase64(flowEnc.passwdOutward, salt)
   const passwdInfo = folderEncType + '_' + folderPasswd
   let folderNameEnc = mix64.encode(passwdInfo)
-  const checkBit = MixBase64.getCheckBit(folderNameEnc)
-  folderNameEnc += checkBit + salt
+  const crc6Bit = crc6.checksum(Buffer.from(folderNameEnc))
+  const crc6Check = MixBase64.getSourceChar(crc6Bit)
+  folderNameEnc += crc6Check + salt
   return folderNameEnc
 }
 
@@ -33,14 +37,15 @@ export function decodeFolderName(password, encType, folderNameEnc) {
     return false
   }
   const salt = folderNameEnc.substring(folderNameEnc.length - 1)
-  const checkBit = folderNameEnc.substring(folderNameEnc.length - 2, folderNameEnc.length - 1)
+  const crc6Check = folderNameEnc.substring(folderNameEnc.length - 2, folderNameEnc.length - 1)
 
   const flowEnc = new FlowEnc(password, encType, 1)
   const mix64 = new MixBase64(flowEnc.passwdOutward, salt)
   // start dec
   let folderName = arr[arr.length - 1]
   folderName = folderName.substring(0, folderName.length - 2)
-  if (MixBase64.getCheckBit(folderName) !== checkBit) {
+  const crc6Bit = crc6.checksum(Buffer.from(folderNameEnc))
+  if (MixBase64.getSourceChar(crc6Bit) !== crc6Check) {
     return false
   }
 

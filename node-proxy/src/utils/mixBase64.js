@@ -140,6 +140,11 @@ MixBase64.randomStr = function (length) {
   return newChars.join('')
 }
 
+MixBase64.getSourceChar = function (index) {
+  // 不能使用 = 号，url穿参数不支持
+  return source.split('')[index]
+}
+
 MixBase64.initKSA = initKSA
 
 export default MixBase64
