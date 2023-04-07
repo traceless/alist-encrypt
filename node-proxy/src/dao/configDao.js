@@ -3,10 +3,6 @@ import levelDB from '../utils/levelDB.js'
 export const configTable = 'configTable'
 
 export async function initConfigTable() {
-  const value = await levelDB.getValue(configTable)
-  if (value == null) {
-    await levelDB.setValue(configTable, {})
-  }
 }
 // alist配置
 const alistConfigKey = '_alist_config_key'

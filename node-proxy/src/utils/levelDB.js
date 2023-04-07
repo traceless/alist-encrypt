@@ -1,25 +1,35 @@
-import { Level } from 'level'
-import path from 'path'
+import Datastore from 'nedb-promises'
 
+// let datastore = Datastore.create('/path/to/db.db')
 /**
  * 继承接口，定义新方法
  */
-class LevelDB extends Level {
+class Nedb extends Datastore {
+  constructor(dbFile) {
+    super()
+    this.datastore = Datastore.create(dbFile)
+  }
+
+  async load() {
+    await this.datastore.load()
+  }
+
   // 新增过期设置
   async setValue(key, value) {
-    const data = { expire: -1, value }
-    await this.put(key, data)
+    await this.datastore.removeMany({ key })
+    console.log('@@setValue', key, value )
+    await this.datastore.insert({ key, expire: -1, value })
   }
 
   async setExpire(key, value, second = 6 * 10) {
+    await this.datastore.removeMany({ key })
     const expire = Date.now() + second * 1000
-    const data = { expire, value }
-    await this.put(key, data)
+    await this.datastore.insert({ key, expire, value })
   }
 
   async getValue(key) {
     try {
-      const { expire, value } = await this.get(key)
+      const { expire, value } = await this.datastore.findOne({ key })
       // 没有限制时间
       if (expire < 0) {
         return value
@@ -31,20 +41,23 @@ class LevelDB extends Level {
       return null
     }
     // 删除key
-    levelDB.del(key)
+    this.datastore.remove(key)
     return null
   }
 }
-const levelDB = new LevelDB(process.cwd() + '/conf/db-data', { valueEncoding: 'json' })
+
+const nedb = new Nedb(process.cwd() + '/conf/nedb/datafile')
+
 // 定时清除过期的数据
 setInterval(async () => {
-  for await (const [key, data] of levelDB.iterator()) {
-    // 可能是无限制度
-    const { expire } = data
+  const allData = await nedb.datastore.find({})
+  for (const data of allData) {
+    const { key, expire } = data
     if (expire && expire > 0 && expire < Date.now()) {
       console.log('@@expire:', key, expire, Date.now())
-      levelDB.del(key)
+      nedb.datastore.remove({ key })
     }
   }
 }, 30 * 1000)
-export default levelDB
+
+export default nedb

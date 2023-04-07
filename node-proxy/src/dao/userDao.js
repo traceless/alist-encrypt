@@ -3,14 +3,17 @@ import levelDB from '../utils/levelDB.js'
 export const userTable = 'userTable'
 
 export async function initUserTable() {
-  const value = await levelDB.getValue(userTable)
-  if (value == null) {
-    await levelDB.setValue(userTable, {})
-  }
+  // const value = await levelDB.getValue(userTable)
+  // if (value == null) {
+  //   await levelDB.setValue(userTable, {})
+  // }
 }
 // 获取用户信息
 export async function getUserInfo(username) {
   const value = await levelDB.getValue(userTable)
+  if (value == null) {
+    return null
+  }
   return value[username]
 }
 
@@ -25,7 +28,7 @@ export async function cacheUserToken(token, userInfo) {
 }
 
 export async function addUserInfo(userInfo) {
-  const value = await levelDB.getValue(userTable)
+  const value = await levelDB.getValue(userTable) || {}
   value[userInfo.username] = userInfo
   await levelDB.setValue(userTable, value)
 }

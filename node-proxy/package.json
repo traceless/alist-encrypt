@@ -23,9 +23,9 @@
     "koa-bodyparser": "^4.3.0",
     "koa-router": "^12.0.0",
     "koa-static": "^5.0.0",
-    "level": "^8.0.0",
-    "path-to-regexp": "^6.1.0",
-    "mkdirp": "^2.1.6"
+    "mkdirp": "^2.1.6",
+    "nedb-promises": "^6.2.1",
+    "path-to-regexp": "^6.1.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.55.0",
