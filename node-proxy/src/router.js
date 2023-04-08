@@ -7,7 +7,7 @@ import fs from 'fs'
 import { alistServer, webdavServer, port, initAlistConfig } from './config.js'
 import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao.js'
 import responseHandle from './middleware/responseHandle.js'
-import { encodeFolderName, decodeFolderName } from './utils/commonUtil.js'
+import { encodeName, decodeName } from './utils/commonUtil.js'
 
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
@@ -157,7 +157,7 @@ router.all('/delWebdavConfig', async (ctx, next) => {
 // get folder passwd encode
 router.all('/encodeFoldName', async (ctx, next) => {
   const { password, encType, folderPasswd, folderEncType } = ctx.request.body
-  const folderNameEnc = encodeFolderName(password, encType, folderPasswd, folderEncType)
+  const folderNameEnc = encodeName(password, encType, folderPasswd, folderEncType)
   ctx.body = { data: { folderNameEnc } }
   console.log('@@encodeFoldName', password, folderNameEnc)
 })
@@ -169,7 +169,7 @@ router.all('/decodeFoldName', async (ctx, next) => {
     ctx.body = { msg: 'folderName not encdoe', code: 500 }
     return
   }
-  const data = decodeFolderName(password, encType, folderNameEnc)
+  const data = decodeName(password, encType, folderNameEnc)
   if (!data) {
     ctx.body = { msg: 'folderName is error', code: 500 }
     return

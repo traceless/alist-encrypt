@@ -18,7 +18,7 @@ import { getWebdavFileInfo } from './src/utils/webdavClient.js'
 import { convertFile } from './src/utils/convertFile.js'
 import staticServer from 'koa-static'
 
-const webdavRouter = new Router()
+const proxyRouter = new Router()
 const app = new Koa()
 // compatible ncc and pkg
 const pkgDirPath = path.dirname(process.argv[1])
@@ -36,7 +36,7 @@ app.use(allRouter.routes()).use(allRouter.allowedMethods())
 // ======================下面是实现webdav代理的业务==============================
 
 // 可能是302跳转过来的下载的,/redirect?key=34233&decode=0
-webdavRouter.all('/redirect/:key', async (ctx) => {
+proxyRouter.all('/redirect/:key', async (ctx) => {
   const request = ctx.req
   const response = ctx.res
   // 这里还是要encodeURIComponent ，因为http服务器会自动对url进行decodeURIComponent
@@ -101,7 +101,7 @@ function preProxy(webdavConfig, isWebdav) {
   }
 }
 // webdav代理处理
-async function webdavHandle(ctx, next) {
+async function proxyHandle(ctx, next) {
   const request = ctx.req
   const response = ctx.res
   const { passwdList } = request.webdavConfig
@@ -147,22 +147,19 @@ async function webdavHandle(ctx, next) {
     const fileInfo = await getFileInfo(filePath)
     console.log('@@getFileInfo:', filePath, fileInfo, request.urlAddr)
     if (fileInfo) {
-      console.log('@@alistfileInfo:', filePath, fileInfo)
       request.fileSize = fileInfo.size * 1
     } else if (request.headers.authorization) {
       // 这里要判断是否webdav进行请求, 这里默认就是webdav请求了
       const authorization = request.headers.authorization
-      try {
-        const webdavFileInfo = await getWebdavFileInfo(request.urlAddr, authorization, decodeURIComponent(filePath))
-        console.log('@@webdavFileInfo:', filePath, webdavFileInfo)
+      const webdavFileInfo = await getWebdavFileInfo(request.urlAddr, authorization)
+      console.log('@@webdavFileInfo:', filePath, webdavFileInfo)
+      if (webdavFileInfo) {
         webdavFileInfo.path = filePath
-        // 这里有可能返回O-size，应该是webdav的坑，，某些get请求返回的size=0，不要缓存起来
+        // 某些get请求返回的size=0，不要缓存起来
         if (webdavFileInfo.size * 1 > 0) {
           cacheFileInfo(webdavFileInfo)
         }
         request.fileSize = webdavFileInfo.size * 1
-      } catch (e) {
-        console.log('@@webdavFileInfo_error:', filePath)
       }
     }
     request.passwdInfo = passwdInfo
@@ -185,25 +182,25 @@ async function webdavHandle(ctx, next) {
 // 初始化webdav路由，这里可以优化成动态路由，只不过没啥必要，修改配置后直接重启就好了
 webdavServer.forEach((webdavConfig) => {
   if (webdavConfig.enable) {
-    webdavRouter.all(new RegExp(webdavConfig.path), preProxy(webdavConfig, true), webdavHandle)
+    proxyRouter.all(new RegExp(webdavConfig.path), preProxy(webdavConfig, true), proxyHandle)
   }
 })
 
 /* =================================== 单独处理alist的逻辑 ====================================== */
 
 // 先处理webdav，然后再处理普通的http
-webdavRouter.all(/\/dav\/*/, preProxy(alistServer, true), webdavHandle)
+proxyRouter.all(/\/dav\/*/, preProxy(alistServer, true), proxyHandle)
 
 // 其他的代理request预处理，处理要跳转的路径等
-webdavRouter.all(/\/*/, preProxy(alistServer, false))
+proxyRouter.all(/\/*/, preProxy(alistServer, false))
 
 // 处理文件下载的302跳转
-webdavRouter.get(/\/d\/*/, webdavHandle)
+proxyRouter.get(/\/d\/*/, proxyHandle)
 // 文件直接下载
-webdavRouter.get(/\/p\/*/, webdavHandle)
+proxyRouter.get(/\/p\/*/, proxyHandle)
 
 // 处理在线视频播放的问题，修改它的返回播放地址 为本代理的地址。
-webdavRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
+proxyRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
   const { path } = ctx.request.body
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
   ctx.req.reqBody = JSON.stringify(ctx.request.body)
@@ -222,7 +219,7 @@ webdavRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
   ctx.body = result
 })
 // 缓存alist的文件信息
-webdavRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
+proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
   const { path } = ctx.request.body
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
   ctx.req.reqBody = JSON.stringify(ctx.request.body)
@@ -247,7 +244,7 @@ webdavRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
 })
 
 // 处理网页上传文件
-webdavRouter.put('/api/fs/put', async (ctx, next) => {
+proxyRouter.put('/api/fs/put', async (ctx, next) => {
   const request = ctx.req
   const { headers, webdavConfig } = request
   // 兼容macos的webdav客户端x-expected-entity-length
@@ -264,7 +261,7 @@ webdavRouter.put('/api/fs/put', async (ctx, next) => {
 })
 
 // 初始化alist的路由
-webdavRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
+proxyRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
   let respBody = await httpClient(ctx.req, ctx.res)
   respBody = respBody.replace(
     '<body>',
@@ -279,7 +276,7 @@ webdavRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
   ctx.body = respBody
 })
 // 使用路由控制
-app.use(webdavRouter.routes()).use(webdavRouter.allowedMethods())
+app.use(proxyRouter.routes()).use(proxyRouter.allowedMethods())
 
 // 配置创建好了，就启动
 const arg = process.argv.slice(2)

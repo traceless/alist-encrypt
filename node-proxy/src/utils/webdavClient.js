@@ -14,13 +14,17 @@ export async function getWebdavFileInfo(urlAddr, authorization) {
     urlAddr,
   }
   const parser = new XMLParser({ removeNSPrefix: true })
-  const XMLdata = await httpClient(request)
-  const respBody = parser.parse(XMLdata)
-  const res = respBody.multistatus.response
-  console.log(res)
-  const filePath = res.href
-  const size = res.propstat.prop.getcontentlength || 0
-  const name = res.propstat.prop.displayname
-  const isDir = size === 0
-  return { size, name, isDir, filePath }
+  try {
+    const XMLdata = await httpClient(request)
+    const respBody = parser.parse(XMLdata)
+    const res = respBody.multistatus.response
+    const filePath = res.href
+    const size = res.propstat.prop.getcontentlength || 0
+    const name = res.propstat.prop.displayname
+    const isDir = size === 0
+    return { size, name, isDir, filePath }
+  } catch (e) {
+    console.log('@@webdavFileInfo_error:', urlAddr)
+  }
+  return null
 }

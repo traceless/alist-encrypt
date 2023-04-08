@@ -71,7 +71,6 @@ CRCn.generateTable6 = function () {
     }
     csTable[i] = curr
   }
-  console.log(csTable)
   return csTable
 }
 
@@ -90,7 +89,6 @@ CRCn.generateTable6test = function () {
     }
     csTable[i] = curr >> 2
   }
-  console.log(csTable.reverse())
   return csTable
 }
 

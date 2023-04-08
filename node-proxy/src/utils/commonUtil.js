@@ -18,7 +18,7 @@ export function pathExec(encPath, url) {
   return null
 }
 
-export function encodeFolderName(password, encType, folderPasswd, folderEncType) {
+export function encodeName(password, encType, folderPasswd, folderEncType) {
   const flowEnc = new FlowEnc(password, encType, 1)
   //  randomStr
   const salt = MixBase64.randomStr(1)
@@ -31,24 +31,22 @@ export function encodeFolderName(password, encType, folderPasswd, folderEncType)
   return folderNameEnc
 }
 
-export function decodeFolderName(password, encType, folderNameEnc) {
+export function decodeName(password, encType, folderNameEnc) {
   const arr = folderNameEnc.split('_')
   if (arr.length < 2) {
     return false
   }
   const salt = folderNameEnc.substring(folderNameEnc.length - 1)
   const crc6Check = folderNameEnc.substring(folderNameEnc.length - 2, folderNameEnc.length - 1)
-
   const flowEnc = new FlowEnc(password, encType, 1)
   const mix64 = new MixBase64(flowEnc.passwdOutward, salt)
   // start dec
   let folderName = arr[arr.length - 1]
   folderName = folderName.substring(0, folderName.length - 2)
-  const crc6Bit = crc6.checksum(Buffer.from(folderNameEnc))
+  const crc6Bit = crc6.checksum(Buffer.from(folderName))
   if (MixBase64.getSourceChar(crc6Bit) !== crc6Check) {
     return false
   }
-
   const passwdInfo = mix64.decode(folderName).toString('utf8')
   const folderEncType = passwdInfo.substring(0, passwdInfo.indexOf('_'))
   const folderPasswd = passwdInfo.substring(passwdInfo.indexOf('_') + 1)
@@ -66,7 +64,7 @@ export function pathFindPasswd(passwdList, url) {
         const newPasswdInfo = Object.assign({}, passwdInfo)
         const folders = path.dirname(url).split('/')
         for (const folderName of folders) {
-          const data = decodeFolderName(passwdInfo.password, passwdInfo.encType, folderName)
+          const data = decodeName(passwdInfo.password, passwdInfo.encType, folderName)
           if (data) {
             newPasswdInfo.encType = data.folderEncType
             newPasswdInfo.password = data.folderPasswd

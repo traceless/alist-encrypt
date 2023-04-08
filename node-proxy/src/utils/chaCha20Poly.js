@@ -82,11 +82,15 @@ class ChaCha20Poly {
   decChaPoly(bufferData, authTag) {
     try {
       if (authTag) {
+        this.decipher.setAuthTag(authTag)
+      }
+      if (authTag === true) {
         this.decipher.setAuthTag(this.cipher.getAuthTag())
       }
       if (typeof authTag === 'string') {
-        this.decipher.setAuthTag(authTag)
+        this.decipher.setAuthTag(Buffer.from(authTag))
       }
+
       return this.decipher.update(bufferData)
       // const decryptData = Buffer.concat([this.decipher.update(bufferData), this.decipher.final()]).toString('utf8')
     } catch (err) {
