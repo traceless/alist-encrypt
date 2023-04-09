@@ -12,7 +12,8 @@ import levelDB from './src/utils/levelDB.js'
 import { webdavServer, alistServer, port } from './src/config.js'
 import { pathExec, pathFindPasswd } from './src/utils/commonUtil.js'
 import globalHandle from './src/middleware/globalHandle.js'
-import allRouter from './src/router.js'
+import encApiRouter from './src/router.js'
+import encNameRouter from './src/encNameRouter.js'
 import { cacheFileInfo, getFileInfo } from './src/dao/fileDao.js'
 import { getWebdavFileInfo } from './src/utils/webdavClient.js'
 import { convertFile } from './src/utils/convertFile.js'
@@ -30,8 +31,8 @@ const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
 
 // ======================/proxy是实现本服务的业务==============================
 // 短地址
-allRouter.redirect('/index', '/public/index.html', 302)
-app.use(allRouter.routes()).use(allRouter.allowedMethods())
+encApiRouter.redirect('/index', '/public/index.html', 302)
+app.use(encApiRouter.routes()).use(encApiRouter.allowedMethods())
 
 // ======================下面是实现webdav代理的业务==============================
 
@@ -100,7 +101,7 @@ function preProxy(webdavConfig, isWebdav) {
     await next()
   }
 }
-// webdav代理处理
+// webdav or http handle
 async function proxyHandle(ctx, next) {
   const request = ctx.req
   const response = ctx.res
@@ -193,6 +194,8 @@ proxyRouter.all(/\/dav\/*/, preProxy(alistServer, true), proxyHandle)
 
 // 其他的代理request预处理，处理要跳转的路径等
 proxyRouter.all(/\/*/, preProxy(alistServer, false))
+// check enc filename
+proxyRouter.use(encNameRouter.routes()).use(encNameRouter.allowedMethods())
 
 // 处理文件下载的302跳转
 proxyRouter.get(/\/d\/*/, proxyHandle)
@@ -204,6 +207,7 @@ proxyRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
   const { path } = ctx.request.body
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
   ctx.req.reqBody = JSON.stringify(ctx.request.body)
+
   const respBody = await httpClient(ctx.req)
   const result = JSON.parse(respBody)
   const { headers } = ctx.req
@@ -211,19 +215,21 @@ proxyRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
 
   if (passwdInfo) {
     // 修改返回的响应，匹配到要解密，就302跳转到本服务上进行代理流量
-    console.log('@@getFile ', path, result)
+    console.log('@@getFile ', path, ctx.req.reqBody, result)
     const key = crypto.randomUUID()
     await levelDB.setExpire(key, { redirectUrl: result.data.raw_url, passwdInfo, fileSize: result.data.size }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
     result.data.raw_url = `${headers.origin}/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(path)}`
   }
   ctx.body = result
 })
+
 // 缓存alist的文件信息
 proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
   const { path } = ctx.request.body
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
   ctx.req.reqBody = JSON.stringify(ctx.request.body)
   const respBody = await httpClient(ctx.req)
+  // console.log('@@@respBody', respBody)
   const result = JSON.parse(respBody)
   if (!result.data) {
     ctx.body = result
@@ -238,6 +244,7 @@ proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
     const fileInfo = content[i]
     fileInfo.path = encodeURI(path + '/' + fileInfo.name)
     // 这里要注意闭包问题，mad
+    console.log('@@cacheFileInfo', fileInfo.path)
     await cacheFileInfo(fileInfo)
   }
   ctx.body = result
@@ -247,8 +254,7 @@ proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
 proxyRouter.put('/api/fs/put', async (ctx, next) => {
   const request = ctx.req
   const { headers, webdavConfig } = request
-  // 兼容macos的webdav客户端x-expected-entity-length
-  const contentLength = headers['content-length'] || headers['x-expected-entity-length'] || 0
+  const contentLength = headers['content-length'] || 0
   request.fileSize = contentLength * 1
 
   const uploadPath = headers['file-path'] ? decodeURIComponent(headers['file-path']) : '/-'
@@ -289,5 +295,5 @@ if (arg.length > 1) {
   server.listen(port, () => console.log('服务启动成功: ' + port))
   setInterval(() => {
     console.log('server_connections', server._connections, Date.now())
-  }, 8000)
+  }, 600 * 1000)
 }

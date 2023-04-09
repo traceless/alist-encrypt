@@ -18,38 +18,49 @@ export function pathExec(encPath, url) {
   return null
 }
 
-export function encodeName(password, encType, folderPasswd, folderEncType) {
+export function encodeName(password, encType, plainName) {
   const flowEnc = new FlowEnc(password, encType, 1)
   //  randomStr
-  const salt = MixBase64.randomStr(1)
-  const mix64 = new MixBase64(flowEnc.passwdOutward, salt)
-  const passwdInfo = folderEncType + '_' + folderPasswd
-  let folderNameEnc = mix64.encode(passwdInfo)
-  const crc6Bit = crc6.checksum(Buffer.from(folderNameEnc))
+  const mix64 = new MixBase64(flowEnc.passwdOutward)
+  let encodeName = mix64.encode(plainName)
+  const crc6Bit = crc6.checksum(Buffer.from(encodeName + flowEnc.passwdOutward))
   const crc6Check = MixBase64.getSourceChar(crc6Bit)
-  folderNameEnc += crc6Check + salt
-  return folderNameEnc
+  encodeName += crc6Check
+  return encodeName
 }
 
-export function decodeName(password, encType, folderNameEnc) {
-  const arr = folderNameEnc.split('_')
+export function decodeName(password, encType, encodeName) {
+  const crc6Check = encodeName.substring(encodeName.length - 1)
+  const flowEnc = new FlowEnc(password, encType, 1)
+  const mix64 = new MixBase64(flowEnc.passwdOutward)
+  // start dec
+  const subEncName = encodeName.substring(0, encodeName.length - 1)
+  const crc6Bit = crc6.checksum(Buffer.from(subEncName + flowEnc.passwdOutward ))
+  console.log(subEncName, MixBase64.getSourceChar(crc6Bit), crc6Check )
+  if (MixBase64.getSourceChar(crc6Bit) !== crc6Check) {
+    return null
+  }
+  const decodeStr = mix64.decode(subEncName).toString('utf8')
+  return decodeStr
+}
+
+export function encodeFolderName(password, encType, folderPasswd, folderEncType) {
+  const passwdInfo = folderEncType + '_' + folderPasswd
+  return encodeName(password, encType, passwdInfo)
+}
+
+export function decodeFolderName(password, encType, encodeName) {
+  const arr = encodeName.split('_')
   if (arr.length < 2) {
     return false
   }
-  const salt = folderNameEnc.substring(folderNameEnc.length - 1)
-  const crc6Check = folderNameEnc.substring(folderNameEnc.length - 2, folderNameEnc.length - 1)
-  const flowEnc = new FlowEnc(password, encType, 1)
-  const mix64 = new MixBase64(flowEnc.passwdOutward, salt)
-  // start dec
-  let folderName = arr[arr.length - 1]
-  folderName = folderName.substring(0, folderName.length - 2)
-  const crc6Bit = crc6.checksum(Buffer.from(folderName))
-  if (MixBase64.getSourceChar(crc6Bit) !== crc6Check) {
-    return false
+  const folderEncName = arr[arr.length - 1]
+  const decodeStr = decodeName(password, encType, folderEncName)
+  if (!decodeStr) {
+    return decodeStr
   }
-  const passwdInfo = mix64.decode(folderName).toString('utf8')
-  const folderEncType = passwdInfo.substring(0, passwdInfo.indexOf('_'))
-  const folderPasswd = passwdInfo.substring(passwdInfo.indexOf('_') + 1)
+  const folderEncType = decodeStr.substring(0, decodeStr.indexOf('_'))
+  const folderPasswd = decodeStr.substring(decodeStr.indexOf('_') + 1)
   return { folderEncType, folderPasswd }
 }
 
@@ -64,7 +75,7 @@ export function pathFindPasswd(passwdList, url) {
         const newPasswdInfo = Object.assign({}, passwdInfo)
         const folders = path.dirname(url).split('/')
         for (const folderName of folders) {
-          const data = decodeName(passwdInfo.password, passwdInfo.encType, folderName)
+          const data = decodeFolderName(passwdInfo.password, passwdInfo.encType, folderName)
           if (data) {
             newPasswdInfo.encType = data.folderEncType
             newPasswdInfo.password = data.folderPasswd

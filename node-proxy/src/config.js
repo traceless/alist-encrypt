@@ -25,9 +25,11 @@ const alistServerTemp = {
     {
       password: '123456',
       describe: 'my video', // 加密内容描述
-      encType: 'rc4', // 算法类型，可选mix，rc4，默认mix
-      enable: true, // 是否开启
-      encPath: ['/aliyun/test/*', '/189cloud/atest/*'], // 路径支持正则表达式，常用的就是 尾巴带*，此目录的所文件都加密
+      encType: 'aesctr', // 算法类型，可选mix，rc4，默认aesctr
+      enable: true, // enable encrypt
+      encName: false, // encrypt file name
+      encSuffix: '', //
+      encPath: ['encrypt_folder/*', '/189cloud/atest/*'], // 路径支持正则表达式，常用的就是 尾巴带*，此目录的所文件都加密
     },
   ],
 }
@@ -46,10 +48,12 @@ const webdavServerTemp = [
     passwdList: [
       {
         password: '123456',
-        encType: 'rc4', // 密码类型，mix：速度更快适合电视盒子之类，rc4: 更安全，速度比mix慢一点，几乎无感知。
+        encType: 'aesctr', // 密码类型，mix：速度更快适合电视盒子之类，rc4: 更安全，速度比mix慢一点，几乎无感知。
         describe: 'my video',
         enable: false,
-        encPath: ['/dav/aliyun/*', '/dav/189cloud/*'], // 子路径
+        encName: false, // encrypt file name
+        encNameSuffix: '', //
+        encPath: ['encrypt_folder/*', '/dav/189cloud/*'], // 子路径
       },
     ],
   },
