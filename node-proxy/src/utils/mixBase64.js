@@ -1,7 +1,7 @@
 'use strict'
 import crypto from 'crypto'
 
-const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-*!'
+const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-~!'
 
 // use sha1 str to init
 function initKSA(passwd) {

@@ -9,7 +9,7 @@ class AesCTR {
     if (Buffer.from(password, 'base64').toString('base64') === password) {
       this.passwdOutward = Buffer.from(password, 'base64').toString('hex')
     } else if (password.length !== 32) {
-      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'AES-CTR', 10000, 16, 'sha256').toString('hex')
+      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'AES-CTR', 1000, 16, 'sha256').toString('hex')
     }
     // create file aes-ctr key
     const passwdSalt = this.passwdOutward + sizeSalt
