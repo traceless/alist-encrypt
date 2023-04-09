@@ -55,7 +55,7 @@ encNameRouter.all('/api/fs/put', async (ctx, next) => {
   if (passwdInfo && passwdInfo.encName) {
     const fileName = path.basename(uploadPath)
     // you can custom Suffix
-    const ext = passwdInfo.encSuffix.trim() || path.extname(fileName)
+    const ext = passwdInfo.encSuffix || path.extname(fileName)
 
     const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
     const filePath = path.dirname(uploadPath) + '/' + encName + ext
@@ -81,7 +81,7 @@ encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
       }
       const fileName = path.basename(name)
       // you can custom Suffix
-      const ext = passwdInfo.encSuffix.trim() || path.extname(fileName)
+      const ext = passwdInfo.encSuffix || path.extname(fileName)
       const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
       const newFileName = encName + ext
       fileNames.push(newFileName)
@@ -109,7 +109,7 @@ encNameRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
       await next()
       return
     }
-    const ext = passwdInfo.encSuffix.trim() || path.extname(fileName)
+    const ext = passwdInfo.encSuffix || path.extname(fileName)
     const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
     const newFileName = encName + ext
     const fpath = path.dirname(filePath) + '/' + newFileName
@@ -138,7 +138,7 @@ encNameRouter.all('/api/fs/rename', bodyparserMw, async (ctx, next) => {
     }
     const fileName = path.basename(filePath)
     // you can custom Suffix
-    const ext = passwdInfo.encSuffix.trim() || path.extname(fileName)
+    const ext = passwdInfo.encSuffix || path.extname(fileName)
     // use sourceName
     const encFileName = sourceName || encodeName(passwdInfo.password, passwdInfo.encType, fileName) + ext
     const fpath = path.dirname(filePath) + '/' + encFileName
@@ -178,7 +178,7 @@ encNameRouter.all(/\/d\/*/, bodyparserMw, async (ctx, next) => {
       await next()
       return
     }
-    const ext = passwdInfo.encSuffix.trim() || path.extname(fileName)
+    const ext = passwdInfo.encSuffix || path.extname(fileName)
     // reset content-length length
     delete ctx.req.headers['content-length']
     // replace encname
@@ -215,7 +215,7 @@ encNameRouter.all(/\/p\/*/, bodyparserMw, async (ctx, next) => {
       await next()
       return
     }
-    const ext = passwdInfo.encSuffix.trim() || path.extname(fileName)
+    const ext = passwdInfo.encSuffix || path.extname(fileName)
     // reset content-length length
     delete ctx.req.headers['content-length']
     // replace encname
