@@ -172,12 +172,59 @@ encNameRouter.all(/\/d\/*/, bodyparserMw, async (ctx, next) => {
     // check fileName is not enc or it is dir
     const fileInfo = await getFileInfo(filePath)
     const fileName = path.basename(filePath)
+    console.log('@@@@fileName', urlPath, fileName, filePath)
     // you can custom Suffix
     if (fileInfo) {
       await next()
       return
     }
+    const ext = passwdInfo.encSuffix.trim() || path.extname(fileName)
+    // reset content-length length
+    delete ctx.req.headers['content-length']
     // replace encname
+    const encName = encodeName(passwdInfo.password, passwdInfo.encType, decodeURI(fileName))
+    ctx.req.url = ctx.req.url.replace(fileName, encName + ext)
+    ctx.redirect(ctx.req.url)
+    ctx.status = 301
+    console.log('@@@@fileName', ctx.req.url, fileName, encName)
+    return
+  }
+  await next()
+})
+
+encNameRouter.all(/\/p\/*/, bodyparserMw, async (ctx, next) => {
+  const request = ctx.req
+  const { webdavConfig } = ctx.req
+
+  const urlPath = ctx.req.url.split('?')[0]
+  let filePath = urlPath
+  // 如果是alist的话，那么必然有这个文件的size缓存（进过list就会被缓存起来）
+  request.fileSize = 0
+  // 这里需要处理掉/p 路径
+  if (filePath.indexOf('/p/') === 0) {
+    filePath = filePath.replace('/p/', '/')
+  }
+  const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
+  if (passwdInfo) {
+    // check fileName is not enc or it is dir
+    const fileInfo = await getFileInfo(filePath)
+    const fileName = path.basename(filePath)
+    console.log('@@@@ppfileName', urlPath, fileName, filePath)
+    // you can custom Suffix
+    if (fileInfo) {
+      await next()
+      return
+    }
+    const ext = passwdInfo.encSuffix.trim() || path.extname(fileName)
+    // reset content-length length
+    delete ctx.req.headers['content-length']
+    // replace encname
+    const encName = encodeName(passwdInfo.password, passwdInfo.encType, decodeURI(fileName))
+    ctx.req.url = ctx.req.url.replace(fileName, encName + ext)
+    ctx.redirect(ctx.req.url)
+    ctx.status = 301
+    console.log('@@@@ppfileName', ctx.req.url, fileName, encName)
+    return
   }
   await next()
 })

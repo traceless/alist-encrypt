@@ -25,7 +25,7 @@ class Rc4Md5 {
     if (Buffer.from(password, 'base64').toString('base64') === password) {
       this.passwdOutward = Buffer.from(password, 'base64').toString('hex')
     } else if (password.length !== 32) {
-      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'RC4', 10000, 16, 'sha256').toString('hex')
+      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'RC4', 1000, 16, 'sha256').toString('hex')
     }
     // add salt
     const passwdSalt = this.passwdOutward + sizeSalt

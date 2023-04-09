@@ -15,7 +15,7 @@ class MixEnc {
     if (Buffer.from(password, 'base64').toString('base64') === password) {
       this.passwdOutward = Buffer.from(password, 'base64').toString('hex')
     } else if (password.length !== 32) {
-      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'MIX', 10000, 16, 'sha256').toString('hex')
+      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'MIX', 1000, 16, 'sha256').toString('hex')
     }
     console.log('MixEnc.passwdOutward', this.passwdOutward)
     const encode = crypto.createHash('sha256').update(this.passwdOutward).digest()
