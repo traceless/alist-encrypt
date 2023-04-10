@@ -22,9 +22,7 @@ class Rc4Md5 {
     // share you folder passwdOutward safety
     this.passwdOutward = password
     // check base64，create passwdOutward
-    if (Buffer.from(password, 'base64').toString('base64') === password) {
-      this.passwdOutward = Buffer.from(password, 'base64').toString('hex')
-    } else if (password.length !== 32) {
+    if (password.length !== 32) {
       this.passwdOutward = crypto.pbkdf2Sync(this.password, 'RC4', 1000, 16, 'sha256').toString('hex')
     }
     // add salt
