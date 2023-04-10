@@ -250,8 +250,8 @@ proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
   ctx.body = result
 })
 
-// 处理网页上传文件
-proxyRouter.put('/api/fs/put', async (ctx, next) => {
+// that is not work when upload txt file if enable encName
+proxyRouter.put('/api/fs/put-back', async (ctx, next) => {
   const request = ctx.req
   const { headers, webdavConfig } = request
   const contentLength = headers['content-length'] || 0

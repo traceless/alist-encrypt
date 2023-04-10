@@ -35,8 +35,8 @@ export function decodeName(password, encType, encodeName) {
   const mix64 = new MixBase64(flowEnc.passwdOutward)
   // start dec
   const subEncName = encodeName.substring(0, encodeName.length - 1)
-  const crc6Bit = crc6.checksum(Buffer.from(subEncName + flowEnc.passwdOutward ))
-  console.log(subEncName, MixBase64.getSourceChar(crc6Bit), crc6Check )
+  const crc6Bit = crc6.checksum(Buffer.from(subEncName + flowEnc.passwdOutward))
+  // console.log(subEncName, MixBase64.getSourceChar(crc6Bit), crc6Check)
   if (MixBase64.getSourceChar(crc6Bit) !== crc6Check) {
     return null
   }

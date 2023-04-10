@@ -4,7 +4,9 @@ import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
 import { encodeName, decodeName, pathFindPasswd } from './utils/commonUtil.js'
 import path from 'path'
-import { httpClient } from './utils/httpClient.js'
+import { httpClient, httpProxy } from './utils/httpClient.js'
+import FlowEnc from './utils/flowEnc.js'
+
 import { getFileInfo } from './dao/fileDao.js'
 
 // bodyparser解析body
@@ -44,7 +46,8 @@ encNameRouter.all('/api/fs/list', async (ctx, next) => {
   }
 })
 
-encNameRouter.all('/api/fs/put', async (ctx, next) => {
+// 处理网页上传文件
+encNameRouter.put('/api/fs/put', async (ctx, next) => {
   const request = ctx.req
   const { headers, webdavConfig } = request
   const contentLength = headers['content-length'] || 0
@@ -52,17 +55,21 @@ encNameRouter.all('/api/fs/put', async (ctx, next) => {
 
   const uploadPath = headers['file-path'] ? decodeURIComponent(headers['file-path']) : '/-'
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, uploadPath)
-  if (passwdInfo && passwdInfo.encName) {
+  if (passwdInfo) {
     const fileName = path.basename(uploadPath)
     // you can custom Suffix
-    const ext = passwdInfo.encSuffix || path.extname(fileName)
+    if (passwdInfo.encName) {
+      const ext = passwdInfo.encSuffix || path.extname(fileName)
 
-    const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
-    const filePath = path.dirname(uploadPath) + '/' + encName + ext
-    console.log('@@@encfileName', fileName, encName, ext)
-    headers['file-path'] = encodeURIComponent(filePath)
+      const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
+      const filePath = path.dirname(uploadPath) + '/' + encName + ext
+      console.log('@@@encfileName', fileName, uploadPath, filePath)
+      headers['file-path'] = encodeURIComponent(filePath)
+    }
+    const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
+    return await httpProxy(ctx.req, ctx.res, flowEnc.encryptTransform())
   }
-  await next()
+  return await httpProxy(ctx.req, ctx.res)
 })
 
 // remove
