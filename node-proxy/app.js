@@ -9,7 +9,7 @@ import { httpProxy, httpClient } from './src/utils/httpClient.js'
 import bodyparser from 'koa-bodyparser'
 import FlowEnc from './src/utils/flowEnc.js'
 import levelDB from './src/utils/levelDB.js'
-import { webdavServer, alistServer, port } from './src/config.js'
+import { webdavServer, alistServer, port, version } from './src/config.js'
 import { pathExec, pathFindPasswd } from './src/utils/commonUtil.js'
 import globalHandle from './src/middleware/globalHandle.js'
 import encApiRouter from './src/router.js'
@@ -244,7 +244,7 @@ proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
     const fileInfo = content[i]
     fileInfo.path = encodeURI(path + '/' + fileInfo.name)
     // 这里要注意闭包问题，mad
-    console.log('@@cacheFileInfo', fileInfo.path)
+    // console.log('@@cacheFileInfo', fileInfo.path)
     await cacheFileInfo(fileInfo)
   }
   ctx.body = result
@@ -273,8 +273,9 @@ proxyRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
     '<body>',
     `<body><div style="position: fixed;z-index:10010; top:8px; margin-left: 50%">
       <a target="_blank" href="/index">
-        <div style="width:100px;height:50px">
+        <div style="width:80px;height:50px">
           <img style="width:40px;height:40px;" src="/public/logo.png" />
+          <span style="margin-left:4px;color:gray;font-size:11px">V.${version}</span>
         </div>
       </a>
     </div>`

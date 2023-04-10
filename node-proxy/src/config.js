@@ -128,6 +128,8 @@ initAlistConfig(configData.alistServer)
 /** 代理服务的端口 */
 export const port = configData.port || 5344
 
+export const version = '0.1.1'
+
 export const alistServer = configData.alistServer || alistServerTemp
 
 export const webdavServer = configData.webdavServer || webdavServerTemp

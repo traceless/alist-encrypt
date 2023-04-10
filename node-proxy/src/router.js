@@ -4,7 +4,7 @@ import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
 import crypto from 'crypto'
 import fs from 'fs'
-import { alistServer, webdavServer, port, initAlistConfig } from './config.js'
+import { alistServer, webdavServer, port, initAlistConfig, version } from './config.js'
 import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao.js'
 import responseHandle from './middleware/responseHandle.js'
 import { encodeFolderName, decodeFolderName } from './utils/commonUtil.js'
@@ -65,6 +65,7 @@ router.all('/getUserInfo', async (ctx, next) => {
     userInfo,
     menuList: [],
     roles: ['admin'],
+    version,
   }
   ctx.body = { data }
 })
