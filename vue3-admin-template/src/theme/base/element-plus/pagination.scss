@@ -1,0 +1,30 @@
+html.china-red {
+  .el-pagination {
+    --el-text-color-regular: #8c8c8c;
+    --el-pagination-font-size: 14px;
+    --el-pagination-bg-color: var(--el-fill-color-blank);
+    --el-pagination-text-color: var(--el-text-color-primary);
+    --el-pagination-border-radius: 3px;
+    --el-pagination-button-color: var(--el-text-color-primary);
+    --el-pagination-button-width: 32px;
+    --el-pagination-button-height: 32px;
+    --el-pagination-button-disabled-color: var(--el-text-color-placeholder);
+    --el-pagination-button-disabled-bg-color: var(--el-fill-color-blank);
+    --el-pagination-button-bg-color: var(--el-fill-color);
+    --el-pagination-hover-color: var(--el-color-primary);
+    --el-pagination-height-extra-small: 24px;
+    --el-pagination-line-height-extra-small: var(--el-pagination-height-extra-small);
+    white-space: nowrap;
+    padding: 2px 5px;
+    color: var(--el-pagination-text-color);
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+  }
+
+  .el-pagination__total {
+    margin-right: 16px;
+    font-weight: 400;
+    color: var(--el-text-color-regular);
+  }
+}

@@ -1,0 +1,123 @@
+html.china-red {
+  color-scheme: china-red;
+  .at-button-low {
+    --el-button-text-color: #262626;
+    --el-button-bg-color: #ffffff;
+    --el-button-border-color: #d9d9d9;
+    --el-button-outline-color: #d9d9d9;
+
+    --el-button-hover-text-color: #c72210;
+    --el-button-hover-link-text-color: #c72210;
+    --el-button-hover-bg-color: #ffece6;
+    --el-button-hover-border-color: transparent;
+
+    --el-button-active-color: #a8150a;
+    --el-button-active-bg-color: #a8150a;
+    --el-button-active-border-color: transparent;
+
+    --el-button-disabled-text-color: #a6a6a6;
+    --el-button-disabled-bg-color: #ffece6;
+    --el-button-disabled-border-color: #c72210;
+    //loading
+    --el-button-loading-text-color: #c72210;
+    --el-button-loading-bg-color: #ffece6;
+    --el-button-loading-border-color: #c72210;
+  }
+
+  .at-button-middle {
+    --el-button-text-color: #c72210;
+    --el-button-bg-color: #ffece6;
+    --el-button-border-color: #c72210;
+    --el-button-outline-color: #c72210;
+
+    --el-button-hover-text-color: #ffffff;
+    --el-button-hover-link-text-color: #ffffff;
+    --el-button-hover-bg-color: #c72210;
+    --el-button-hover-border-color: #c72210;
+
+    --el-button-active-color: #ffffff;
+    --el-button-active-bg-color: #a8150a;
+    --el-button-active-border-color: #a8150a;
+
+    --el-button-disabled-text-color: #a6a6a6;
+    --el-button-disabled-bg-color: #ffffff;
+    --el-button-disabled-border-color: #d9d9d9;
+
+    //loading
+    --el-button-loading-text-color: #c72210;
+    --el-button-loading-bg-color: #ffece6;
+    --el-button-loading-border-color: #c72210;
+  }
+
+  .at-button-height {
+    --el-button-text-color: #ffffff;
+    --el-button-bg-color: #c72210;
+    --el-button-border-color: transparent;
+    --el-button-outline-color: transparent;
+
+    --el-button-hover-text-color: #ffffff;
+    --el-button-hover-link-text-color: #ffffff;
+    --el-button-hover-bg-color: #dd715b;
+    --el-button-hover-border-color: #c72210;
+
+    --el-button-active-color: #ffffff;
+    --el-button-active-bg-color: #a8150a;
+    --el-button-active-border-color: transparent;
+
+    --el-button-disabled-text-color: #a6a6a6;
+    --el-button-disabled-bg-color: #f5f5f5;
+    --el-button-disabled-border-color: transparent;
+
+    //loading
+    --el-button-loading-text-color: #ffffff;
+    --el-button-loading-bg-color: #c72210;
+    --el-button-loading-border-color: transparent;
+  }
+
+  .at-button-text {
+    --el-button-text-color: #477ef5;
+    --el-fill-color-light: transparent;
+    --el-fill-color: transparent;
+
+    --el-button-hover-text-color: #86b2f9;
+
+    --el-button-active-color: #2c59cb;
+
+    --el-button-disabled-text-color: #a6a6a6;
+
+    //loading
+    --el-button-loading-text-color: #477ef5;
+  }
+
+  .el-button {
+    //default
+    --el-button-size: 36px;
+    height: var(--el-button-size);
+    padding: 8px 30px;
+    font-size: 14px;
+    //loading
+    .is-loading {
+      color: var(--el-button-loading-text-color);
+      background-color: var(--el-button-loading-bg-color);
+      border-color: var(--el-button-loading-border-color);
+    }
+  }
+
+  .el-button--small {
+    --el-button-size: 27px;
+    height: var(--el-button-size);
+    padding: 5px 24px;
+    font-size: 12px;
+  }
+
+  .el-button--large {
+    --el-button-size: 40px;
+    height: var(--el-button-size);
+    padding: 10px 30px;
+    font-size: 14px;
+  }
+
+  .el-button + .el-button {
+    margin-left: 12px;
+  }
+}

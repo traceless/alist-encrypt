@@ -1,0 +1,18 @@
+html.china-red {
+  .el-radio {
+    --el-radio-font-size: var(--el-font-size-base);
+    --el-radio-text-color: #262626;
+    --el-radio-font-weight: var(--el-font-weight-primary);
+    --el-radio-input-height: 14px;
+    --el-radio-input-width: 14px;
+    --el-radio-input-border-radius: var(--el-border-radius-circle);
+    --el-radio-input-bg-color: var(--el-fill-color-blank);
+    --el-radio-input-border: var(--el-border);
+    --el-radio-input-border-color: transparent;
+    //--el-radio-input-border-color-hover: transparent;
+  }
+
+  .el-radio__input.is-checked + .el-radio__label {
+    color: #262626;
+  }
+}

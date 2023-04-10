@@ -1,0 +1,4 @@
+{
+  "root": true,
+  "extends": ["./eslintrc/eslint-config.js", "./eslintrc/.eslintrc-auto-import.json"]
+}

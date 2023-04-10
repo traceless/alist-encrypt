@@ -1,0 +1,5 @@
+#!/bin/sh
+#. "$(dirname "$0")/_/husky.sh"
+#在项目中我们会使用commit-msg这个git hook来校验我们commit时添加的备注信息是否符合规范。在以前的我们通常是这样配置：
+#--no-install 参数表示强制npx使用项目中node_modules目录中的commitlint包(如果需要开启，注意：需要安装npx)
+#npx --no-install commitlint --edit $1
