@@ -190,7 +190,7 @@ webdavServer.forEach((webdavConfig) => {
 /* =================================== 单独处理alist的逻辑 ====================================== */
 
 // 先处理webdav，然后再处理普通的http
-proxyRouter.all(/\/dav\/*/, preProxy(alistServer, true), proxyHandle)
+proxyRouter.all(/^\/dav\/*/, preProxy(alistServer, true), proxyHandle)
 
 // 其他的代理request预处理，处理要跳转的路径等
 proxyRouter.all(/\/*/, preProxy(alistServer, false))
@@ -198,9 +198,9 @@ proxyRouter.all(/\/*/, preProxy(alistServer, false))
 proxyRouter.use(encNameRouter.routes()).use(encNameRouter.allowedMethods())
 
 // 处理文件下载的302跳转
-proxyRouter.get(/\/d\/*/, proxyHandle)
+proxyRouter.get(/^\/d\/*/, proxyHandle)
 // 文件直接下载
-proxyRouter.get(/\/p\/*/, proxyHandle)
+proxyRouter.get(/^\/p\/*/, proxyHandle)
 
 // 处理在线视频播放的问题，修改它的返回播放地址 为本代理的地址。
 proxyRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {

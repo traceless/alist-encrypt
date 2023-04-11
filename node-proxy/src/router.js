@@ -15,7 +15,7 @@ const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
 // 总路径，添加所有的子路由
 const allRouter = new Router()
 // 拦截全部
-allRouter.all(/\/enc-api\/*/, bodyparserMw, responseHandle, async (ctx, next) => {
+allRouter.all(/^\/enc-api\/*/, bodyparserMw, responseHandle, async (ctx, next) => {
   console.log('@@log request-url: ', ctx.req.url)
   await next()
 })
@@ -39,7 +39,7 @@ allRouter.all('/enc-api/login', async (ctx, next) => {
 })
 
 // 拦截登录
-allRouter.all(/\/enc-api\/*/, async (ctx, next) => {
+allRouter.all(/^\/enc-api\/*/, async (ctx, next) => {
   // nginx不支持下划线headers
   const { authorizetoken: authorizeToken } = ctx.request.headers
   // 查询数据库是否有密码

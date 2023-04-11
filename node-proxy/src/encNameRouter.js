@@ -6,13 +6,13 @@ import { encodeName, decodeName, pathFindPasswd } from './utils/commonUtil.js'
 import path from 'path'
 import { httpClient, httpProxy } from './utils/httpClient.js'
 import FlowEnc from './utils/flowEnc.js'
-
 import { getFileInfo } from './dao/fileDao.js'
 
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
 
 const encNameRouter = new Router()
+const origPrefix = 'orig_'
 
 // 拦截全部
 encNameRouter.all('/api/fs/list', async (ctx, next) => {
@@ -40,6 +40,8 @@ encNameRouter.all('/api/fs/list', async (ctx, next) => {
         if (decName) {
           // Ignore suffix
           fileInfo.name = decName
+        } else {
+          fileInfo.name = origPrefix + fileInfo.name
         }
       }
     }
@@ -81,9 +83,9 @@ encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
   if (passwdInfo && passwdInfo.encName) {
     for (const name of names) {
       // is not enc name
-      const fileInfo = await getFileInfo(encodeURI(dir + '/' + name))
-      if (fileInfo) {
-        fileNames.push(name)
+      if (name.indexOf(origPrefix) === 0) {
+        const origName = name.replace(origPrefix, '')
+        fileNames.push(origName)
         break
       }
       const fileName = path.basename(name)
@@ -102,17 +104,55 @@ encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
   ctx.body = respBody
 })
 
+const copyOrMoveFile = async (ctx, next) => {
+  const { dst_dir: dstDir, src_dir: srcDir, names } = ctx.request.body
+  const { webdavConfig } = ctx.req
+  const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, srcDir)
+  const fileNames = []
+  if (passwdInfo && passwdInfo.encName) {
+    for (const name of names) {
+      // is not enc name
+      if (name.indexOf(origPrefix) === 0) {
+        const origName = name.replace(origPrefix, '')
+        fileNames.push(origName)
+        break
+      }
+      const fileName = path.basename(name)
+      // you can custom Suffix
+      const ext = passwdInfo.encSuffix || path.extname(fileName)
+      const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
+      const newFileName = encName + ext
+      fileNames.push(newFileName)
+    }
+  }
+  const reqBody = { dst_dir: dstDir, src_dir: srcDir, names: fileNames }
+  ctx.req.reqBody = JSON.stringify(reqBody)
+  // reset content-length length
+  delete ctx.req.headers['content-length']
+  const respBody = await httpClient(ctx.req)
+  ctx.body = respBody
+}
+
+encNameRouter.all('/api/fs/move', bodyparserMw, copyOrMoveFile)
+encNameRouter.all('/api/fs/copy', bodyparserMw, copyOrMoveFile)
+
 encNameRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
   const { path: filePath } = ctx.request.body
   const { webdavConfig } = ctx.req
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
   if (passwdInfo) {
-    // check fileName is not enc or it is dir
-    const fileInfo = await getFileInfo(encodeURI(filePath))
+    // reset content-length length
+    delete ctx.req.headers['content-length']
+    // check fileName is not enc
     const fileName = path.basename(filePath)
-    // you can custom Suffix
-    const fileExt = path.extname(fileName)
-    if (fileInfo || !fileExt) {
+    const fileInfo = await getFileInfo(encodeURI(filePath))
+    if (fileInfo && fileInfo.is_dir) {
+      await next()
+      return
+    }
+    //  Check if it is a directory
+    if (fileName.indexOf(origPrefix) === 0) {
+      ctx.request.body.path = ctx.request.body.path.replace(origPrefix, '')
       await next()
       return
     }
@@ -121,8 +161,6 @@ encNameRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
     const newFileName = encName + ext
     const fpath = path.dirname(filePath) + '/' + newFileName
     console.log('@@@fpath', fpath)
-    // reset content-length length
-    delete ctx.req.headers['content-length']
     ctx.request.body.path = fpath
   }
   await next()
@@ -137,11 +175,13 @@ encNameRouter.all('/api/fs/rename', bodyparserMw, async (ctx, next) => {
   // reset content-length length
   delete ctx.req.headers['content-length']
   if (passwdInfo) {
+    // reset content-length length
+    delete ctx.req.headers['content-length']
     // check fileName is not enc,
-    const fileInfo = await getFileInfo(encodeURI(filePath))
+    const origName = path.basename(filePath)
     let sourceName = ''
-    if (fileInfo) {
-      sourceName = path.basename(filePath)
+    if (name.indexOf(origPrefix) === 0) {
+      sourceName = origName.replace(origPrefix, '')
     }
     const fileName = path.basename(filePath)
     // you can custom Suffix
@@ -149,20 +189,17 @@ encNameRouter.all('/api/fs/rename', bodyparserMw, async (ctx, next) => {
     // use sourceName
     const encFileName = sourceName || encodeName(passwdInfo.password, passwdInfo.encType, fileName) + ext
     const fpath = path.dirname(filePath) + '/' + encFileName
-    // reset content-length length
-    delete ctx.req.headers['content-length']
     const newName = encodeName(passwdInfo.password, passwdInfo.encType, name)
     reqBody.path = fpath
     reqBody.name = newName + ext
   }
   ctx.req.reqBody = reqBody
   console.log('@@@rename', reqBody)
-
   const respBody = await httpClient(ctx.req)
   ctx.body = respBody
 })
 
-encNameRouter.all(/\/d\/*/, bodyparserMw, async (ctx, next) => {
+const handleDownload = async (ctx, next) => {
   const request = ctx.req
   const { webdavConfig } = ctx.req
 
@@ -174,67 +211,42 @@ encNameRouter.all(/\/d\/*/, bodyparserMw, async (ctx, next) => {
   if (filePath.indexOf('/d/') === 0) {
     filePath = filePath.replace('/d/', '/')
   }
-  const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
-  if (passwdInfo) {
-    // check fileName is not enc or it is dir
-    const fileInfo = await getFileInfo(filePath)
-    const fileName = path.basename(filePath)
-    console.log('@@@@fileName', urlPath, fileName, filePath)
-    // you can custom Suffix
-    if (fileInfo) {
-      await next()
-      return
-    }
-    const ext = passwdInfo.encSuffix || path.extname(fileName)
-    // reset content-length length
-    delete ctx.req.headers['content-length']
-    // replace encname
-    const encName = encodeName(passwdInfo.password, passwdInfo.encType, decodeURI(fileName))
-    ctx.req.url = ctx.req.url.replace(fileName, encName + ext)
-    ctx.redirect(ctx.req.url)
-    ctx.status = 301
-    console.log('@@@@fileName', ctx.req.url, fileName, encName)
-    return
-  }
-  await next()
-})
-
-encNameRouter.all(/\/p\/*/, bodyparserMw, async (ctx, next) => {
-  const request = ctx.req
-  const { webdavConfig } = ctx.req
-
-  const urlPath = ctx.req.url.split('?')[0]
-  let filePath = urlPath
-  // 如果是alist的话，那么必然有这个文件的size缓存（进过list就会被缓存起来）
-  request.fileSize = 0
-  // 这里需要处理掉/p 路径
   if (filePath.indexOf('/p/') === 0) {
     filePath = filePath.replace('/p/', '/')
   }
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
   if (passwdInfo) {
+    // reset content-length length
+    delete ctx.req.headers['content-length']
     // check fileName is not enc or it is dir
-    const fileInfo = await getFileInfo(filePath)
     const fileName = path.basename(filePath)
-    console.log('@@@@ppfileName', urlPath, fileName, filePath)
-    // you can custom Suffix
-    if (fileInfo) {
+    if (fileName.indexOf(origPrefix) === 0) {
+      ctx.req.url = ctx.req.url.replace(origPrefix, '')
+      ctx.req.urlAddr = ctx.req.urlAddr.replace(origPrefix, '')
       await next()
       return
     }
     const ext = passwdInfo.encSuffix || path.extname(fileName)
-    // reset content-length length
-    delete ctx.req.headers['content-length']
+    // handle realfile url 302 redirect
+    const fname = fileName.replace(ext, '')
+    const decName = decodeName(passwdInfo.password, passwdInfo.encType, fname)
+    if (decName) {
+      await next()
+      return
+    }
     // replace encname
-    const encName = encodeName(passwdInfo.password, passwdInfo.encType, decodeURI(fileName))
-    ctx.req.url = ctx.req.url.replace(fileName, encName + ext)
-    ctx.redirect(ctx.req.url)
-    ctx.status = 301
-    console.log('@@@@ppfileName', ctx.req.url, fileName, encName)
+    const encName = encodeName(passwdInfo.password, passwdInfo.encType, decodeURI(fileName)) + ext
+    ctx.req.url = ctx.req.url.replace(fileName, encName)
+    ctx.req.urlAddr = ctx.req.urlAddr.replace(fileName, encName)
+    console.log('@@@@fileName', ctx.req.url, fileName, encName)
+    await next()
     return
   }
   await next()
-})
+}
+
+encNameRouter.get(/^\/d\/*/, bodyparserMw, handleDownload)
+// encNameRouter.get(/\/p\/*/, bodyparserMw, handleDownload)
 
 // restRouter.all(/\/enc-api\/*/, router.routes(), restRouter.allowedMethods())
 export default encNameRouter
