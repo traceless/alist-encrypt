@@ -140,7 +140,7 @@ encNameRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
   const { path: filePath } = ctx.request.body
   const { webdavConfig } = ctx.req
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
-  if (passwdInfo) {
+  if (passwdInfo && passwdInfo.encName) {
     // reset content-length length
     delete ctx.req.headers['content-length']
     // check fileName is not enc
@@ -174,7 +174,7 @@ encNameRouter.all('/api/fs/rename', bodyparserMw, async (ctx, next) => {
   ctx.req.reqBody = reqBody
   // reset content-length length
   delete ctx.req.headers['content-length']
-  if (passwdInfo) {
+  if (passwdInfo && passwdInfo.encName) {
     // reset content-length length
     delete ctx.req.headers['content-length']
     // check fileName is not enc,
@@ -215,7 +215,7 @@ const handleDownload = async (ctx, next) => {
     filePath = filePath.replace('/p/', '/')
   }
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
-  if (passwdInfo) {
+  if (passwdInfo && passwdInfo.encName) {
     // reset content-length length
     delete ctx.req.headers['content-length']
     // check fileName is not enc or it is dir
