@@ -49,10 +49,6 @@ class MixEnc {
     return md5.update(this.passwdOutward + content).digest('hex')
   }
 
-  async cachePosition() {
-    console.log('cachePosition the mix ')
-  }
-
   async setPositionAsync() {
     console.log('in the mix ')
   }

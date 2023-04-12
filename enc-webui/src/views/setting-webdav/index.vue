@@ -31,7 +31,7 @@
           <div v-for="(item, index) in configFormTemp.passwdList" :key="item.id">
             <el-radio-group v-model="item.encType" style="margin: 0 25px" size="small">
               <!-- <el-radio label="mix" border>MIX</el-radio> -->
-              <!-- <el-radio label="rc4" border>RC4</el-radio> -->
+              <el-radio label="rc4" border>RC4</el-radio>
               <el-radio label="aesctr" border>AES-CTR(新)</el-radio>
             </el-radio-group>
             开启

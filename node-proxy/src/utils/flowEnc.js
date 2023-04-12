@@ -34,10 +34,6 @@ class FlowEnc {
     await this.encryptFlow.setPositionAsync(position)
   }
 
-  async cachePosition() {
-    await this.encryptFlow.cachePosition()
-  }
-
   // 加密流转换
   encryptTransform() {
     return this.encryptFlow.encryptTransform()

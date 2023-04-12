@@ -22,7 +22,7 @@
       <div v-for="(item, index) in alistConfigForm.passwdList" :key="item.id">
         <el-radio-group v-model="item.encType" style="margin: 0 25px" size="small">
           <!-- <el-radio label="mix" border>MIX</el-radio> -->
-          <!-- <el-radio label="rc4" border>RC4</el-radio> -->
+          <el-radio label="rc4" border>RC4</el-radio>
           <el-radio label="aesctr" border>AES-CTR(新)</el-radio>
         </el-radio-group>
         开启
@@ -61,7 +61,7 @@
               </el-form-item>
               <el-form-item prop="username" label="算法类型">
                 <el-radio-group v-model="folderForm.folderEncType" style="margin: 0 25px" size="small">
-                  <el-radio label="mix" border>MIX</el-radio>
+                  <!-- <el-radio label="mix" border>MIX</el-radio> -->
                   <el-radio label="rc4" border>RC4</el-radio>
                   <el-radio label="aesctr" border>AES-CTR</el-radio>
                 </el-radio-group>

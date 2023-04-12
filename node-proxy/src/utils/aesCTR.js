@@ -42,10 +42,6 @@ class AesCTR {
     this.encrypt(buffer)
   }
 
-  async cachePosition() {
-    console.log('AesCRT cachePosition')
-  }
-
   encryptTransform() {
     return new Transform({
       // use anonymous func make sure `this` point to rc4
