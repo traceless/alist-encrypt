@@ -128,7 +128,7 @@ initAlistConfig(configData.alistServer)
 /** 代理服务的端口 */
 export const port = configData.port || 5344
 
-export const version = '0.1.3'
+export const version = '0.1.5'
 
 export const alistServer = configData.alistServer || alistServerTemp
 

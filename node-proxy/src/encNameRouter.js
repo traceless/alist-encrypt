@@ -16,7 +16,7 @@ const origPrefix = 'orig_'
 
 // 拦截全部
 encNameRouter.all('/api/fs/list', async (ctx, next) => {
-  console.log(' encrypt file name ', ctx.req.url)
+  console.log('@@encrypt file name ', ctx.req.url)
   await next()
   const result = ctx.body
   const { passwdList } = ctx.req.webdavConfig
@@ -31,7 +31,7 @@ encNameRouter.all('/api/fs/list', async (ctx, next) => {
         continue
       }
       //  Check path if the file name needs to be encrypted
-      const { passwdInfo } = pathFindPasswd(passwdList, fileInfo.path)
+      const { passwdInfo } = pathFindPasswd(passwdList, decodeURI(fileInfo.path))
       if (passwdInfo && passwdInfo.encName) {
         const ext = path.extname(fileInfo.name)
         // Ignore suffix
