@@ -23,7 +23,7 @@ if (isMainThread) {
   const workerList = []
   for (let i = workerNum; i--; ) {
     let basePath = pkgThreadPath
-    if (process.env.RUN_MODE === 'script') {
+    if (process.env.RUN_MODE === 'DEV') {
       basePath = threadPath
     }
     const worker = new Worker(basePath, {

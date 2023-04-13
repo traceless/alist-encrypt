@@ -18,6 +18,7 @@ import { cacheFileInfo, getFileInfo } from './src/dao/fileDao.js'
 import { getWebdavFileInfo } from './src/utils/webdavClient.js'
 import { convertFile } from './src/utils/convertFile.js'
 import staticServer from 'koa-static'
+import { logger } from './src/common/logger.js'
 
 const proxyRouter = new Router()
 const app = new Koa()
@@ -75,7 +76,7 @@ proxyRouter.all('/redirect/:key', async (ctx) => {
   }
   // 请求实际服务资源
   await httpProxy(request, response, null, decryptTransform)
-  console.log('----finish redirect---', decode, request.urlAddr, decryptTransform === null)
+  logger.info('----finish redirect---', decode, request.urlAddr, decryptTransform === null)
 })
 
 // 预处理 request，处理地址，加密钥匙等
@@ -111,7 +112,7 @@ async function proxyHandle(ctx, next) {
   const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
   // 检查路径是否满足加密要求，要拦截的路径可能有中文
   const { passwdInfo, pathInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  console.log('@@@@passwdInfo', pathInfo)
+  logger.debug('@@@@passwdInfo', pathInfo)
   // fix webdav move file
   if (request.method.toLocaleUpperCase() === 'MOVE' && headers.destination) {
     let destination = headers.destination
@@ -145,14 +146,14 @@ async function proxyHandle(ctx, next) {
       filePath = filePath.replace('/d/', '/')
     }
     const fileInfo = await getFileInfo(filePath)
-    console.log('@@getFileInfo:', filePath, fileInfo, request.urlAddr)
+    logger.info('@@getFileInfo:', filePath, fileInfo, request.urlAddr)
     if (fileInfo) {
       request.fileSize = fileInfo.size * 1
     } else if (request.headers.authorization) {
       // 这里要判断是否webdav进行请求, 这里默认就是webdav请求了
       const authorization = request.headers.authorization
       const webdavFileInfo = await getWebdavFileInfo(request.urlAddr, authorization)
-      console.log('@@webdavFileInfo:', filePath, webdavFileInfo)
+      logger.info('@@webdavFileInfo:', filePath, webdavFileInfo)
       if (webdavFileInfo) {
         webdavFileInfo.path = filePath
         // 某些get请求返回的size=0，不要缓存起来
@@ -163,7 +164,7 @@ async function proxyHandle(ctx, next) {
       }
     }
     request.passwdInfo = passwdInfo
-    // console.log('@@@@request.filePath ', request.filePath, result)
+    // logger.info('@@@@request.filePath ', request.filePath, result)
     if (request.fileSize === 0) {
       // 说明不用加密
       return await httpProxy(request, response)
@@ -212,7 +213,7 @@ proxyRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
 
   if (passwdInfo) {
     // 修改返回的响应，匹配到要解密，就302跳转到本服务上进行代理流量
-    console.log('@@getFile ', path, ctx.req.reqBody, result)
+    logger.info('@@getFile ', path, ctx.req.reqBody, result)
     const key = crypto.randomUUID()
     await levelDB.setExpire(key, { redirectUrl: result.data.raw_url, passwdInfo, fileSize: result.data.size }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
     result.data.raw_url = `${headers.origin}/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(path)}`
@@ -226,7 +227,7 @@ proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
   ctx.req.reqBody = JSON.stringify(ctx.request.body)
   const respBody = await httpClient(ctx.req)
-  // console.log('@@@respBody', respBody)
+  // logger.info('@@@respBody', respBody)
   const result = JSON.parse(respBody)
   if (!result.data) {
     ctx.body = result
@@ -241,7 +242,7 @@ proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
     const fileInfo = content[i]
     fileInfo.path = encodeURI(path + '/' + fileInfo.name)
     // 这里要注意闭包问题，mad
-    // console.log('@@cacheFileInfo', fileInfo.path)
+    // logger.debug('@@cacheFileInfo', fileInfo.path)
     await cacheFileInfo(fileInfo)
   }
   ctx.body = result
@@ -268,11 +269,12 @@ proxyRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
   let respBody = await httpClient(ctx.req, ctx.res)
   respBody = respBody.replace(
     '<body>',
-    `<body><div style="position: fixed;z-index:10010; top:8px; margin-left: 50%">
+    `<body>
+    <div style="position: fixed;z-index:10010; top:8px; margin-left: 50%">
       <a target="_blank" href="/index">
-        <div style="width:80px;height:50px">
+        <div style="width:40px;height:50px;margin-left: -20px">
           <img style="width:40px;height:40px;" src="/public/logo.png" />
-          <span style="margin-left:4px;color:gray;font-size:11px">V.${version}</span>
+          <span style="margin-left:2px;color:gray;font-size:11px">V.${version}</span>
         </div>
       </a>
     </div>`
@@ -290,8 +292,8 @@ if (arg.length > 1) {
 } else {
   const server = http.createServer(app.callback())
   server.maxConnections = 1000
-  server.listen(port, () => console.log('服务启动成功: ' + port))
+  server.listen(port, () => logger.info('服务启动成功: ' + port))
   setInterval(() => {
-    console.log('server_connections', server._connections, Date.now())
+    logger.debug('server_connections', server._connections, Date.now())
   }, 600 * 1000)
 }
