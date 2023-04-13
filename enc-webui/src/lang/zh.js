@@ -6,6 +6,7 @@ export default {
     'Setting alist': '配置alist',
     'Setting webdav': '其他webdav',
     'find password': '找回密码',
+    'encrypt local': '本地加解密',
     'encrypt online': '在线加解密',
     'file transfer': '文件转存',
     'description': '介绍',

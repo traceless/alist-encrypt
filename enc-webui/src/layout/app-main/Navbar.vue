@@ -12,7 +12,11 @@
     <div v-if="settings.ShowDropDown" class="right-menu rowSC">
       <el-dropdown trigger="click" size="medium">
         <div class="avatar-wrapper">
-          {{ userInfo.username }}
+          <div style="float: left;margin-top: 18px;">
+            <div> {{ userInfo.username }}</div>
+            <div style="font-size: 12px;"> v.{{ userInfo.version }}</div>
+          </div>
+          <!-- <div>  {{ userInfo.version }}  </div> -->
           <img src="https://github.jzfai.top/file/images/nav-right-logo.gif" class="user-avatar" />
           <CaretBottom style="width: 1em; height: 1em; margin-left: 4px" />
         </div>

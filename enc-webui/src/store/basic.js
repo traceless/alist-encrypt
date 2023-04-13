@@ -8,7 +8,7 @@ export const useBasicStore = defineStore('basic', {
       //user info
       token: '',
       getUserInfo: false,
-      userInfo: { username: '', avatar: '' },
+      userInfo: { username: '', avatar: '', version: '0.1.0' },
       //router
       allRoutes: [],
       buttonCodes: [],
@@ -48,13 +48,14 @@ export const useBasicStore = defineStore('basic', {
         state.allRoutes = constantRoutes.concat(routes)
       })
     },
-    setUserInfo({ userInfo, roles, codes }) {
+    setUserInfo({ userInfo, roles, codes, version }) {
       const { username, avatar } = userInfo
       this.$patch((state) => {
         state.roles = roles
         state.codes = codes
         state.getUserInfo = true
         state.userInfo.username = username
+        state.userInfo.version = version
         state.userInfo.avatar = avatar
       })
     },

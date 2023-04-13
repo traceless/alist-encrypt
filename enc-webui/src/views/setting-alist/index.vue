@@ -20,20 +20,23 @@
         <el-button type="success" @click="addPasswd">添加</el-button>
       </el-form-item>
       <div v-for="(item, index) in alistConfigForm.passwdList" :key="item.id">
-        <el-radio-group v-model="item.encType" style="margin: 0 25px" size="small">
-          <!-- <el-radio label="mix" border>MIX</el-radio> -->
-          <el-radio label="rc4" border>RC4</el-radio>
-          <el-radio label="aesctr" border>AES-CTR(新)</el-radio>
-        </el-radio-group>
-        开启
-        <el-switch v-model="item.enable" class="ml-2" style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" />
-        <el-button type="danger" style="margin: 5px 20px" :icon="Delete" circle @click="delPasswd(index)" />
+        配置 {{ index + 1 }}
+        <el-form-item label="算法">
+          <el-radio-group v-model="item.encType" style="margin: 0px 5px" size="small">
+            <!-- <el-radio label="mix" border>MIX</el-radio> -->
+            <el-radio label="aesctr" border>AES-CTR</el-radio>
+            <el-radio label="rc4" border>RC4</el-radio>
+          </el-radio-group>
+          开启
+          <el-switch v-model="item.enable" class="ml-2" style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" />
+          <el-button type="danger" style="margin: 0px 20px" :icon="Delete" circle @click="delPasswd(index)" />
+        </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="item.password" style="max-width: 260px; margin-right: 10px" placeholder="12341234" />
         </el-form-item>
         <el-form-item label="文件名">
           加密
-          <el-switch v-model="item.encName" class="ml-2" style="margin-right: 10px;--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" />
+          <el-switch v-model="item.encName" class="ml-2" style="margin-right: 10px; --el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949" />
           <!-- 后缀
           <el-input v-model="item.encSuffix" style="max-width: 150px; margin-left: 10px" placeholder="默认原文件名后缀" /> -->
         </el-form-item>
@@ -48,6 +51,7 @@
           根据文件夹的名字自动识别文件夹的秘钥
           <el-button type="success" size="small" style="margin-left: 10px" @click="checkFoldName(item)">获取</el-button>
         </el-form-item>
+        <br />
       </div>
       <el-form-item>
         <el-button type="primary" @click="saveAlistConfig">保存</el-button>
@@ -60,10 +64,10 @@
                 <el-input v-model="folderForm.folderName" style="max-width: 260px" placeholder="folder name" />
               </el-form-item>
               <el-form-item prop="username" label="算法类型">
-                <el-radio-group v-model="folderForm.folderEncType" style="margin: 0 25px" size="small">
+                <el-radio-group v-model="folderForm.folderEncType" style="margin: 0 15px" size="small">
                   <!-- <el-radio label="mix" border>MIX</el-radio> -->
-                  <el-radio label="rc4" border>RC4</el-radio>
                   <el-radio label="aesctr" border>AES-CTR</el-radio>
+                  <el-radio label="rc4" border>RC4</el-radio>
                 </el-radio-group>
               </el-form-item>
               <el-form-item prop="username" label="文件夹密码">
