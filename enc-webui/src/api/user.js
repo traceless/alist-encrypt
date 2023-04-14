@@ -84,7 +84,23 @@ export const decodeFoldNameReq = (subForm) => {
     method: 'post'
   })
 }
-//登录
+
+export const checkFilePathReq = (subForm) => {
+  return axiosReq({
+    url: '/enc-api/checkFilePath',
+    data: subForm,
+    method: 'post'
+  })
+}
+export const encryptFileReq = (subForm) => {
+  return axiosReq({
+    url: '/enc-api/encryptFile',
+    data: subForm,
+    method: 'post'
+  })
+}
+
+// login
 export const loginReq = (subForm) => {
   return axiosReq({
     url: '/enc-api/login',

@@ -8,6 +8,7 @@ import { alistServer, webdavServer, port, initAlistConfig, version } from './con
 import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao.js'
 import responseHandle from './middleware/responseHandle.js'
 import { encodeFolderName, decodeFolderName } from './utils/commonUtil.js'
+import { encryptFile, searchFile } from './utils/convertFile.js'
 
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
@@ -177,6 +178,22 @@ router.all('/decodeFoldName', async (ctx, next) => {
   }
   const { folderEncType, folderPasswd } = data
   ctx.body = { data: { folderEncType, folderPasswd } }
+})
+
+// encrypt or decrypt file
+router.all('/encryptFile', async (ctx, next) => {
+  const { folderPath, outPath, encType, password, operation, encName } = ctx.request.body
+  if (!fs.existsSync(folderPath)) {
+    ctx.body = { msg: 'encrypt file path not exists', code: 500 }
+    return
+  }
+  const files = searchFile(folderPath)
+  if (files.length > 10000) {
+    ctx.body = { msg: 'too maney file, exceeding 10000', code: 500 }
+    return
+  }
+  encryptFile(password, encType, operation, folderPath, outPath, encName)
+  ctx.body = { msg: 'waiting operation' }
 })
 
 // 用这种方式代替前缀的功能，{ prefix: } 不能和正则联合使用

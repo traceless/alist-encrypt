@@ -270,11 +270,13 @@ proxyRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
   respBody = respBody.replace(
     '<body>',
     `<body>
-    <div style="position: fixed;z-index:10010; top:8px; margin-left: 50%">
+    <div style="position: fixed;z-index:10010; top:7px; margin-left: 50%">
       <a target="_blank" href="/index">
-        <div style="width:40px;height:50px;margin-left: -20px">
+        <div style="width:40px;height:40px;margin-left: -20px">
           <img style="width:40px;height:40px;" src="/public/logo.png" />
-          <span style="margin-left:2px;color:gray;font-size:11px">V.${version}</span>
+          <div style="margin: -7px 2px;">
+            <span style="color:gray;font-size:11px">V.${version}</span>
+          </div>
         </div>
       </a>
     </div>`

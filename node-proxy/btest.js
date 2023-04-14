@@ -7,6 +7,9 @@ import CRCN from './src/utils/crc6-8.js'
 import fs from 'fs'
 import { encodeName, decodeName } from './src/utils/commonUtil.js'
 
+console.log('@@dd', path.isAbsolute('/ddf'))
+
+
 const ext = ''.trim() || path.extname('/dfdf.df')
 
 const encname = encodeName('123456', 'aesctr', '3wd.tex')

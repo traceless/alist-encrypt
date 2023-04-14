@@ -2,7 +2,9 @@
   <div class="scroll-y">
     <h3>本地加解密</h3>
     <div v-lang class="mt-30px font-bold mb-10px">使用说明：</div>
-    <div v-lang class="">此功能可以讲encrypt所在的系统中的文件夹进行加密，选择要加密文件夹的路径，然后点击 加密\解密 按钮即可</div>
+    <div v-lang class="">此本地加密的功能是把encrypt所在的系统中的文件夹进行加密，选择要加密文件夹的路径，然后点击 加密\解密 按钮即可</div>
+    <div v-lang class="">常见使用场景是在windows打开这个encrypt.exe，启动服务后，即可针对windows中的文件夹进行加密</div>
+
     <!--条件搜索-->
     <el-form ref="refSearchForm" :label-position="labelPosition" label-width="75px" :model="folderForm">
       <div v-lang class="mt-30px font-bold mb-10px">密码设置</div>
@@ -32,8 +34,12 @@
         />
       </el-form-item>
       <el-form-item label="文件夹">
-        <el-input v-model="folderForm.folderPath" style="max-width: 260px; margin-right: 10px" placeholder="/home/test" />
-        <el-button type="success" size="small" style="margin-left: 10px" @click="checkFoldName('item')">选择</el-button>
+        <el-input v-model="folderForm.folderPath" style="max-width: 260px; margin-right: 10px" placeholder="/home/my-video" />
+        <!-- <el-button type="success" size="small" style="margin-left: 10px" @click="checkFoldName('item')">选择</el-button> -->
+      </el-form-item>
+      <el-form-item label="输出">
+        <el-input v-model="folderForm.outPath" style="max-width: 260px; margin-right: 10px" placeholder="/home/outPath" />
+        <!-- <el-button type="success" size="small" style="margin-left: 10px" @click="checkFoldName('item')">选择</el-button> -->
       </el-form-item>
       <el-form-item>
         <el-button v-if="folderForm.operation == 'enc'" type="primary" @click="encryptFile">加密</el-button>
@@ -47,7 +53,7 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useConfigStore } from '@/store/config'
 import { useBasicStore } from '@/store/basic'
-import { getAlistConfigReq, saveAlistConfigReq, encodeFoldNameReq, decodeFoldNameReq } from '@/api/user'
+import { getAlistConfigReq, saveAlistConfigReq, encryptFileReq, checkFilePathReq } from '@/api/user'
 
 import { Check, Delete, Edit, Message, Search, Star, CirclePlus, Folder } from '@element-plus/icons-vue'
 import { random } from 'lodash'
@@ -67,6 +73,7 @@ const changeLanguage = (langParam) => {
 
 const folderForm = reactive({
   folderPath: '/home/test_enc',
+  outPath: '/home/outPath',
   encType: 'aesctr',
   password: '123456', // 文件夹密码
   operation: 'enc',
@@ -80,15 +87,9 @@ const delPasswd = (index) => {
   alistConfigForm.passwdList.splice(index, 1)
 }
 
-const saveAlistConfig = () => {
-  saveAlistConfigReq(alistConfigForm)
+const encryptFile = () => {
+  encryptFileReq(folderForm).then((res) => {
+    console.log(res)
+  })
 }
-onMounted(async () => {
-  const res = await getAlistConfigReq()
-  for (const passwdInfo of res.data.passwdList) {
-    passwdInfo.id = Math.random()
-    passwdInfo.encPath = passwdInfo.encPath.reduce((a, b) => `${a},${b}`)
-  }
-  Object.assign(alistConfigForm, res.data)
-})
 </script>
