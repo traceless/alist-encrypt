@@ -115,18 +115,18 @@ export const constantRoutes = [
       }
     ]
   },
-  {
-    path: '/description',
-    component: Layout,
-    children: [
-      {
-        path: 'index',
-        component: () => import('@/views/description/index.vue'),
-        name: 'description',
-        meta: { title: 'description', icon: 'example' }
-      }
-    ]
-  },
+  // {
+  //   path: '/description',
+  //   component: Layout,
+  //   children: [
+  //     {
+  //       path: 'index',
+  //       component: () => import('@/views/description/index.vue'),
+  //       name: 'description',
+  //       meta: { title: 'description', icon: 'example' }
+  //     }
+  //   ]
+  // },
 
   // {
   //   path: '/error-log',

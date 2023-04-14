@@ -89,7 +89,7 @@ const delPasswd = (index) => {
 
 const encryptFile = () => {
   encryptFileReq(folderForm).then((res) => {
-    console.log(res)
+    ElMessage.success(res.msg)
   })
 }
 </script>
