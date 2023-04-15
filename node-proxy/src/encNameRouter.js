@@ -180,12 +180,13 @@ encNameRouter.all('/api/fs/rename', bodyparserMw, async (ctx, next) => {
     // check fileName is not enc,
     const origName = path.basename(filePath)
     let sourceName = ''
-    if (name.indexOf(origPrefix) === 0) {
+    if (origName.indexOf(origPrefix) === 0) {
       sourceName = origName.replace(origPrefix, '')
     }
     const fileName = path.basename(filePath)
     // you can custom Suffix
     const ext = passwdInfo.encSuffix || path.extname(fileName)
+    console.log('@@@sourceName', name, sourceName)
     // use sourceName
     const encFileName = sourceName || encodeName(passwdInfo.password, passwdInfo.encType, fileName) + ext
     const fpath = path.dirname(filePath) + '/' + encFileName
