@@ -9,7 +9,7 @@ import PRGAExcuteThread from './PRGAThread.js'
  * 可以对 312345678 进行缓存sbox节点，这样下次就可以不用计算那么大
  */
 // Reset sbox every 100W bytes
-const segmentPosition = 123
+const segmentPosition = 100 * 10000
 
 class Rc4Md5 {
   // password，salt: ensure that each file has a different password
@@ -38,15 +38,13 @@ class Rc4Md5 {
 
   resetKSA() {
     const offset = parseInt(this.position / segmentPosition) * segmentPosition
-    if (offset === 0) {
-      const rc4Key = Buffer.from(this.fileHexKey, 'hex')
-      this.initKSA(rc4Key)
-      return
-    }
-    console.log('@@@offset', this.position, offset)
     const buf = Buffer.alloc(4)
     buf.writeInt32BE(offset)
-    const rc4Key = Buffer.concat([Buffer.from(this.fileHexKey, 'hex'), buf])
+    const rc4Key = Buffer.from(this.fileHexKey, 'hex')
+    let j = rc4Key.length - buf.length
+    for (let i = 0; i < buf.length; i++, j++) {
+      rc4Key[j] = rc4Key[j] ^ buf[i]
+    }
     this.initKSA(rc4Key)
   }
 
@@ -56,17 +54,18 @@ class Rc4Md5 {
     this.position = newPosition
     this.resetKSA()
     // use PRGAExecPostion no change potision
-    this.PRGAExecPostion(newPosition % segmentPosition + 1)
+    this.PRGAExecPostion(newPosition % segmentPosition)
     return this
   }
 
   // reset sbox，i，j, in other thread
   async setPositionAsync(newPosition = 0) {
+    // return this.setPosition(newPosition)
     newPosition *= 1
     this.position = newPosition
     this.resetKSA()
     const { sbox, i, j } = this
-    const data = await PRGAExcuteThread({ sbox, i, j, position: newPosition % segmentPosition + 1 })
+    const data = await PRGAExcuteThread({ sbox, i, j, position: newPosition % segmentPosition })
     this.sbox = data.sbox
     this.i = data.i
     this.j = data.j
@@ -111,13 +110,6 @@ class Rc4Md5 {
   PRGAExcute(plainLen, callback) {
     let { sbox: S, i, j } = this
     for (let k = 0; k < plainLen; k++) {
-      if (++this.position % segmentPosition === 0) {
-        // reset sbox initKSA
-        this.resetKSA()
-        i = this.i
-        j = this.j
-        S = this.sbox
-      }
       i = (i + 1) % 256
       j = (j + S[i]) % 256
       // swap
@@ -125,6 +117,13 @@ class Rc4Md5 {
       S[i] = S[j]
       S[j] = temp
       callback(S[(S[i] + S[j]) % 256])
+      if (++this.position % segmentPosition === 0) {
+        // reset sbox initKSA
+        this.resetKSA()
+        i = this.i
+        j = this.j
+        S = this.sbox
+      }
     }
     // save the i,j
     this.i = i

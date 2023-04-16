@@ -6,6 +6,7 @@ import { encodeName, decodeName, pathFindPasswd } from './utils/commonUtil.js'
 import path from 'path'
 import { httpClient, httpProxy } from './utils/httpClient.js'
 import FlowEnc from './utils/flowEnc.js'
+import { logger } from './common/logger.js'
 import { getFileInfo } from './dao/fileDao.js'
 
 // bodyparser解析body
@@ -79,7 +80,7 @@ encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
   const { dir, names } = ctx.request.body
   const { webdavConfig } = ctx.req
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, dir)
-  const fileNames = []
+  const fileNames = Object.assign([], names)
   if (passwdInfo && passwdInfo.encName) {
     for (const name of names) {
       // is not enc name
@@ -97,6 +98,7 @@ encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
     }
   }
   const reqBody = { dir, names: fileNames }
+  logger.info('@@reqBody remove', reqBody)
   ctx.req.reqBody = JSON.stringify(reqBody)
   // reset content-length length
   delete ctx.req.headers['content-length']
