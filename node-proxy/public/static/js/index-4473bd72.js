@@ -1,1 +1,0 @@
-import{d as e,Z as o,e as t,i as a,j as c,l as s}from"./index-5c35dbba.js";const _={class:"scroll-y"},n=s("h3",{class:"mb-20px"},"功能",-1),r=s("div",{class:"rowSS"},"文件可以在线加密解密",-1),i=[n,r],d=e({}),h=Object.assign(d,{__name:"index",setup(l){return o(t()),(p,m)=>(a(),c("div",_,i))}});export{h as default};
