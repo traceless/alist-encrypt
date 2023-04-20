@@ -14,6 +14,8 @@ import { pathExec, pathFindPasswd } from './src/utils/commonUtil.js'
 import globalHandle from './src/middleware/globalHandle.js'
 import encApiRouter from './src/router.js'
 import encNameRouter from './src/encNameRouter.js'
+import encDavHandle from './src/encDavHandle.js'
+
 import { cacheFileInfo, getFileInfo } from './src/dao/fileDao.js'
 import { getWebdavFileInfo } from './src/utils/webdavClient.js'
 import { convertFile } from './src/utils/convertFile.js'
@@ -188,7 +190,7 @@ webdavServer.forEach((webdavConfig) => {
 /* =================================== 单独处理alist的逻辑 ====================================== */
 
 // 先处理webdav，然后再处理普通的http
-proxyRouter.all(/^\/dav\/*/, preProxy(alistServer, true), proxyHandle)
+proxyRouter.all(/^\/dav\/*/, preProxy(alistServer, true), encDavHandle, proxyHandle)
 
 // 其他的代理request预处理，处理要跳转的路径等
 proxyRouter.all(/\/*/, preProxy(alistServer, false))

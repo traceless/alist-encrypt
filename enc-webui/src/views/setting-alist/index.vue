@@ -101,6 +101,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useConfigStore } from '@/store/config'
 import { useBasicStore } from '@/store/basic'
 import { getAlistConfigReq, saveAlistConfigReq, encodeFoldNameReq, decodeFoldNameReq } from '@/api/user'
@@ -183,7 +184,9 @@ const decodeFoldName = async () => {
 }
 
 const saveAlistConfig = () => {
-  saveAlistConfigReq(alistConfigForm)
+  saveAlistConfigReq(alistConfigForm).then(res =>{
+    ElMessage.success(res.msg)
+  })
 }
 onMounted(async () => {
   const res = await getAlistConfigReq()

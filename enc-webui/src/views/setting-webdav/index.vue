@@ -97,7 +97,7 @@ import { useRoute } from 'vue-router'
 import { useConfigStore } from '@/store/config'
 import { useBasicStore } from '@/store/basic'
 import { delWebdavConfigReq, getWebdavConfigReq, saveWebdavConfigReq, updateWebdavConfigReq } from '@/api/user'
-import { ElMessageBox } from 'element-plus'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { Check, Delete, Edit, Message, Search, Star, CirclePlus } from '@element-plus/icons-vue'
 
 const dialogFormVisible = ref(false)
@@ -178,6 +178,7 @@ const delWebdavConfig = async (id) => {
     const result = await delWebdavConfigReq({ id })
     refreshConfigList(result)
     dialogFormVisible.value = false
+    ElMessage(result.msg)
   })
 }
 
