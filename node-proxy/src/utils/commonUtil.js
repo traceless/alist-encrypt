@@ -6,6 +6,32 @@ import MixBase64 from './mixBase64.js'
 import Crcn from './crc6-8.js'
 
 const crc6 = new Crcn(6)
+const origPrefix = 'orig_'
+
+// check file name, return real name
+export function convertRealName(password, encType, pathText) {
+  const fileName = path.basename(decodeURI(pathText))
+  if (fileName.indexOf(origPrefix) === 0) {
+    return fileName.replace(origPrefix, '')
+  }
+  // try encode name, fileName don't need decodeURI
+  const ext = path.extname(fileName)
+  const decName = encodeName(password, encType, fileName)
+  return decName + ext
+}
+
+// if file name has encrypt, return show name
+export function convertShowName(password, encType, pathText) {
+  const fileName = path.basename(decodeURI(pathText))
+  const ext = path.extname(fileName)
+  const encName = fileName.replace(ext, '')
+  // encName don't need decodeURI
+  let showName = decodeName(password, encType, encName)
+  if (showName === null) {
+    showName = origPrefix + fileName
+  }
+  return showName
+}
 
 // 判断是否为匹配的路径
 export function pathExec(encPath, url) {

@@ -2,7 +2,7 @@
 
 import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
-import { encodeName, decodeName, pathFindPasswd } from './utils/commonUtil.js'
+import { encodeName, decodeName, pathFindPasswd, convertRealName, convertShowName } from './utils/commonUtil.js'
 import path from 'path'
 import { httpClient } from './utils/httpClient.js'
 import { XMLParser } from 'fast-xml-parser'
@@ -23,14 +23,7 @@ function getFileNameForShow(fileInfo, passwdInfo) {
   if (getcontentlength !== undefined && getcontentlength > -1) {
     const href = fileInfo.href
     const fileName = path.basename(href)
-    // console.log('@@fileInfohref', fileName, fileInfo.href, fileInfo.propstat, fileInfo.propstat.prop)
-    const ext = path.extname(href)
-    const encName = fileName.replace(ext, '')
-    // decrypt filename
-    let showName = decodeName(passwdInfo.password, passwdInfo.encType, decodeURI(encName))
-    if (showName == null) {
-      showName = origPrefix + fileName
-    }
+    const showName = convertShowName(passwdInfo.password, passwdInfo.encType, href)
     console.log('@@decName222', showName, fileName, decodeURI(fileName))
     // respBody = respBody.replace(new RegExp(fileName, 'g'), encodeURI(decName) )
     return { fileName, showName }
@@ -44,30 +37,44 @@ const handle = async (ctx, next) => {
   const { passwdList } = request.webdavConfig
   const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
   if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
+    // check dir, convert url
+    const url = request.url
+    const reqFileName = path.basename(url)
+    const ext = path.extname(reqFileName)
+    if (ext) {
+      const realName = convertRealName(passwdInfo.password, passwdInfo.encType, url)
+      request.url = url.replace(reqFileName, realName)
+      request.urlAddr = request.urlAddr.replace(reqFileName, realName)
+      console.log('@@fileInfohre2222', reqFileName, request.url, realName)
+    }
     // decrypt file name
     let respBody = await httpClient(ctx.req, ctx.res)
     const respData = parser.parse(respBody)
-    if (respData.multistatus) {
+    if (respData.multistatus && passwdInfo && passwdInfo.encName) {
       const respJson = respData.multistatus.response
       if (respJson instanceof Array) {
         // console.log('@@respJsonArray', respJson)
         respJson.forEach((fileInfo) => {
-          // console.log('@@respJsonfileInfo', fileInfo.propstat)
           const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
+          console.log('@@respJsonfileInfo', fileName, showName)
           if (fileName) {
-            // respBody = respBody.replace(new RegExp(fileName, 'g'), encodeURI(showName))
-            respBody = respBody.replace(new RegExp(`<D:displayname>${decodeURI(fileName)}<`, 'g'), `<D:displayname>${decodeURI(showName)}<`)
+            respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showName)}</D:href>`)
+            respBody = respBody.replace(`<D:displayname>${decodeURI(fileName)}`, `<D:displayname>${decodeURI(showName)}`)
           }
         })
       } else {
-        // console.log('@@respJsonOjeb', respJson.propstat)
-        const { fileName, showName } = getFileNameForShow(respJson, passwdInfo)
+        const fileInfo = respJson
+        const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
+        console.log('@@respJsonOjeb', fileName, showName, url, respJson.propstat)
         if (fileName) {
-          // respBody = respBody.replace(new RegExp(fileName, 'g'), encodeURI(showName))
-          respBody = respBody.replace(new RegExp(`<D:displayname>${decodeURI(fileName)}<`, 'g'), `<D:displayname>${decodeURI(showName)}<`)
+          respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showName)}</D:href>`)
+          respBody = respBody.replace(`<D:displayname>${decodeURI(fileName)}`, `<D:displayname>${decodeURI(showName)}`)
         }
       }
     }
+    const respData2 = parser.parse(respBody)
+    console.log('@@respJson2', JSON.stringify(respData2))
+    console.log('@@respJsxml', respBody)
     ctx.body = respBody
     return
   }
