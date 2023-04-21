@@ -43,16 +43,16 @@ const handle = async (ctx, next) => {
   const request = ctx.req
   const { passwdList } = request.webdavConfig
   const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo) {
+  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
     // decrypt file name
     let respBody = await httpClient(ctx.req, ctx.res)
     const respData = parser.parse(respBody)
     if (respData.multistatus) {
       const respJson = respData.multistatus.response
       if (respJson instanceof Array) {
-        console.log('@@respJsonArray', respJson)
+        // console.log('@@respJsonArray', respJson)
         respJson.forEach((fileInfo) => {
-          console.log('@@respJsonfileInfo', fileInfo.propstat)
+          // console.log('@@respJsonfileInfo', fileInfo.propstat)
           const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
           if (fileName) {
             // respBody = respBody.replace(new RegExp(fileName, 'g'), encodeURI(showName))
@@ -60,7 +60,7 @@ const handle = async (ctx, next) => {
           }
         })
       } else {
-        console.log('@@respJsonOjeb', respJson.propstat)
+        // console.log('@@respJsonOjeb', respJson.propstat)
         const { fileName, showName } = getFileNameForShow(respJson, passwdInfo)
         if (fileName) {
           // respBody = respBody.replace(new RegExp(fileName, 'g'), encodeURI(showName))
@@ -68,8 +68,6 @@ const handle = async (ctx, next) => {
         }
       }
     }
-    const respData2 = parser.parse(respBody)
-    console.log('@@respBody3', JSON.stringify(respData2))
     ctx.body = respBody
     return
   }
