@@ -1,9 +1,8 @@
 'use strict'
 
-import { decodeName, encodeName, pathFindPasswd, convertRealName, convertShowName } from './utils/commonUtil.js'
+import { pathFindPasswd, convertRealName, convertShowName } from './utils/commonUtil.js'
 import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
 import { logger } from './common/logger.js'
-
 import path from 'path'
 import { httpClient } from './utils/httpClient.js'
 import { XMLParser } from 'fast-xml-parser'
@@ -66,7 +65,8 @@ const handle = async (ctx, next) => {
   const request = ctx.req
   const { passwdList } = request.webdavConfig
   const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  if (ctx.method.toLocaleUpperCase() === 'PROPFIND') {
+  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
+    // check dir, convert url
     const url = request.url
     if (passwdInfo && passwdInfo.encName) {
       // check dir, convert url
@@ -107,34 +107,28 @@ const handle = async (ctx, next) => {
       } else if (passwdInfo && passwdInfo.encName) {
         const fileInfo = respJson
         const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
-        logger.debug('@@getFileNameForShow2 file', fileName, showName, url, respJson.propstat)
+        // logger.debug('@@getFileNameForShow2 file', fileName, showName, url, respJson.propstat)
         if (fileName) {
           respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showName)}</D:href>`)
           respBody = respBody.replace(`${decodeURI(fileName)}</D:displayname>`, `${decodeURI(showName)}</D:displayname>`)
         }
       }
     }
-    logger.debug('@@respJsxml', respBody)
+    // logger.debug('@@respJsxml', respBody)
     // const resultBody = parser.parse(respBody)
     // logger.debug('@@respJSONData', JSON.stringify(resultBody))
     ctx.body = respBody
     return
   }
   // upload file
-  if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo && passwdInfo.encName) {
+  if (~'GET,PUT,DELETE'.indexOf(request.method.toLocaleUpperCase()) && passwdInfo && passwdInfo.encName) {
     const url = request.url
     // check dir, convert url
     const fileName = path.basename(url)
-    const decName = decodeName(passwdInfo.password, passwdInfo.encType, fileName)
-    if (decName === null) {
-      // encName
-      const ext = path.extname(fileName)
-      const encName = encodeName(passwdInfo.password, passwdInfo.encType, decodeURI(fileName))
-      const realName = encName + ext
-      // request.url = url.replace(fileName, realName)
-      console.log('@@upload', fileName, realName )
-      // request.urlAddr = request.urlAddr.replace(fileName, realName)
-    }
+    const realName = convertRealName(passwdInfo.password, passwdInfo.encType, url)
+    request.url = url.replace(fileName, realName)
+    console.log('@@convert file name', fileName, realName)
+    request.urlAddr = request.urlAddr.replace(fileName, realName)
   }
   await next()
 }
