@@ -6,6 +6,12 @@ import { chownSync, copyFileSync } from 'fs'
 import CRCN from './src/utils/crc6-8.js'
 import fs from 'fs'
 import { encodeName, decodeName } from './src/utils/commonUtil.js'
+import { getWebdavFileInfo } from './src/utils/webdavClient.js'
+
+getWebdavFileInfo(
+  'http://192.168.8.240:5244/dav/aliyun%E4%BA%91%E7%9B%98/atest/Jt5lJ33XJO5CAzd2t+O74XnKLW-0dPHHI.mp4',
+  'Basic YWRtaW46WWl1Tkg3bHk='
+).then((res) => {console.log(res)})
 
 console.log('@@dd', path.isAbsolute('/ddf'))
 const content = 'U~!VJt5lJ33XJO5CJJC!J3AlJ3AeLW-0dPHH1.mp4'

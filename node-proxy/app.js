@@ -183,7 +183,7 @@ async function proxyHandle(ctx, next) {
 // 初始化webdav路由，这里可以优化成动态路由，只不过没啥必要，修改配置后直接重启就好了
 webdavServer.forEach((webdavConfig) => {
   if (webdavConfig.enable) {
-    proxyRouter.all(new RegExp(webdavConfig.path), preProxy(webdavConfig, true), proxyHandle)
+    proxyRouter.all(new RegExp(webdavConfig.path), preProxy(webdavConfig, true), encDavHandle, proxyHandle)
   }
 })
 

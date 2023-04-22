@@ -1,34 +1,64 @@
 'use strict'
 
-import Router from 'koa-router'
-import bodyparser from 'koa-bodyparser'
-import { encodeName, decodeName, pathFindPasswd, convertRealName, convertShowName } from './utils/commonUtil.js'
+import { decodeName, encodeName, pathFindPasswd, convertRealName, convertShowName } from './utils/commonUtil.js'
+import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
+import { logger } from './common/logger.js'
+
 import path from 'path'
 import { httpClient } from './utils/httpClient.js'
 import { XMLParser } from 'fast-xml-parser'
-import { escape } from 'querystring'
+// import { escape } from 'querystring'
+
+async function sleep(time) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve()
+    }, time || 3000)
+  })
+}
 
 // bodyparser解析body
 const parser = new XMLParser({ removeNSPrefix: true })
-const origPrefix = 'orig_'
 
 function getFileNameForShow(fileInfo, passwdInfo) {
   let getcontentlength = -1
+  const href = fileInfo.href
+  const fileName = path.basename(href)
   if (fileInfo.propstat instanceof Array) {
     getcontentlength = fileInfo.propstat[0].prop.getcontentlength
   } else if (fileInfo.propstat.prop) {
     getcontentlength = fileInfo.propstat.prop.getcontentlength
   }
+  // logger.debug('@@fileInfo_show', JSON.stringify(fileInfo))
   // is not dir
   if (getcontentlength !== undefined && getcontentlength > -1) {
-    const href = fileInfo.href
-    const fileName = path.basename(href)
     const showName = convertShowName(passwdInfo.password, passwdInfo.encType, href)
-    console.log('@@decName222', showName, fileName, decodeURI(fileName))
-    // respBody = respBody.replace(new RegExp(fileName, 'g'), encodeURI(decName) )
     return { fileName, showName }
   }
+  // cache this folder info
   return {}
+}
+
+function cacheWebdavFileInfo(fileInfo) {
+  let getcontentlength = -1
+  const href = fileInfo.href
+  const fileName = path.basename(href)
+  if (fileInfo.propstat instanceof Array) {
+    getcontentlength = fileInfo.propstat[0].prop.getcontentlength
+  } else if (fileInfo.propstat.prop) {
+    getcontentlength = fileInfo.propstat.prop.getcontentlength
+  }
+  // logger.debug('@@@cacheWebdavFileInfo', href, fileName)
+  // it is a file
+  if (getcontentlength !== undefined && getcontentlength > -1) {
+    const fileDetail = { path: href, name: fileName, is_dir: false, size: getcontentlength }
+    cacheFileInfo(fileDetail)
+    return fileDetail
+  }
+  // cache this folder info
+  const fileDetail = { path: href, name: fileName, is_dir: true, size: 0 }
+  cacheFileInfo(fileDetail)
+  return fileDetail
 }
 
 // 拦截全部
@@ -36,51 +66,75 @@ const handle = async (ctx, next) => {
   const request = ctx.req
   const { passwdList } = request.webdavConfig
   const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
-    // check dir, convert url
+  if (ctx.method.toLocaleUpperCase() === 'PROPFIND') {
     const url = request.url
-    const reqFileName = path.basename(url)
-    const ext = path.extname(reqFileName)
-    if (ext) {
+    if (passwdInfo && passwdInfo.encName) {
+      // check dir, convert url
+      const reqFileName = path.basename(url)
+      // cache source file info, realName is has encodeUrl，this '(' ')' can't encodeUrl.
       const realName = convertRealName(passwdInfo.password, passwdInfo.encType, url)
-      request.url = url.replace(reqFileName, realName)
-      request.urlAddr = request.urlAddr.replace(reqFileName, realName)
-      console.log('@@fileInfohre2222', reqFileName, request.url, realName)
+      const sourceUrl = url.replace(reqFileName, realName)
+      const sourceFileInfo = await getFileInfo(sourceUrl)
+      logger.debug('@@@sourceFileInfo', sourceFileInfo, reqFileName, realName, sourceUrl)
+      // it is file, convert file name
+      if (sourceFileInfo && !sourceFileInfo.is_dir) {
+        request.url = url.replace(reqFileName, realName)
+        request.urlAddr = request.urlAddr.replace(reqFileName, realName)
+      }
     }
     // decrypt file name
     let respBody = await httpClient(ctx.req, ctx.res)
     const respData = parser.parse(respBody)
-    if (respData.multistatus && passwdInfo && passwdInfo.encName) {
+    // convert file name for show
+    if (respData.multistatus) {
       const respJson = respData.multistatus.response
       if (respJson instanceof Array) {
         // console.log('@@respJsonArray', respJson)
         respJson.forEach((fileInfo) => {
-          const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
-          console.log('@@respJsonfileInfo', fileName, showName)
-          if (fileName) {
-            respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showName)}</D:href>`)
-            respBody = respBody.replace(`<D:displayname>${decodeURI(fileName)}`, `<D:displayname>${decodeURI(showName)}`)
+          // cache file info
+          cacheWebdavFileInfo(fileInfo)
+          if (passwdInfo && passwdInfo.encName) {
+            const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
+            logger.debug('@@getFileNameForShow1 list', fileName, decodeURI(fileName), showName)
+            if (fileName) {
+              respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showName)}</D:href>`)
+              respBody = respBody.replace(`${decodeURI(fileName)}</D:displayname>`, `${decodeURI(showName)}</D:displayname>`)
+            }
           }
         })
-      } else {
+        // for cache
+        await sleep(100)
+      } else if (passwdInfo && passwdInfo.encName) {
         const fileInfo = respJson
         const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
-        console.log('@@respJsonOjeb', fileName, showName, url, respJson.propstat)
+        logger.debug('@@getFileNameForShow2 file', fileName, showName, url, respJson.propstat)
         if (fileName) {
           respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showName)}</D:href>`)
-          respBody = respBody.replace(`<D:displayname>${decodeURI(fileName)}`, `<D:displayname>${decodeURI(showName)}`)
+          respBody = respBody.replace(`${decodeURI(fileName)}</D:displayname>`, `${decodeURI(showName)}</D:displayname>`)
         }
       }
     }
-    const respData2 = parser.parse(respBody)
-    console.log('@@respJson2', JSON.stringify(respData2))
-    console.log('@@respJsxml', respBody)
+    logger.debug('@@respJsxml', respBody)
+    // const resultBody = parser.parse(respBody)
+    // logger.debug('@@respJSONData', JSON.stringify(resultBody))
     ctx.body = respBody
     return
   }
-  if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo) {
-    // 兼容macos的webdav客户端x-expected-entity-length
-    // console.log(request.)
+  // upload file
+  if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo && passwdInfo.encName) {
+    const url = request.url
+    // check dir, convert url
+    const fileName = path.basename(url)
+    const decName = decodeName(passwdInfo.password, passwdInfo.encType, fileName)
+    if (decName === null) {
+      // encName
+      const ext = path.extname(fileName)
+      const encName = encodeName(passwdInfo.password, passwdInfo.encType, decodeURI(fileName))
+      const realName = encName + ext
+      // request.url = url.replace(fileName, realName)
+      console.log('@@upload', fileName, realName )
+      // request.urlAddr = request.urlAddr.replace(fileName, realName)
+    }
   }
   await next()
 }

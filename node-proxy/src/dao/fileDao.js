@@ -1,6 +1,6 @@
 import levelDB from '../utils/levelDB.js'
 
-export const fileInfoTable = 'fileInfoTable'
+export const fileInfoTable = 'fileInfoTable_'
 
 // 缓存多少分钟
 const cacheTime = 60 * 24

@@ -10,14 +10,14 @@ const origPrefix = 'orig_'
 
 // check file name, return real name
 export function convertRealName(password, encType, pathText) {
-  const fileName = path.basename(decodeURI(pathText))
+  const fileName = path.basename(pathText)
   if (fileName.indexOf(origPrefix) === 0) {
     return fileName.replace(origPrefix, '')
   }
-  // try encode name, fileName don't need decodeURI
+  // try encode name, fileName don't need decodeURI，encodeUrl func can't encode that like '(' '!'  in nodejs
   const ext = path.extname(fileName)
-  const decName = encodeName(password, encType, fileName)
-  return decName + ext
+  const encName = encodeName(password, encType, decodeURI(fileName))
+  return encName + ext
 }
 
 // if file name has encrypt, return show name
