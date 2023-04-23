@@ -2,7 +2,7 @@
 
 import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
-import { encodeName, decodeName, pathFindPasswd, convertShowName } from './utils/commonUtil.js'
+import { encodeName, decodeName, pathFindPasswd, convertShowName, convertRealName } from './utils/commonUtil.js'
 import path from 'path'
 import { httpClient, httpProxy } from './utils/httpClient.js'
 import FlowEnc from './utils/flowEnc.js'
@@ -71,21 +71,13 @@ encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
   const { dir, names } = ctx.request.body
   const { webdavConfig } = ctx.req
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, dir)
+  // maybe a folder，remove anyway the name
   const fileNames = Object.assign([], names)
   if (passwdInfo && passwdInfo.encName) {
     for (const name of names) {
       // is not enc name
-      if (name.indexOf(origPrefix) === 0) {
-        const origName = name.replace(origPrefix, '')
-        fileNames.push(origName)
-        break
-      }
-      const fileName = path.basename(name)
-      // you can custom Suffix
-      const ext = passwdInfo.encSuffix || path.extname(fileName)
-      const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
-      const newFileName = encName + ext
-      fileNames.push(newFileName)
+      const realName = convertRealName(passwdInfo.password, passwdInfo.encType, name)
+      fileNames.push(realName)
     }
   }
   const reqBody = { dir, names: fileNames }
@@ -167,22 +159,20 @@ encNameRouter.all('/api/fs/rename', bodyparserMw, async (ctx, next) => {
   ctx.req.reqBody = reqBody
   // reset content-length length
   delete ctx.req.headers['content-length']
-  if (passwdInfo && passwdInfo.encName) {
-    // reset content-length length
-    delete ctx.req.headers['content-length']
-    // check fileName is not enc,
-    const origName = path.basename(filePath)
-    let sourceName = ''
-    if (origName.indexOf(origPrefix) === 0) {
-      sourceName = origName.replace(origPrefix, '')
-    }
+
+  let fileInfo = await getFileInfo(encodeURI(filePath))
+  if (fileInfo == null && passwdInfo && passwdInfo.encName) {
+    // mabay a file
+    const realName = convertRealName(passwdInfo.password, passwdInfo.encType, filePath)
     const fileName = path.basename(filePath)
+    fileInfo = await getFileInfo(encodeURI(filePath.replace(fileName, realName)))
+  }
+  if (passwdInfo && passwdInfo.encName && fileInfo && !fileInfo.is_dir) {
+    // reset content-length length
     // you can custom Suffix
-    const ext = passwdInfo.encSuffix || path.extname(fileName)
-    console.log('@@@sourceName', name, sourceName)
-    // use sourceName
-    const encFileName = sourceName || encodeName(passwdInfo.password, passwdInfo.encType, fileName) + ext
-    const fpath = path.dirname(filePath) + '/' + encFileName
+    const ext = passwdInfo.encSuffix || path.extname(name)
+    const realName = convertRealName(passwdInfo.password, passwdInfo.encType, filePath)
+    const fpath = path.dirname(filePath) + '/' + realName
     const newName = encodeName(passwdInfo.password, passwdInfo.encType, name)
     reqBody.path = fpath
     reqBody.name = newName + ext

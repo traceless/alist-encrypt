@@ -103,7 +103,7 @@ const handle = async (ctx, next) => {
           }
         })
         // for cache
-        await sleep(100)
+        await sleep(50)
       } else if (passwdInfo && passwdInfo.encName) {
         const fileInfo = respJson
         const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
@@ -133,6 +133,14 @@ const handle = async (ctx, next) => {
     request.urlAddr = request.urlAddr.replace(fileName, realName)
   }
   await next()
+  // fix rclone bug
+  if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo && passwdInfo.encName) {
+    const url = request.url
+    const getcontentlength = request.headers['content-length']
+    const fileName = convertShowName(passwdInfo.password, passwdInfo.encType, url)
+    const fileDetail = { path: url, name: fileName, is_dir: false, size: getcontentlength }
+    await cacheFileInfo(fileDetail)
+  }
 }
 
 export default handle
