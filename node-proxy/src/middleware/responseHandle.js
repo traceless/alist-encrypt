@@ -4,6 +4,10 @@ export default async function (ctx, next) {
   const env = 'dev'
   try {
     await next()
+    // 兼容webdav中401的时候，body = ''
+    if (!ctx.body) {
+      return
+    }
     // 参数转换, 转换成自己的数据格式
     if (typeof ctx.body === 'object') {
       const { flag, msg, code, data } = ctx.body

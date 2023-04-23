@@ -66,7 +66,13 @@ export function decodeName(password, encType, encodeName) {
   if (MixBase64.getSourceChar(crc6Bit) !== crc6Check) {
     return null
   }
-  const decodeStr = mix64.decode(subEncName).toString('utf8')
+  // event pass crc6，it mabey decode error, like this name '68758PICxAd_1024-666 - 副本33.png'
+  let decodeStr = null
+  try {
+    decodeStr = mix64.decode(subEncName).toString('utf8')
+  } catch (e) {
+    console.log(e)
+  }
   return decodeStr
 }
 

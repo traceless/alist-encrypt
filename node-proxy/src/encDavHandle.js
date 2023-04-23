@@ -117,7 +117,9 @@ const handle = async (ctx, next) => {
     // logger.debug('@@respJsxml', respBody)
     // const resultBody = parser.parse(respBody)
     // logger.debug('@@respJSONData', JSON.stringify(resultBody))
-    ctx.body = respBody
+    if (respBody) {
+      ctx.body = respBody
+    }
     return
   }
   // upload file

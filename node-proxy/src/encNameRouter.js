@@ -2,7 +2,7 @@
 
 import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
-import { encodeName, decodeName, pathFindPasswd } from './utils/commonUtil.js'
+import { encodeName, decodeName, pathFindPasswd, convertShowName } from './utils/commonUtil.js'
 import path from 'path'
 import { httpClient, httpProxy } from './utils/httpClient.js'
 import FlowEnc from './utils/flowEnc.js'
@@ -34,16 +34,7 @@ encNameRouter.all('/api/fs/list', async (ctx, next) => {
       //  Check path if the file name needs to be encrypted
       const { passwdInfo } = pathFindPasswd(passwdList, decodeURI(fileInfo.path))
       if (passwdInfo && passwdInfo.encName) {
-        const ext = path.extname(fileInfo.name)
-        // Ignore suffix
-        const fileName = fileInfo.name.replace(ext, '')
-        const decName = decodeName(passwdInfo.password, passwdInfo.encType, fileName)
-        if (decName) {
-          // Ignore suffix
-          fileInfo.name = decName
-        } else {
-          fileInfo.name = origPrefix + fileInfo.name
-        }
+        fileInfo.name = convertShowName(passwdInfo.password, passwdInfo.encType, fileInfo.name)
       }
     }
   }
