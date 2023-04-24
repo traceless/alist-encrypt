@@ -73,9 +73,10 @@ const handle = async (ctx, next) => {
       const reqFileName = path.basename(url)
       // cache source file info, realName is has encodeUrl，this '(' ')' can't encodeUrl.
       const realName = convertRealName(passwdInfo.password, passwdInfo.encType, url)
-      const sourceUrl = url.replace(reqFileName, realName)
+      // when the name contain the + , ! ,
+      const sourceUrl = path.dirname(url) + '/' + realName
       const sourceFileInfo = await getFileInfo(sourceUrl)
-      logger.debug('@@@sourceFileInfo', sourceFileInfo, reqFileName, realName, sourceUrl)
+      logger.debug('@@@sourceFileInfo', sourceFileInfo, reqFileName, realName, url, sourceUrl)
       // it is file, convert file name
       if (sourceFileInfo && !sourceFileInfo.is_dir) {
         request.url = url.replace(reqFileName, realName)
@@ -91,14 +92,14 @@ const handle = async (ctx, next) => {
       if (respJson instanceof Array) {
         // console.log('@@respJsonArray', respJson)
         respJson.forEach((fileInfo) => {
-          // cache file info
+          // cache real file info，include forder name
           cacheWebdavFileInfo(fileInfo)
           if (passwdInfo && passwdInfo.encName) {
             const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
-            logger.debug('@@getFileNameForShow1 list', fileName, decodeURI(fileName), showName)
+            // logger.debug('@@getFileNameForShow1 list', passwdInfo.password, fileName, decodeURI(fileName), showName)
             if (fileName) {
-              respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showName)}</D:href>`)
-              respBody = respBody.replace(`${decodeURI(fileName)}</D:displayname>`, `${decodeURI(showName)}</D:displayname>`)
+              respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURIComponent(showName)}</D:href>`)
+              respBody = respBody.replace(`${decodeURIComponent(fileName)}</D:displayname>`, `${decodeURIComponent(showName)}</D:displayname>`)
             }
           }
         })
@@ -109,17 +110,15 @@ const handle = async (ctx, next) => {
         const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
         // logger.debug('@@getFileNameForShow2 file', fileName, showName, url, respJson.propstat)
         if (fileName) {
-          respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showName)}</D:href>`)
-          respBody = respBody.replace(`${decodeURI(fileName)}</D:displayname>`, `${decodeURI(showName)}</D:displayname>`)
+          respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURIComponent(showName)}</D:href>`)
+          respBody = respBody.replace(`${decodeURIComponent(fileName)}</D:displayname>`, `${decodeURIComponent(showName)}</D:displayname>`)
         }
       }
     }
     // logger.debug('@@respJsxml', respBody)
     // const resultBody = parser.parse(respBody)
     // logger.debug('@@respJSONData', JSON.stringify(resultBody))
-    if (respBody) {
-      ctx.body = respBody
-    }
+    ctx.body = respBody
     return
   }
   // upload file

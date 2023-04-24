@@ -2,7 +2,7 @@
 
 import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
-import { encodeName, decodeName, pathFindPasswd, convertShowName, convertRealName } from './utils/commonUtil.js'
+import { encodeName, pathFindPasswd, convertShowName, convertRealName } from './utils/commonUtil.js'
 import path from 'path'
 import { httpClient, httpProxy } from './utils/httpClient.js'
 import FlowEnc from './utils/flowEnc.js'
@@ -54,7 +54,6 @@ encNameRouter.put('/api/fs/put', async (ctx, next) => {
     // you can custom Suffix
     if (passwdInfo.encName) {
       const ext = passwdInfo.encSuffix || path.extname(fileName)
-
       const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
       const filePath = path.dirname(uploadPath) + '/' + encName + ext
       console.log('@@@encfileName', fileName, uploadPath, filePath)
@@ -130,22 +129,15 @@ encNameRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
     delete ctx.req.headers['content-length']
     // check fileName is not enc
     const fileName = path.basename(filePath)
-    const fileInfo = await getFileInfo(encodeURI(filePath))
+    const fileInfo = await getFileInfo(encodeURIComponent(filePath))
     if (fileInfo && fileInfo.is_dir) {
       await next()
       return
     }
     //  Check if it is a directory
-    if (fileName.indexOf(origPrefix) === 0) {
-      ctx.request.body.path = ctx.request.body.path.replace(origPrefix, '')
-      await next()
-      return
-    }
-    const ext = passwdInfo.encSuffix || path.extname(fileName)
-    const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
-    const newFileName = encName + ext
-    const fpath = path.dirname(filePath) + '/' + newFileName
-    console.log('@@@fpath', fpath)
+    const realName = convertRealName(passwdInfo.password, passwdInfo.encType, fileName)
+    const fpath = path.dirname(filePath) + '/' + realName
+    console.log('@@@getFilePath', fpath)
     ctx.request.body.path = fpath
   }
   await next()
@@ -160,12 +152,12 @@ encNameRouter.all('/api/fs/rename', bodyparserMw, async (ctx, next) => {
   // reset content-length length
   delete ctx.req.headers['content-length']
 
-  let fileInfo = await getFileInfo(encodeURI(filePath))
+  let fileInfo = await getFileInfo(encodeURIComponent(filePath))
   if (fileInfo == null && passwdInfo && passwdInfo.encName) {
     // mabay a file
     const realName = convertRealName(passwdInfo.password, passwdInfo.encType, filePath)
-    const fileName = path.basename(filePath)
-    fileInfo = await getFileInfo(encodeURI(filePath.replace(fileName, realName)))
+    const realFilePath = path.dirname(filePath) + '/' + realName
+    fileInfo = await getFileInfo(encodeURIComponent(realFilePath))
   }
   if (passwdInfo && passwdInfo.encName && fileInfo && !fileInfo.is_dir) {
     // reset content-length length
@@ -195,6 +187,7 @@ const handleDownload = async (ctx, next) => {
   if (filePath.indexOf('/d/') === 0) {
     filePath = filePath.replace('/d/', '/')
   }
+  // 这个不需要处理
   if (filePath.indexOf('/p/') === 0) {
     filePath = filePath.replace('/p/', '/')
   }
@@ -204,25 +197,10 @@ const handleDownload = async (ctx, next) => {
     delete ctx.req.headers['content-length']
     // check fileName is not enc or it is dir
     const fileName = path.basename(filePath)
-    if (fileName.indexOf(origPrefix) === 0) {
-      ctx.req.url = ctx.req.url.replace(origPrefix, '')
-      ctx.req.urlAddr = ctx.req.urlAddr.replace(origPrefix, '')
-      await next()
-      return
-    }
-    const ext = passwdInfo.encSuffix || path.extname(fileName)
-    // handle realfile url 302 redirect
-    const fname = fileName.replace(ext, '')
-    const decName = decodeName(passwdInfo.password, passwdInfo.encType, fname)
-    if (decName) {
-      await next()
-      return
-    }
-    // replace encname
-    const encName = encodeName(passwdInfo.password, passwdInfo.encType, decodeURI(fileName)) + ext
-    ctx.req.url = ctx.req.url.replace(fileName, encName)
-    ctx.req.urlAddr = ctx.req.urlAddr.replace(fileName, encName)
-    console.log('@@@@fileName', ctx.req.url, fileName, encName)
+    const realName = convertRealName(passwdInfo.password, passwdInfo.encType, fileName)
+    ctx.req.url = path.dirname(ctx.req.url) + '/' + realName
+    ctx.req.urlAddr = path.dirname(ctx.req.urlAddr) + '/' + realName
+    logger.debug('@@@@download-fileName', ctx.req.url, fileName, realName)
     await next()
     return
   }
