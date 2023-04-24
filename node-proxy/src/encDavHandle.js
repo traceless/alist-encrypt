@@ -65,7 +65,7 @@ const handle = async (ctx, next) => {
   const request = ctx.req
   const { passwdList } = request.webdavConfig
   const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
+  if (ctx.method.toLocaleUpperCase() === 'PROPFIND') {
     // check dir, convert url
     const url = request.url
     if (passwdInfo && passwdInfo.encName) {
@@ -98,8 +98,9 @@ const handle = async (ctx, next) => {
             const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
             // logger.debug('@@getFileNameForShow1 list', passwdInfo.password, fileName, decodeURI(fileName), showName)
             if (fileName) {
-              respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURIComponent(showName)}</D:href>`)
-              respBody = respBody.replace(`${decodeURIComponent(fileName)}</D:displayname>`, `${decodeURIComponent(showName)}</D:displayname>`)
+              const showXmlName = showName.replace(/&/g, '&amp;').replace(/</g, '&gt;')
+              respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showXmlName)}</D:href>`)
+              respBody = respBody.replace(`${decodeURI(fileName)}</D:displayname>`, `${decodeURI(showXmlName)}</D:displayname>`)
             }
           }
         })
@@ -110,14 +111,18 @@ const handle = async (ctx, next) => {
         const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
         // logger.debug('@@getFileNameForShow2 file', fileName, showName, url, respJson.propstat)
         if (fileName) {
-          respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURIComponent(showName)}</D:href>`)
-          respBody = respBody.replace(`${decodeURIComponent(fileName)}</D:displayname>`, `${decodeURIComponent(showName)}</D:displayname>`)
+          const showXmlName = showName.replace(/&/g, '&amp;').replace(/</g, '&gt;')
+          respBody = respBody.replace(`${fileName}</D:href>`, `${encodeURI(showXmlName)}</D:href>`)
+          respBody = respBody.replace(`${decodeURI(fileName)}</D:displayname>`, `${decodeURI(showXmlName)}</D:displayname>`)
         }
       }
     }
+    // 检查数据兼容的问题，优先XML对比。
     // logger.debug('@@respJsxml', respBody)
     // const resultBody = parser.parse(respBody)
-    // logger.debug('@@respJSONData', JSON.stringify(resultBody))
+    // logger.debug('@@respJSONData2', ctx.res.statusCode, JSON.stringify(resultBody))
+    // fix webdav 401 bug
+    ctx.status = ctx.res.statusCode
     ctx.body = respBody
     return
   }
