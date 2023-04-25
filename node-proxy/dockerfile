@@ -1,4 +1,4 @@
-FROM node:gallium-bullseye-slim
+FROM node:gallium-alpine
 WORKDIR /node-proxy
 
 COPY ./ncc /node-proxy
