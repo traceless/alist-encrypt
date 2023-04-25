@@ -46,11 +46,11 @@ export function pathExec(encPath, url) {
 }
 
 export function encodeName(password, encType, plainName) {
-  const flowEnc = new FlowEnc(password, encType, 1)
+  const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
   //  randomStr
-  const mix64 = new MixBase64(flowEnc.passwdOutward)
+  const mix64 = new MixBase64(passwdOutward)
   let encodeName = mix64.encode(plainName)
-  const crc6Bit = crc6.checksum(Buffer.from(encodeName + flowEnc.passwdOutward))
+  const crc6Bit = crc6.checksum(Buffer.from(encodeName + passwdOutward))
   const crc6Check = MixBase64.getSourceChar(crc6Bit)
   encodeName += crc6Check
   return encodeName
@@ -58,11 +58,11 @@ export function encodeName(password, encType, plainName) {
 
 export function decodeName(password, encType, encodeName) {
   const crc6Check = encodeName.substring(encodeName.length - 1)
-  const flowEnc = new FlowEnc(password, encType, 1)
-  const mix64 = new MixBase64(flowEnc.passwdOutward)
+  const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
+  const mix64 = new MixBase64(passwdOutward)
   // start dec
   const subEncName = encodeName.substring(0, encodeName.length - 1)
-  const crc6Bit = crc6.checksum(Buffer.from(subEncName + flowEnc.passwdOutward))
+  const crc6Bit = crc6.checksum(Buffer.from(subEncName + passwdOutward))
   // console.log(subEncName, MixBase64.getSourceChar(crc6Bit), crc6Check)
   if (MixBase64.getSourceChar(crc6Bit) !== crc6Check) {
     return null
@@ -72,7 +72,7 @@ export function decodeName(password, encType, encodeName) {
   try {
     decodeStr = mix64.decode(subEncName).toString('utf8')
   } catch (e) {
-    console.log('@@mix64-decode', subEncName)
+    console.log('@@mix64 decode error', subEncName)
   }
   return decodeStr
 }

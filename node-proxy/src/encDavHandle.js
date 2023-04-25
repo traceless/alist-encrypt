@@ -71,7 +71,7 @@ const handle = async (ctx, next) => {
     if (passwdInfo && passwdInfo.encName) {
       // check dir, convert url
       const reqFileName = path.basename(url)
-      // cache source file info, realName is has encodeUrl，this '(' ')' can't encodeUrl.
+      // cache source file info, realName has execute encodeUrl()，this '(' '+' can't encodeUrl.
       const realName = convertRealName(passwdInfo.password, passwdInfo.encType, url)
       // when the name contain the + , ! ,
       const sourceUrl = path.dirname(url) + '/' + realName
@@ -104,7 +104,7 @@ const handle = async (ctx, next) => {
             }
           }
         })
-        // for cache
+        // awaitting cacheWebdavFileInfo a moment
         await sleep(50)
       } else if (passwdInfo && passwdInfo.encName) {
         const fileInfo = respJson
@@ -140,9 +140,9 @@ const handle = async (ctx, next) => {
   // fix rclone bug
   if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo && passwdInfo.encName) {
     const url = request.url
-    const getcontentlength = request.headers['content-length']
+    const contentLength = request.headers['content-length'] || request.headers['x-expected-entity-length'] || 0
     const fileName = convertShowName(passwdInfo.password, passwdInfo.encType, url)
-    const fileDetail = { path: url, name: fileName, is_dir: false, size: getcontentlength }
+    const fileDetail = { path: url, name: fileName, is_dir: false, size: contentLength }
     await cacheFileInfo(fileDetail)
   }
 }

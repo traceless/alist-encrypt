@@ -4,6 +4,8 @@ import MixEnc from './mixEnc.js'
 import Rc4Md5 from './rc4Md5.js'
 import AesCTR from './aesCTR.js'
 
+const cachePasswdOutward = {}
+
 class FlowEnc {
   constructor(password, encryptType = 'mix', fileSize = 0) {
     fileSize *= 1
@@ -26,6 +28,7 @@ class FlowEnc {
     if (encryptType === null) {
       throw new Error('FlowEnc error')
     }
+    cachePasswdOutward[password + encryptType] = this.passwdOutward
     this.encryptFlow = encryptFlow
     this.encryptType = encryptType
   }
@@ -42,6 +45,15 @@ class FlowEnc {
   decryptTransform() {
     return this.encryptFlow.decryptTransform()
   }
+}
+
+FlowEnc.getPassWdOutward = function (password, encryptType) {
+  const passwdOutward = cachePasswdOutward[password + encryptType]
+  if (passwdOutward) {
+    return passwdOutward
+  }
+  const flowEnc = new FlowEnc(password, encryptType, 1)
+  return flowEnc.passwdOutward
 }
 
 // const flowEnc = new FlowEnc('abc1234')
