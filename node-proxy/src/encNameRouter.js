@@ -92,7 +92,7 @@ const copyOrMoveFile = async (ctx, next) => {
   const { dst_dir: dstDir, src_dir: srcDir, names } = ctx.request.body
   const { webdavConfig } = ctx.req
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, srcDir)
-  const fileNames = Object.assign([], names)
+  let fileNames = []
   if (passwdInfo && passwdInfo.encName) {
     logger.info('@@move encName', passwdInfo.encName)
     for (const name of names) {
@@ -109,6 +109,8 @@ const copyOrMoveFile = async (ctx, next) => {
       const newFileName = encName + ext
       fileNames.push(newFileName)
     }
+  } else {
+    fileNames = Object.assign([], names)
   }
   const reqBody = { dst_dir: dstDir, src_dir: srcDir, names: fileNames }
   ctx.req.reqBody = JSON.stringify(reqBody)
