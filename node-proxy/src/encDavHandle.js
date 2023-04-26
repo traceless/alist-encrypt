@@ -65,7 +65,7 @@ const handle = async (ctx, next) => {
   const request = ctx.req
   const { passwdList } = request.webdavConfig
   const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  if (ctx.method.toLocaleUpperCase() === 'PROPFIND') {
+  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
     // check dir, convert url
     const url = request.url
     if (passwdInfo && passwdInfo.encName) {
@@ -118,12 +118,15 @@ const handle = async (ctx, next) => {
       }
     }
     // 检查数据兼容的问题，优先XML对比。
-    // logger.debug('@@respJsxml', respBody)
+    // logger.debug('@@respJsxml', respBody, ctx.headers)
     // const resultBody = parser.parse(respBody)
     // logger.debug('@@respJSONData2', ctx.res.statusCode, JSON.stringify(resultBody))
-    // fix webdav 401 bug
-    ctx.status = ctx.res.statusCode
-    ctx.body = respBody
+
+    // fix webdav 401 bug，and fix rclone copy 501
+    ctx.res.write(respBody)
+    ctx.res.end()
+    // ctx.status = ctx.res.statusCode
+    // ctx.body = respBody
     return
   }
   // upload file
