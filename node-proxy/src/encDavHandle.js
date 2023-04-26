@@ -65,7 +65,7 @@ const handle = async (ctx, next) => {
   const request = ctx.req
   const { passwdList } = request.webdavConfig
   const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
+  if (ctx.method.toLocaleUpperCase() === 'PROPFIND') {
     // check dir, convert url
     const url = request.url
     if (passwdInfo && passwdInfo.encName) {
@@ -122,11 +122,13 @@ const handle = async (ctx, next) => {
     // const resultBody = parser.parse(respBody)
     // logger.debug('@@respJSONData2', ctx.res.statusCode, JSON.stringify(resultBody))
 
-    // fix webdav 401 bug，and fix rclone copy 501
-    ctx.res.write(respBody)
-    ctx.res.end()
-    // ctx.status = ctx.res.statusCode
-    // ctx.body = respBody
+    if (ctx.res.statusCode === 404) {
+      // fix webdav 401 bug，and fix rclone copy 501
+      ctx.res.end(respBody)
+      return
+    }
+    ctx.status = ctx.res.statusCode
+    ctx.body = respBody
     return
   }
   // upload file
@@ -138,16 +140,14 @@ const handle = async (ctx, next) => {
     request.url = url.replace(fileName, realName)
     console.log('@@convert file name', fileName, realName)
     request.urlAddr = request.urlAddr.replace(fileName, realName)
-  }
-  await next()
-  // fix rclone bug
-  if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo && passwdInfo.encName) {
-    const url = request.url
+    // cache file before upload in next(), rclone cmd 'copy' will PROPFIND this file when the file upload success right now
     const contentLength = request.headers['content-length'] || request.headers['x-expected-entity-length'] || 0
-    const fileName = convertShowName(passwdInfo.password, passwdInfo.encType, url)
     const fileDetail = { path: url, name: fileName, is_dir: false, size: contentLength }
+    logger.info('@@@put url', url)
+    // 在页面上传文件，rclone会重复上传，所以要进行缓存文件信息，也不能在next() 因为rclone copy命令会出异常
     await cacheFileInfo(fileDetail)
   }
+  await next()
 }
 
 export default handle

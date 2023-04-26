@@ -25,6 +25,10 @@ export function searchFile(filePath) {
 
 // encrypt
 export async function encryptFile(password, encType, enc, encPath, outPath, encName) {
+  const start = Date.now()
+  const interval = setInterval(() => {
+    console.log(new Date(), 'waiting finish!!!')
+  }, 2000)
   if (!path.isAbsolute(encPath)) {
     encPath = path.join(process.cwd(), encPath)
   }
@@ -63,7 +67,7 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
       continue
     }
     const flowEnc = new FlowEnc(password, encType, size)
-    console.log('@@outFilePath', outFilePath, encType, size)
+    // console.log('@@outFilePath', outFilePath, encType, size)
     const writeStream = fs.createWriteStream(outFilePath)
     const readStream = fs.createReadStream(filePath)
     const promise = new Promise((resolve, reject) => {
@@ -74,12 +78,14 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
       })
     })
     promiseArr.push(promise)
-    if (promiseArr.length > 30) {
+    if (promiseArr.length > 50) {
       await Promise.all(promiseArr)
       promiseArr = []
     }
   }
   await Promise.all(promiseArr)
+  console.log('@@all finish', ((Date.now() - start) / 1000).toFixed(2) + 's')
+  clearInterval(interval)
 }
 
 export function convertFile() {
@@ -87,11 +93,7 @@ export function convertFile() {
   const arg = process.argv.slice(2)
   // check finish
   if (arg.length > 3) {
-    const interval = setInterval(() => {
-      console.log(new Date(), 'waiting finish!!!')
-    }, 2000)
-    encryptFile(...arg).then((res) => {
-      clearInterval(interval)
+    encryptFile(...arg).then(() => {
       console.log('all file finish enc!!! time:', Date.now() - statTime)
     })
   } else {
