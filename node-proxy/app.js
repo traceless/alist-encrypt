@@ -22,6 +22,14 @@ import { convertFile } from './src/utils/convertFile.js'
 import staticServer from 'koa-static'
 import { logger } from './src/common/logger.js'
 
+async function sleep(time) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve()
+    }, time || 3000)
+  })
+}
+
 const proxyRouter = new Router()
 const app = new Koa()
 // compatible ncc and pkg
@@ -242,11 +250,16 @@ proxyRouter.all('/api/fs/list', bodyparserMw, async (ctx, next) => {
   }
   for (let i = 0; i < content.length; i++) {
     const fileInfo = content[i]
-    fileInfo.path = encodeURI(path + '/' + fileInfo.name)
+    fileInfo.path = path + '/' + fileInfo.name
     // 这里要注意闭包问题，mad
     // logger.debug('@@cacheFileInfo', fileInfo.path)
-    await cacheFileInfo(fileInfo)
+    cacheFileInfo(fileInfo)
   }
+  // waiting cacheFileInfo a moment
+  if (content.length > 100) {
+    await sleep(50)
+  }
+  logger.info('@@@fs/list', content.length)
   ctx.body = result
 })
 

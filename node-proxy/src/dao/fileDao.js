@@ -10,16 +10,15 @@ export async function initFileTable() {}
 
 // 缓存文件信息
 export async function cacheFileInfo(fileInfo) {
-  const path = fileInfoTable + fileInfo.path
-  const pathKey = crypto.createHash('md5').update(decodeURIComponent(path)).digest('hex')
+  fileInfo.path = decodeURIComponent(fileInfo.path)
+  const pathKey = fileInfoTable + fileInfo.path
   fileInfo.table = fileInfoTable
   await levelDB.setExpire(pathKey, fileInfo, 1000 * 60 * cacheTime)
 }
 
 // 获取文件信息，偶尔要清理一下缓存
 export async function getFileInfo(path) {
-  path = fileInfoTable + path
-  const pathKey = crypto.createHash('md5').update(decodeURIComponent(path)).digest('hex')
+  const pathKey = decodeURIComponent(fileInfoTable + path)
   const value = await levelDB.getValue(pathKey)
   return value
 }

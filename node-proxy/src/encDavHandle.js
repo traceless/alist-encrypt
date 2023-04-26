@@ -104,7 +104,7 @@ const handle = async (ctx, next) => {
             }
           }
         })
-        // awaitting cacheWebdavFileInfo a moment
+        // waiting cacheWebdavFileInfo a moment
         await sleep(50)
       } else if (passwdInfo && passwdInfo.encName) {
         const fileInfo = respJson
