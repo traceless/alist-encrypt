@@ -145,6 +145,11 @@ encNameRouter.all('/api/fs/get', bodyparserMw, async (ctx, next) => {
     ctx.request.body.path = fpath
   }
   await next()
+  if (passwdInfo && passwdInfo.encName) {
+    // return showName
+    const showName = convertShowName(passwdInfo.password, passwdInfo.encType, ctx.body.data.name)
+    ctx.body.data.name = showName
+  }
 })
 
 encNameRouter.all('/api/fs/rename', bodyparserMw, async (ctx, next) => {
@@ -212,7 +217,7 @@ const handleDownload = async (ctx, next) => {
 }
 
 encNameRouter.get(/^\/d\/*/, bodyparserMw, handleDownload)
-// encNameRouter.get(/\/p\/*/, bodyparserMw, handleDownload)
+encNameRouter.get(/\/p\/*/, bodyparserMw, handleDownload)
 
 // restRouter.all(/\/enc-api\/*/, router.routes(), restRouter.allowedMethods())
 export default encNameRouter

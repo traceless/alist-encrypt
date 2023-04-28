@@ -79,11 +79,7 @@ class Rc4Md5 {
 
   // 加解密都是同一个方法
   encrypt(plainBuffer) {
-    let index = 0
-    this.PRGAExcute(plainBuffer.length, (random) => {
-      plainBuffer[index] = random ^ plainBuffer[index++]
-    })
-    return plainBuffer
+    return this.PRGAExcute(plainBuffer)
   }
 
   // 加密流转换
@@ -107,16 +103,16 @@ class Rc4Md5 {
   }
 
   // 初始化长度，因为有一些文件下载 Range: bytes=3600-5000
-  PRGAExcute(plainLen, callback) {
+  PRGAExcute(plainBuffer) {
     let { sbox: S, i, j } = this
-    for (let k = 0; k < plainLen; k++) {
+    for (let k = 0; k < plainBuffer.length; k++) {
       i = (i + 1) % 256
       j = (j + S[i]) % 256
       // swap
       const temp = S[i]
       S[i] = S[j]
       S[j] = temp
-      callback(S[(S[i] + S[j]) % 256])
+      plainBuffer[k] ^= S[(S[i] + S[j]) % 256]
       if (++this.position % segmentPosition === 0) {
         // reset sbox initKSA
         this.resetKSA()
@@ -128,6 +124,7 @@ class Rc4Md5 {
     // save the i,j
     this.i = i
     this.j = j
+    return plainBuffer
   }
 
   PRGAExecPostion(plainLen) {

@@ -16,7 +16,7 @@ if (!fs.existsSync(getConfPath())) {
 /** 全局代理alist，包括它的webdav和http服务，要配置上 */
 const alistServerTemp = {
   name: 'alist',
-  path: '/*', // 默认就是代理全部，不建议修改这里
+  path: '/*', // 默认就是代理全部，保留字段
   describe: 'alist 配置',
   serverHost: '192.168.1.100',
   serverPort: 5244,
@@ -40,7 +40,7 @@ const webdavServerTemp = [
     id: 'abcdefg',
     name: 'other-webdav',
     describe: 'webdav 电影',
-    path: '/test_dav_dir/*', // 代理全部路径，需要重启后生效。不能是"/enc-api/*" ，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
+    path: '^/test_dav_dir/*', // 代理全部路径，需要重启后生效。不能是"/enc-api/*" ，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
     enable: false, // 是否启动代理，需要重启后生效
     serverHost: '192.168.1.100',
     serverPort: 5244,
@@ -128,7 +128,7 @@ initAlistConfig(configData.alistServer)
 /** 代理服务的端口 */
 export const port = configData.port || 5344
 
-export const version = '0.2.5'
+export const version = '0.2.6'
 
 export const alistServer = configData.alistServer || alistServerTemp
 
