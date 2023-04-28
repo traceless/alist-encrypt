@@ -282,6 +282,12 @@ proxyRouter.put('/api/fs/put-back', async (ctx, next) => {
   return await httpProxy(ctx.req, ctx.res)
 })
 
+// 修复alist 图标不显示的问题
+proxyRouter.all(/^\/images\/*/, async (ctx, next) => {
+  delete ctx.req.headers.host
+  return await httpProxy(ctx.req, ctx.res)
+})
+
 // 初始化alist的路由
 proxyRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
   let respBody = await httpClient(ctx.req, ctx.res)
