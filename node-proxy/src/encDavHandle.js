@@ -65,7 +65,7 @@ const handle = async (ctx, next) => {
   const request = ctx.req
   const { passwdList } = request.webdavConfig
   const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
-  if (ctx.method.toLocaleUpperCase() === 'PROPFIND') {
+  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
     // check dir, convert url
     const url = request.url
     if (passwdInfo && passwdInfo.encName) {
@@ -123,20 +123,43 @@ const handle = async (ctx, next) => {
     // logger.debug('@@respJSONData2', ctx.res.statusCode, JSON.stringify(resultBody))
 
     if (ctx.res.statusCode === 404) {
-      // fix webdav 401 bug，and fix rclone copy 501
+      // fix rclone propfind 404 ，because rclone copy will get error 501
       ctx.res.end(respBody)
       return
     }
+    // fix webdav 401 bug，群晖遇到401不能使用 ctx.res.end(respBody)，而rclone遇到404只能使用ctx.res.end(respBody),神奇的bug
     ctx.status = ctx.res.statusCode
     ctx.body = respBody
     return
   }
   // upload file
-  if (~'GET,PUT,DELETE'.indexOf(request.method.toLocaleUpperCase()) && passwdInfo && passwdInfo.encName) {
+  if ('GET,PUT,DELETE'.includes(request.method.toLocaleUpperCase()) && passwdInfo && passwdInfo.encName) {
     const url = request.url
     // check dir, convert url
     const fileName = path.basename(url)
     const realName = convertRealName(passwdInfo.password, passwdInfo.encType, url)
+    // maybe from aliyundrive, check this req url while get file list from enc folder
+    if (url.endsWith('/') && request.method.toLocaleUpperCase() === 'GET') {
+      let respBody = await httpClient(ctx.req, ctx.res)
+      const aurlArr = respBody.match(/href="[^"]*"/g)
+      // logger.debug('@@aurlArr', aurlArr)
+      if (aurlArr && aurlArr.length) {
+        for (let urlStr of aurlArr) {
+          urlStr = urlStr.replace('href="', '').replace('"', '')
+          const aurl = decodeURIComponent(urlStr.replace('href="', '').replace('"', ''))
+          const baseUrl = decodeURIComponent(url)
+          if (aurl.includes(baseUrl)) {
+            const fileName = path.basename(aurl)
+            const showName = convertShowName(passwdInfo.password, passwdInfo.encType, fileName)
+            logger.debug('@@aurl', urlStr, showName)
+            respBody = respBody.replace(path.basename(urlStr), encodeURI(showName)).replace(fileName, showName)
+          }
+        }
+      }
+      ctx.res.end(respBody)
+      return
+    }
+
     request.url = url.replace(fileName, realName)
     console.log('@@convert file name', fileName, realName)
     request.urlAddr = request.urlAddr.replace(fileName, realName)
