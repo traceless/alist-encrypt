@@ -79,8 +79,8 @@ const handle = async (ctx, next) => {
       logger.debug('@@@sourceFileInfo', sourceFileInfo, reqFileName, realName, url, sourceUrl)
       // it is file, convert file name
       if (sourceFileInfo && !sourceFileInfo.is_dir) {
-        request.url = url.replace(reqFileName, realName)
-        request.urlAddr = request.urlAddr.replace(reqFileName, realName)
+        request.url = path.dirname(request.url) + '/' + realName
+        request.urlAddr = path.dirname(request.urlAddr) + '/' + realName
       }
     }
     // decrypt file name
@@ -132,6 +132,15 @@ const handle = async (ctx, next) => {
     ctx.body = respBody
     return
   }
+  // copy or move file
+  if ('COPY,MOVE'.includes(request.method.toLocaleUpperCase()) && passwdInfo && passwdInfo.encName) {
+    const url = request.url
+    const realName = convertRealName(passwdInfo.password, passwdInfo.encType, url)
+    request.headers.destination = path.dirname(request.headers.destination) + '/' + encodeURI(realName)
+    request.url = path.dirname(request.url) + '/' + encodeURI(realName)
+    request.urlAddr = path.dirname(request.urlAddr) + '/' + encodeURI(realName)
+  }
+
   // upload file
   if ('GET,PUT,DELETE'.includes(request.method.toLocaleUpperCase()) && passwdInfo && passwdInfo.encName) {
     const url = request.url
@@ -160,9 +169,9 @@ const handle = async (ctx, next) => {
       return
     }
 
-    request.url = url.replace(fileName, realName)
-    console.log('@@convert file name', fileName, realName)
-    request.urlAddr = request.urlAddr.replace(fileName, realName)
+    // console.log('@@convert file name', fileName, realName)
+    request.url = path.dirname(request.url) + '/' + realName
+    request.urlAddr = path.dirname(request.urlAddr) + '/' + realName
     // cache file before upload in next(), rclone cmd 'copy' will PROPFIND this file when the file upload success right now
     const contentLength = request.headers['content-length'] || request.headers['x-expected-entity-length'] || 0
     const fileDetail = { path: url, name: fileName, is_dir: false, size: contentLength }
