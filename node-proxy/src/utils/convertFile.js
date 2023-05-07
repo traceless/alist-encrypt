@@ -44,6 +44,10 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
   }
   // input file path
   const allFilePath = searchFile(encPath)
+  const tempDir = encPath + '/.temp'
+  if (!fs.existsSync(tempDir)) {
+    mkdirp.sync(tempDir)
+  }
   let promiseArr = []
   for (const fileInfo of allFilePath) {
     const { filePath, size } = fileInfo
@@ -61,6 +65,8 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
       }
     }
     const outFilePath = outPath + relativePath
+    const outFilePathTemp = tempDir + relativePath
+    mkdirp.sync(path.dirname(outFilePathTemp))
     mkdirp.sync(path.dirname(outFilePath))
     // 开始加密
     if (size === 0) {
@@ -68,12 +74,13 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
     }
     const flowEnc = new FlowEnc(password, encType, size)
     // console.log('@@outFilePath', outFilePath, encType, size)
-    const writeStream = fs.createWriteStream(outFilePath)
+    const writeStream = fs.createWriteStream(outFilePathTemp)
     const readStream = fs.createReadStream(filePath)
     const promise = new Promise((resolve, reject) => {
       readStream.pipe(enc === 'enc' ? flowEnc.encryptTransform() : flowEnc.decryptTransform()).pipe(writeStream)
       readStream.on('end', () => {
-        console.log('@@finish filePath', filePath)
+        console.log('@@finish filePath', filePath, outFilePathTemp)
+        fs.renameSync(outFilePathTemp, outFilePath)
         resolve()
       })
     })
