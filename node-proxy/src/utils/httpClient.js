@@ -1,6 +1,6 @@
 import http from 'http'
 import https from 'node:https'
-import crypto from 'crypto'
+import crypto, { randomUUID } from 'crypto'
 import levelDB from './levelDB.js'
 // import { pathExec } from './commonUtil.js'
 const Agent = http.Agent
@@ -12,7 +12,8 @@ const httpAgent = new Agent({ keepAlive: true })
 
 export async function httpProxy(request, response, encryptTransform, decryptTransform) {
   const { method, headers, urlAddr, passwdInfo } = request
-  console.log('@@request_info: ', method, urlAddr, headers, !!encryptTransform, !!decryptTransform)
+  const reqId = randomUUID()
+  console.log('@@request_info: ', reqId, method, urlAddr, headers, !!encryptTransform, !!decryptTransform)
   // 创建请求
   const options = {
     method,
@@ -24,7 +25,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
   return new Promise((resolve, reject) => {
     // 处理重定向的请求，让下载的流量经过代理服务器
     const httpReq = httpRequest.request(urlAddr, options, async (httpResp) => {
-      console.log('@@statusCode', httpResp.statusCode, httpResp.headers)
+      console.log('@@statusCode', reqId, httpResp.statusCode, httpResp.headers)
       response.statusCode = httpResp.statusCode
       if (response.statusCode % 300 < 5) {
         // 可能出现304，redirectUrl = undefined
@@ -56,6 +57,13 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
         })
       // 是否需要解密
       decryptTransform ? httpResp.pipe(decryptTransform).pipe(response) : httpResp.pipe(response)
+      // 修复阿里云连接中断的问题
+      httpResp.on('error', () => {
+        response.destroy()
+        if (decryptTransform) {
+          decryptTransform.destroy()
+        }
+      })
     })
     httpReq.on('error', (err) => {
       console.log('@@httpProxy request error ', err, urlAddr, headers)
