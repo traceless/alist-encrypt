@@ -58,7 +58,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
       // 是否需要解密
       decryptTransform ? httpResp.pipe(decryptTransform).pipe(response) : httpResp.pipe(response)
       // 修复阿里云连接中断的问题
-      httpResp.on('error', () => {
+      httpResp.on('close', () => {
         response.destroy()
         if (decryptTransform) {
           decryptTransform.destroy()
