@@ -53,9 +53,10 @@ import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useConfigStore } from '@/store/config'
 import { useBasicStore } from '@/store/basic'
-import { getAlistConfigReq, saveAlistConfigReq, encryptFileReq, checkFilePathReq } from '@/api/user'
+import { usePageStore } from '@/store/pageStore'
+import { encryptFileReq } from '@/api/user'
 
-import { Check, Delete, Edit, Message, Search, Star, CirclePlus, Folder } from '@element-plus/icons-vue'
+import { CirclePlus, Folder } from '@element-plus/icons-vue'
 import { random } from 'lodash'
 
 const labelPosition = ref('right')
@@ -65,6 +66,8 @@ const activeName = ref('encode')
 const basicStore = useBasicStore()
 const { settings, userInfo } = basicStore
 
+const { folderInfo, setFolderInfo } = usePageStore()
+
 const { setLanguage } = useConfigStore()
 const route = useRoute()
 const changeLanguage = (langParam) => {
@@ -72,8 +75,8 @@ const changeLanguage = (langParam) => {
 }
 
 const folderForm = reactive({
-  folderPath: '/home/test_enc',
-  outPath: '/home/outPath',
+  folderPath: folderInfo.folderPath,
+  outPath: folderInfo.outPath,
   encType: 'aesctr',
   password: '123456', // 文件夹密码
   operation: 'enc',
@@ -88,6 +91,7 @@ const delPasswd = (index) => {
 }
 
 const encryptFile = () => {
+  setFolderInfo(Object.assign({}, folderForm))
   encryptFileReq(folderForm).then((res) => {
     ElMessage.success(res.msg)
   })

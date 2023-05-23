@@ -100,6 +100,7 @@ declare global {
   const useElement: typeof import('../src/hooks/use-element.js')['useElement']
   const useErrorLog: typeof import('../src/hooks/use-error-log.js')['useErrorLog']
   const useLink: typeof import('vue-router')['useLink']
+  const usePageStore: typeof import('../src/store/pageStore.js')['usePageStore']
   const useRoute: typeof import('vue-router')['useRoute']
   const useRouter: typeof import('vue-router')['useRouter']
   const useSlots: typeof import('vue')['useSlots']

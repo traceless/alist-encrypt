@@ -99,6 +99,7 @@
     "useElement": true,
     "useErrorLog": true,
     "useLink": true,
+    "usePageStore": true,
     "useRoute": true,
     "useRouter": true,
     "useSlots": true,
