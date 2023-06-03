@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      Url:
+        description: 'Download Url'
+        required: false
+        default: 'false'
+env:
+  FILE_PATH: 'downloads'
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal token
+        fetch-depth: 0 
+    - name: Nodejs Install
+      run: sudo apt install -y nodejs 
+      
+    - name: Build
+      run: cd node-proxy && node build 
+      
+    - name: Check build
+      run: ls node-proxy/dist/
+#     - name: Set up Python 3.9
+#       uses: actions/setup-python@v2
+#       with:
+#         python-version: 3.9
+        
+      
+
