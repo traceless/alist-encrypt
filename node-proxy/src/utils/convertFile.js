@@ -1,5 +1,5 @@
 'use strict'
-import fs from 'fs'
+import fs, { rmdirSync } from 'fs'
 import path from 'path'
 
 import mkdirp from 'mkdirp'
@@ -44,7 +44,7 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
   }
   // input file path
   const allFilePath = searchFile(encPath)
-  const tempDir = encPath + '/.temp'
+  const tempDir = outPath + '/.temp'
   if (!fs.existsSync(tempDir)) {
     mkdirp.sync(tempDir)
   }
@@ -91,6 +91,7 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
     }
   }
   await Promise.all(promiseArr)
+  rmdirSync(tempDir)
   console.log('@@all finish', ((Date.now() - start) / 1000).toFixed(2) + 's')
   clearInterval(interval)
 }
