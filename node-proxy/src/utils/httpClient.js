@@ -49,7 +49,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
         response.setHeader(key, httpResp.headers[key])
       }
       // 下载时解密文件名
-      if (response.statusCode === 200 && passwdInfo.enable && passwdInfo.encName) {
+      if (response.statusCode === 200 && passwdInfo?.enable && passwdInfo.encName) {
         let cd = response.getHeader('content-disposition')
         cd = cd ? cd.replace(/filename\*?=[^=;]*;?/g, '') : ''
         let fileName = decodeURIComponent(path.basename(request.url))
