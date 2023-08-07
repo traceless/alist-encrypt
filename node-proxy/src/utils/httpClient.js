@@ -39,7 +39,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
           httpResp.headers.location = `/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(request.url)}`
         }
         console.log('302 redirectUrl:', redirectUrl)
-      } else if (httpResp.headers['accept-ranges'] === 'bytes' && httpResp.statusCode === 200) { // 修复部分在线视频链接返回200状态码导致无法正常播放，例如中移动云盘
+      } else if (httpResp.headers['content-range'] && httpResp.statusCode === 200) { // 修复部分在线视频链接返回200状态码导致无法正常播放，例如中国移动云盘
         response.statusCode = 206
       }
       // 设置headers
