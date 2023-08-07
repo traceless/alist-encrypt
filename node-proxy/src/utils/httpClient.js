@@ -2,6 +2,8 @@ import http from 'http'
 import https from 'node:https'
 import crypto, { randomUUID } from 'crypto'
 import levelDB from './levelDB.js'
+import path from 'path'
+import { decodeName } from './commonUtil.js'
 // import { pathExec } from './commonUtil.js'
 const Agent = http.Agent
 const Agents = https.Agent
@@ -39,10 +41,21 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
           httpResp.headers.location = `/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(request.url)}`
         }
         console.log('302 redirectUrl:', redirectUrl)
+      } else if (httpResp.headers['content-range'] && httpResp.statusCode === 200) {
+        response.statusCode = 206
       }
       // 设置headers
       for (const key in httpResp.headers) {
         response.setHeader(key, httpResp.headers[key])
+      }
+      // 下载时解密文件名
+      if (response.statusCode === 200 && passwdInfo?.enable && passwdInfo.encName) {
+        let cd = response.getHeader('content-disposition')
+        cd = cd ? cd.replace(/filename\*?=[^=;]*;?/g, '') : ''
+        let fileName = decodeURIComponent(path.basename(request.url))
+        const ext = path.extname(fileName)
+        fileName = decodeName(passwdInfo.password, passwdInfo.encType, fileName.replace(ext, ''))
+        response.setHeader('content-disposition', cd + `filename*=UTF-8''${encodeURIComponent(fileName)};`)
       }
       let resLength = 0
       const dataStr = ''
