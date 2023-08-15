@@ -18,7 +18,7 @@ cobertura.ser
 node_modules/
 conf/
 dist/
-ncc/
+build/
 bin
 .vscode
 .project
