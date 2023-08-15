@@ -39,6 +39,7 @@
     "node-dev": "^8.0.0",
     "pkg": "^5.8.1",
     "prettier": "^2.8.4",
+    "terser-webpack-plugin": "^5.3.9",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4",
     "webpack-node-externals": "^3.0.0"
