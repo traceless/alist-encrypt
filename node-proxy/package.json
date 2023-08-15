@@ -1,5 +1,5 @@
 {
-  "name": "nodejs",
+  "name": "alist-encrypt",
   "version": "1.0.0",
   "description": "",
   "type": "module",
@@ -7,12 +7,11 @@
   "scripts": {
     "dev": "node-dev app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "ncc": "ncc build app.js -o ncc && cp -r public ncc ",
-    "build": "npm run ncc && pkg --compress GZip . ",
-    "docker": "npm run ncc && sudo docker build -t prophet310/alist-encrypt:beta . ",
-    "docker-arm": "npm run ncc && sudo docker build -t prophet310/alist-encrypt:beta-arm . ",
-    "docker-all": "npm run ncc && sudo docker buildx build -t prophet310/alist-encrypt:beta-1.0 --platform=linux/arm64,linux/amd64 . --push "
-
+    "webpack": "npx webpack",
+    "build": "npm run webpack && pkg --compress GZip . ",
+    "docker": "npm run webpack && sudo docker build -t prophet310/alist-encrypt:beta . ",
+    "docker-arm": "npm run webpack && sudo docker build -t prophet310/alist-encrypt:beta-arm . ",
+    "docker-all": "npm run webpack && sudo docker buildx build -t prophet310/alist-encrypt:beta-1.0 --platform=linux/arm64,linux/amd64 . --push "
   },
   "keywords": [],
   "author": "",
@@ -31,7 +30,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.55.0",
     "@typescript-eslint/parser": "^5.55.0",
-    "@zeit/ncc": "^0.22.3",
+    "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.36.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-import": "^2.27.5",
@@ -39,22 +38,22 @@
     "eslint-plugin-promise": "^6.1.1",
     "node-dev": "^8.0.0",
     "pkg": "^5.8.1",
-    "prettier": "^2.8.4"
+    "prettier": "^2.8.4",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-node-externals": "^3.0.0"
   },
-  "bin": "ncc/index.js",
+  "bin": "dist/index.js",
   "pkg": {
     "options": [
       "experimental-modules"
     ],
     "scripts": [
-      "ncc/index.js",
-      "ncc/PRGAThreadCom.js"
+      "dist/PRGAThreadCom.js"
     ],
     "assets": [
-      "ncc/public/**/*",
-      "ncc/prebuilds/**/*",
-      "ncc/build/**/*"
+      "dist/public/**/*"
     ],
-    "outputPath": "dist"
+    "outputPath": "build"
   }
 }
