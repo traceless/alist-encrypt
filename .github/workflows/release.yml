@@ -20,6 +20,6 @@ jobs:
       - name: Upload assets
         uses: softprops/action-gh-release@v1
         with:
-          files: node-proxy/dist/*
+          files: node-proxy/build/*
           prerelease: false
           token: ${{ secrets.REPO_TOKEN }}
