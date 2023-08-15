@@ -67,7 +67,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
         .on('close', () => {
           console.log('响应关闭...', reqId, urlAddr)
           // response.destroy()
-          decryptTransform?.destroy()
+          if (decryptTransform) decryptTransform.destroy()
         })
       // 是否需要解密
       decryptTransform ? httpResp.pipe(decryptTransform).pipe(response) : httpResp.pipe(response)
