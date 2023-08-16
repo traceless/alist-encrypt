@@ -6,9 +6,6 @@ import dotenv from 'dotenv'
 import { randomUUID } from 'crypto'
 dotenv.config('./env')
 
-// ncc will take this file in out dist
-fs.existsSync(path.resolve() + '/src/utils/PRGAThreadCom.js')
-
 const pkgDirPath = path.dirname(process.argv[1])
 const pkgThreadPath = pkgDirPath + '/PRGAThreadCom.js'
 // dev threadPath
