@@ -37,13 +37,16 @@ Alist-encrypt 就是为了解决这个问题，它可以在网页中上传文件
 
 1、下载此项目，进入 node-proxy 目录执行
 
-> npm i
+- 不安装开发所需的依赖（仅运行、节省存储空间）
+  > npm i --omit=dev
+- 安装全部依赖（开发、编译等）
+  > npm i
 
 2、修改 conf/config.js 配置文件，添加 alist 服务地址端口，添加 alist 的网盘中需要进行加密的文件夹路径。
 
 3、然后执行启动命令
 
-> node app.js
+> npm run serve
 
 最后就打开代理服务器地址 http://127.0.0.1:5344/public/index.html 即可进入配置页面，账号 admin，密码默认 123456。配置后之后，打开http://127.0.0.1:5344 即可访问到 alist 的服务了
 
