@@ -6,6 +6,7 @@
   "main": "app.js",
   "scripts": {
     "dev": "node-dev app.js",
+    "serve": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "webpack": "npx webpack",
     "build": "npm run webpack && pkg --compress GZip . ",
