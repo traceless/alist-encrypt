@@ -2,12 +2,12 @@
 
 import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
-import { encodeName, pathFindPasswd, convertShowName, convertRealName } from './utils/commonUtil.js'
+import { encodeName, pathFindPasswd, convertShowName, convertRealName } from './utils/commonUtil'
 import path from 'path'
-import { httpClient, httpProxy } from './utils/httpClient.js'
-import FlowEnc from './utils/flowEnc.js'
-import { logger } from './common/logger.js'
-import { getFileInfo } from './dao/fileDao.js'
+import { httpClient, httpProxy } from './utils/httpClient'
+import FlowEnc from './utils/flowEnc'
+import { logger } from './common/logger'
+import { getFileInfo } from './dao/fileDao'
 
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })

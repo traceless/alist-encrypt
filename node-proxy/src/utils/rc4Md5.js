@@ -2,7 +2,7 @@
 
 import crypto from 'crypto'
 import { Transform } from 'stream'
-import PRGAExcuteThread from './PRGAThread.js'
+import PRGAExcuteThread from './PRGAThread'
 
 /**
  * RC4算法，安全性相对好很多

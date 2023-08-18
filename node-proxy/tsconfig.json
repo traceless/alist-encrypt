@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "ESNext",
+    "types": ["./src/@types"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] },
+    "allowSyntheticDefaultImports": true,
+    // "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "outDir": "./dist"
+  },
+  "exclude": ["node_modules", "**/node_modules/*", "dist"],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "NodeNext"
+    }
+  }
+}

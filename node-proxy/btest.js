@@ -1,12 +1,12 @@
 import crypto from 'crypto'
 import path from 'path'
-import { logger } from './src/common/logger.js'
-import ChaCha20Poly from './src/utils/chaCha20Poly.js'
+import { logger } from '@/common/logger'
+import ChaCha20Poly from '@/utils/chaCha20Poly'
 import { chownSync, copyFileSync } from 'fs'
-import CRCN from './src/utils/crc6-8.js'
+import CRCN from '@/utils/crc6-8'
 import fs from 'fs'
-import { encodeName, decodeName } from './src/utils/commonUtil.js'
-import { getWebdavFileInfo } from './src/utils/webdavClient.js'
+import { encodeName, decodeName } from '@/utils/commonUtil'
+import { getWebdavFileInfo } from '@/utils/webdavClient'
 
 getWebdavFileInfo(
   'http://192.168.8.240:5244/dav/aliyun%E4%BA%91%E7%9B%98/atest/d%E5%AF%B9%E6%96%B9%E6%88%91testrclone/kline_d%2Bata12342%E6%AD%A3%E6%96%87%E7%9A%84%E7%9A%84%E5%89%AF%E6%9C%AC.txt',

@@ -1,4 +1,4 @@
-import levelDB from '../utils/levelDB.js'
+import levelDB from '@/utils/levelDB'
 import crypto from 'crypto'
 
 export const fileInfoTable = 'fileInfoTable_'
