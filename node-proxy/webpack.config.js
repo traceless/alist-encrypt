@@ -63,12 +63,12 @@ module.exports = {
           keep_fnames: true,
           // 是否保留类名
           keep_classnames: true,
-          // format: {
-          //   // 输出格式化
-          //   beautify: true,
-          //   // 保留注释
-          //   comments: true,
-          // },
+          format: {
+            // 输出格式化
+            beautify: true,
+            // 保留注释
+            comments: true,
+          },
         },
       }),
     ],

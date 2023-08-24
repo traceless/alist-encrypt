@@ -1,4 +1,11 @@
 'use strict'
+import { convertFile } from '@/utils/convertFile'
+const arg = process.argv.slice(2)
+if (arg.length > 1) {
+  // convertFile command
+  convertFile(...arg)
+  return
+}
 
 import Koa from 'koa'
 import Router from 'koa-router'
@@ -18,7 +25,6 @@ import encDavHandle from '@/encDavHandle'
 
 import { cacheFileInfo, getFileInfo } from '@/dao/fileDao'
 import { getWebdavFileInfo } from '@/utils/webdavClient'
-import { convertFile } from '@/utils/convertFile'
 import staticServer from 'koa-static'
 import { logger } from '@/common/logger'
 
@@ -314,16 +320,10 @@ proxyRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
 // 使用路由控制
 app.use(proxyRouter.routes()).use(proxyRouter.allowedMethods())
 
-// 配置创建好了，就启动
-const arg = process.argv.slice(2)
-if (arg.length > 1) {
-  // convertFile command
-  convertFile(arg)
-} else {
-  const server = http.createServer(app.callback())
-  server.maxConnections = 1000
-  server.listen(port, () => logger.info('服务启动成功: ' + port))
-  setInterval(() => {
-    logger.debug('server_connections', server._connections, Date.now())
-  }, 600 * 1000)
-}
+// 配置创建好了，就启动 else {
+const server = http.createServer(app.callback())
+server.maxConnections = 1000
+server.listen(port, () => logger.info('服务启动成功: ' + port))
+setInterval(() => {
+  logger.debug('server_connections', server._connections, Date.now())
+}, 600 * 1000)
