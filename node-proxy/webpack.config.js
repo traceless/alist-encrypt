@@ -1,21 +1,44 @@
-import CopyPlugin from 'copy-webpack-plugin'
-import { resolve } from 'path'
-import nodeExternals from 'webpack-node-externals'
-import TerserPlugin from 'terser-webpack-plugin'
+const CopyPlugin = require('copy-webpack-plugin')
+const path = require('path')
+const nodeExternals = require('webpack-node-externals')
+const TerserPlugin = require('terser-webpack-plugin')
 
 const output = {
   filename: '[name].js',
-  path: resolve('./dist'),
+  path: path.resolve('./dist'),
 }
-export default {
-  entry: { index: resolve('./app.js'), PRGAThreadCom: resolve('./src/utils/PRGAThreadCom.js') },
+
+module.exports = {
+  entry: { index: path.resolve('./app.js'), PRGAThreadCom: path.resolve('./src/utils/PRGAThreadCom.js') },
   output,
+  module: {
+    rules: [
+      {
+        test: /\.[tj]s$/i,
+        use: [
+          {
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true, // 只做语言转换，而不做类型检查
+            },
+          },
+        ],
+        exclude: /node_modules/,
+      },
+    ],
+  },
+  resolve: {
+    extensions: ['.ts', '.js'],
+    alias: {
+      '@': path.resolve('./src'),
+    },
+  },
   plugins: [
     new CopyPlugin({
       patterns: [
         {
-          from: resolve('./public'),
-          to: resolve(output.path, 'public'),
+          from: path.resolve('./public'),
+          to: path.resolve(output.path, 'public'),
         },
       ],
     }),
@@ -40,12 +63,12 @@ export default {
           keep_fnames: true,
           // 是否保留类名
           keep_classnames: true,
-          // format: {
-          //   // 输出格式化
-          //   beautify: true,
-          //   // 保留注释
-          //   comments: true,
-          // },
+          format: {
+            // 输出格式化
+            beautify: true,
+            // 保留注释
+            comments: true,
+          },
         },
       }),
     ],

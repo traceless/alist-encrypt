@@ -1,6 +1,6 @@
 'use strict'
 
-import { httpClient } from './httpClient.js'
+import { httpClient } from './httpClient'
 import { XMLParser } from 'fast-xml-parser'
 
 // get file info from webdav

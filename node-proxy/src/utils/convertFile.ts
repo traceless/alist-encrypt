@@ -1,22 +1,22 @@
 'use strict'
-import fs, { rmdirSync } from 'fs'
+import fs from 'fs'
 import path from 'path'
 
 import mkdirp from 'mkdirp'
-import FlowEnc from './flowEnc.js'
-import { encodeName, decodeName } from './commonUtil.js'
+import FlowEnc from './flowEnc'
+import { encodeName, decodeName } from './commonUtil'
 
-export function searchFile(filePath) {
-  const fileArray = []
+export function searchFile(filePath: string) {
+  const fileArray: { size: number; filePath: string }[] = []
   const files = fs.readdirSync(filePath)
-  files.forEach(function (ele, index) {
-    const info = fs.statSync(filePath + '/' + ele)
+  files.forEach((child) => {
+    const filePath2 = path.join(filePath, child),
+      info = fs.statSync(filePath2)
     if (info.isDirectory()) {
-      //   console.log('dir: ' + ele)
-      const deepArr = searchFile(filePath + '/' + ele)
+      const deepArr = searchFile(filePath2)
       fileArray.push(...deepArr)
     } else {
-      const data = { size: info.size, filePath: filePath + '/' + ele }
+      const data = { size: info.size, filePath: filePath2 }
       fileArray.push(data)
     }
   })
@@ -24,7 +24,14 @@ export function searchFile(filePath) {
 }
 
 // encrypt
-export async function encryptFile(password, encType, enc, encPath, outPath, encName) {
+export async function encryptFile(
+  password: string,
+  encType: string,
+  enc: 'enc' | 'dec',
+  encPath: string,
+  outPath?: string,
+  encName?: boolean | string
+) {
   const start = Date.now()
   const interval = setInterval(() => {
     console.log(new Date(), 'waiting finish!!!')
@@ -32,7 +39,7 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
   if (!path.isAbsolute(encPath)) {
     encPath = path.join(process.cwd(), encPath)
   }
-  outPath = outPath || process.cwd() + '/outFile/' + Date.now()
+  outPath = outPath || path.join(process.cwd(), 'outFile', Date.now().toString())
   console.log('you input:', password, encType, enc, encPath)
   if (!fs.existsSync(encPath)) {
     console.log('you input filePath is not exists ')
@@ -44,28 +51,29 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
   }
   // input file path
   const allFilePath = searchFile(encPath)
-  const tempDir = outPath + '/.temp'
+  const tempDir = path.join(outPath, '.temp')
   if (!fs.existsSync(tempDir)) {
     mkdirp.sync(tempDir)
   }
   let promiseArr = []
   for (const fileInfo of allFilePath) {
     const { filePath, size } = fileInfo
-    let relativePath = filePath.replace(encPath, '')
-    const fileName = path.basename(relativePath)
-    const ext = path.extname(relativePath)
+    let relativePath = filePath.substring(encPath.length)
+    const fileName = path.basename(relativePath),
+      ext = path.extname(relativePath),
+      childPath = path.dirname(relativePath)
     if (enc === 'enc' && encName) {
       const newFileName = encodeName(password, encType, fileName) + ext
-      relativePath = relativePath.replace(fileName, newFileName)
+      relativePath = path.join(childPath, newFileName)
     }
     if (enc === 'dec') {
-      const newFileName = decodeName(password, encType, fileName.replace(ext, ''))
+      const newFileName = decodeName(password, encType, ext !== '' ? fileName.substring(0, fileName.length - ext.length) : fileName)
       if (newFileName) {
-        relativePath = relativePath.replace(fileName, newFileName)
+        relativePath = path.join(childPath, newFileName)
       }
     }
-    const outFilePath = outPath + relativePath
-    const outFilePathTemp = tempDir + relativePath
+    const outFilePath = path.join(outPath, relativePath)
+    const outFilePathTemp = path.join(tempDir, relativePath)
     mkdirp.sync(path.dirname(outFilePathTemp))
     mkdirp.sync(path.dirname(outFilePath))
     // 开始加密
@@ -76,7 +84,7 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
     // console.log('@@outFilePath', outFilePath, encType, size)
     const writeStream = fs.createWriteStream(outFilePathTemp)
     const readStream = fs.createReadStream(filePath)
-    const promise = new Promise((resolve, reject) => {
+    const promise = new Promise<void>((resolve, reject) => {
       readStream.pipe(enc === 'enc' ? flowEnc.encryptTransform() : flowEnc.decryptTransform()).pipe(writeStream)
       readStream.on('end', () => {
         console.log('@@finish filePath', filePath, outFilePathTemp)
@@ -91,20 +99,20 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
     }
   }
   await Promise.all(promiseArr)
-  rmdirSync(tempDir)
+  fs.rmSync(tempDir, { recursive: true })
   console.log('@@all finish', ((Date.now() - start) / 1000).toFixed(2) + 's')
   clearInterval(interval)
 }
 
-export function convertFile() {
+export function convertFile(...args: [password: string, encType: string, enc: 'enc' | 'dec', encPath: string, outPath?: string, encName?: string]) {
   const statTime = Date.now()
-  const arg = process.argv.slice(2)
-  // check finish
-  if (arg.length > 3) {
-    encryptFile(...arg).then(() => {
+  if (args.length > 3) {
+    encryptFile(...args).then(() => {
       console.log('all file finish enc!!! time:', Date.now() - statTime)
+      process.exit(0)
     })
   } else {
-    console.log('input error， example param:nodejs-linux passwd12345 rc4 enc ./myfolder /tmp/outPath encname  ')
+    console.error('input error， example param:nodejs-linux passwd12345 rc4 enc ./myfolder /tmp/outPath encname  ')
+    process.exit(1)
   }
 }

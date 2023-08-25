@@ -1,7 +1,7 @@
 FROM node:gallium-alpine
 WORKDIR /node-proxy
 
-COPY ./ncc /node-proxy
+COPY ./dist /node-proxy
 
 RUN pwd
 

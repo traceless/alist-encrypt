@@ -1,15 +1,15 @@
 import { pathToRegexp } from 'path-to-regexp'
-import FlowEnc from './flowEnc.js'
+import FlowEnc from './flowEnc'
 import path from 'path'
 
-import MixBase64 from './mixBase64.js'
-import Crcn from './crc6-8.js'
+import MixBase64 from './mixBase64'
+import Crcn from './crc6-8'
 
 const crc6 = new Crcn(6)
 const origPrefix = 'orig_'
 
 // check file name, return real name
-export function convertRealName(password, encType, pathText) {
+export function convertRealName(password: string, encType: string, pathText: string) {
   const fileName = path.basename(pathText)
   if (fileName.indexOf(origPrefix) === 0) {
     return fileName.replace(origPrefix, '')
@@ -22,7 +22,7 @@ export function convertRealName(password, encType, pathText) {
 }
 
 // if file name has encrypt, return show name
-export function convertShowName(password, encType, pathText) {
+export function convertShowName(password: string, encType: string, pathText: string) {
   const fileName = path.basename(decodeURIComponent(pathText))
   const ext = path.extname(fileName)
   const encName = fileName.replace(ext, '')
@@ -35,7 +35,7 @@ export function convertShowName(password, encType, pathText) {
 }
 
 // 判断是否为匹配的路径
-export function pathExec(encPath, url) {
+export function pathExec(encPath: string[], url: string) {
   for (const filePath of encPath) {
     const result = pathToRegexp(new RegExp(filePath)).exec(url)
     if (result) {
@@ -45,7 +45,7 @@ export function pathExec(encPath, url) {
   return null
 }
 
-export function encodeName(password, encType, plainName) {
+export function encodeName(password: string, encType: string, plainName: string) {
   const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
   //  randomStr
   const mix64 = new MixBase64(passwdOutward)
@@ -56,7 +56,7 @@ export function encodeName(password, encType, plainName) {
   return encodeName
 }
 
-export function decodeName(password, encType, encodeName) {
+export function decodeName(password: string, encType: string, encodeName: string) {
   const crc6Check = encodeName.substring(encodeName.length - 1)
   const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
   const mix64 = new MixBase64(passwdOutward)
@@ -77,12 +77,12 @@ export function decodeName(password, encType, encodeName) {
   return decodeStr
 }
 
-export function encodeFolderName(password, encType, folderPasswd, folderEncType) {
+export function encodeFolderName(password: string, encType: string, folderPasswd: string, folderEncType: string) {
   const passwdInfo = folderEncType + '_' + folderPasswd
   return encodeName(password, encType, passwdInfo)
 }
 
-export function decodeFolderName(password, encType, encodeName) {
+export function decodeFolderName(password: string, encType: string, encodeName: string) {
   const arr = encodeName.split('_')
   if (arr.length < 2) {
     return false
@@ -98,7 +98,7 @@ export function decodeFolderName(password, encType, encodeName) {
 }
 
 // 检查
-export function pathFindPasswd(passwdList, url) {
+export function pathFindPasswd(passwdList: PasswdInfo[], url: string) {
   for (const passwdInfo of passwdList) {
     for (const filePath of passwdInfo.encPath) {
       const result = passwdInfo.enable ? pathToRegexp(new RegExp(filePath)).exec(url) : null
@@ -109,7 +109,7 @@ export function pathFindPasswd(passwdList, url) {
         // url maybe a folder, need decode
         const folders = url.split('/')
         for (const folderName of folders) {
-          const data = decodeFolderName(passwdInfo.password, passwdInfo.encType, decodeURIComponent(folderName) )
+          const data = decodeFolderName(passwdInfo.password, passwdInfo.encType, decodeURIComponent(folderName))
           if (data) {
             newPasswdInfo.encType = data.folderEncType
             newPasswdInfo.password = data.folderPasswd

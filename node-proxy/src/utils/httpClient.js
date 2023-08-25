@@ -1,10 +1,10 @@
 import http from 'http'
 import https from 'node:https'
 import crypto, { randomUUID } from 'crypto'
-import levelDB from './levelDB.js'
+import levelDB from './levelDB'
 import path from 'path'
-import { decodeName } from './commonUtil.js'
-// import { pathExec } from './commonUtil.js'
+import { decodeName } from './commonUtil'
+// import { pathExec } from './commonUtil'
 const Agent = http.Agent
 const Agents = https.Agent
 

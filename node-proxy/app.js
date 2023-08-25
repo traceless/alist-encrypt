@@ -1,26 +1,32 @@
 'use strict'
+import { convertFile } from '@/utils/convertFile'
+const arg = process.argv.slice(2)
+if (arg.length > 1) {
+  // convertFile command
+  convertFile(...arg)
+  return
+}
 
 import Koa from 'koa'
 import Router from 'koa-router'
 import http from 'http'
 import crypto from 'crypto'
 import path from 'path'
-import { httpProxy, httpClient } from './src/utils/httpClient.js'
+import { httpProxy, httpClient } from '@/utils/httpClient'
 import bodyparser from 'koa-bodyparser'
-import FlowEnc from './src/utils/flowEnc.js'
-import levelDB from './src/utils/levelDB.js'
-import { webdavServer, alistServer, port, version } from './src/config.js'
-import { pathExec, pathFindPasswd } from './src/utils/commonUtil.js'
-import globalHandle from './src/middleware/globalHandle.js'
-import encApiRouter from './src/router.js'
-import encNameRouter from './src/encNameRouter.js'
-import encDavHandle from './src/encDavHandle.js'
+import FlowEnc from '@/utils/flowEnc'
+import levelDB from '@/utils/levelDB'
+import { webdavServer, alistServer, port, version } from '@/config'
+import { pathExec, pathFindPasswd } from '@/utils/commonUtil'
+import globalHandle from '@/middleware/globalHandle'
+import encApiRouter from '@/router'
+import encNameRouter from '@/encNameRouter'
+import encDavHandle from '@/encDavHandle'
 
-import { cacheFileInfo, getFileInfo } from './src/dao/fileDao.js'
-import { getWebdavFileInfo } from './src/utils/webdavClient.js'
-import { convertFile } from './src/utils/convertFile.js'
+import { cacheFileInfo, getFileInfo } from '@/dao/fileDao'
+import { getWebdavFileInfo } from '@/utils/webdavClient'
 import staticServer from 'koa-static'
-import { logger } from './src/common/logger.js'
+import { logger } from '@/common/logger'
 
 async function sleep(time) {
   return new Promise((resolve) => {
@@ -314,16 +320,10 @@ proxyRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
 // 使用路由控制
 app.use(proxyRouter.routes()).use(proxyRouter.allowedMethods())
 
-// 配置创建好了，就启动
-const arg = process.argv.slice(2)
-if (arg.length > 1) {
-  // convertFile command
-  convertFile(arg)
-} else {
-  const server = http.createServer(app.callback())
-  server.maxConnections = 1000
-  server.listen(port, () => logger.info('服务启动成功: ' + port))
-  setInterval(() => {
-    logger.debug('server_connections', server._connections, Date.now())
-  }, 600 * 1000)
-}
+// 配置创建好了，就启动 else {
+const server = http.createServer(app.callback())
+server.maxConnections = 1000
+server.listen(port, () => logger.info('服务启动成功: ' + port))
+setInterval(() => {
+  logger.debug('server_connections', server._connections, Date.now())
+}, 600 * 1000)

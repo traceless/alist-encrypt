@@ -1,8 +1,8 @@
 'use strict'
 
-import MixEnc from './mixEnc.js'
-import Rc4Md5 from './rc4Md5.js'
-import AesCTR from './aesCTR.js'
+import MixEnc from './mixEnc'
+import Rc4Md5 from './rc4Md5'
+import AesCTR from './aesCTR'
 
 const cachePasswdOutward = {}
 

@@ -1,16 +1,15 @@
-import { Worker, isMainThread, parentPort, workerData } from 'worker_threads'
-import os from 'os'
-import fs from 'fs'
-import path from 'path'
-import dotenv from 'dotenv'
-import { randomUUID } from 'crypto'
-dotenv.config('./env')
+const { Worker, isMainThread, parentPort, workerData } = require('worker_threads')
+const os = require('os')
+const path = require('path')
+const dotenv = require('dotenv')
+const { randomUUID } = require('crypto')
 
 const pkgDirPath = path.dirname(process.argv[1])
+dotenv.config({ path: pkgDirPath + '/.env' })
+
 const pkgThreadPath = pkgDirPath + '/PRGAThreadCom.js'
 // dev threadPath
-const threadPath = path.resolve() + '/src/utils/PRGAThread.js'
-
+const threadPath = require.resolve('./PRGAThread.js')
 let index = 0
 let PRGAExcuteThread = null
 // 一定要加上这个，不然会产生递归，创建无数线程
@@ -75,4 +74,4 @@ if (!isMainThread) {
     console.log('@@@PRGAExcute-end', data.position, Date.now(), '@time:' + time, workerData)
   })
 }
-export default PRGAExcuteThread
+module.exports = PRGAExcuteThread

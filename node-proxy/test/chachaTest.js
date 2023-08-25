@@ -1,8 +1,8 @@
 import crypto from 'crypto'
-import ChaCha20 from '../src/utils/chaCha20.js'
-import Rc4 from '../src/utils/rc4Md5.js'
-import ChaCha20Poly from '../src/utils/chaCha20Poly.js'
-import AesCTR from '../src/utils/aesCTR.js'
+import ChaCha20 from '.@/utils/chaCha20'
+import Rc4 from '.@/utils/rc4Md5'
+import ChaCha20Poly from '.@/utils/chaCha20Poly'
+import AesCTR from '.@/utils/aesCTR'
 
 let decrypted = null
 const rc4System = crypto.createCipheriv('rc4', 'MY SECRET KEY', '')

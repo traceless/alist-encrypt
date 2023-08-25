@@ -4,11 +4,11 @@ import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
 import crypto from 'crypto'
 import fs from 'fs'
-import { alistServer, webdavServer, port, initAlistConfig, version } from './config.js'
-import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao.js'
-import responseHandle from './middleware/responseHandle.js'
-import { encodeFolderName, decodeFolderName } from './utils/commonUtil.js'
-import { encryptFile, searchFile } from './utils/convertFile.js'
+import { alistServer, webdavServer, port, initAlistConfig, version } from './config'
+import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao'
+import responseHandle from './middleware/responseHandle'
+import { encodeFolderName, decodeFolderName } from './utils/commonUtil'
+import { encryptFile, searchFile } from './utils/convertFile'
 
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })

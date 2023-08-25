@@ -1,10 +1,10 @@
 'use strict'
 
-import { pathFindPasswd, convertRealName, convertShowName } from './utils/commonUtil.js'
-import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
-import { logger } from './common/logger.js'
+import { pathFindPasswd, convertRealName, convertShowName } from './utils/commonUtil'
+import { cacheFileInfo, getFileInfo } from './dao/fileDao'
+import { logger } from './common/logger'
 import path from 'path'
-import { httpClient } from './utils/httpClient.js'
+import { httpClient } from './utils/httpClient'
 import { XMLParser } from 'fast-xml-parser'
 // import { escape } from 'querystring'
 
