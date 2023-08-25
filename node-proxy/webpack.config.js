@@ -1,6 +1,6 @@
 const CopyPlugin = require('copy-webpack-plugin')
 const path = require('path')
-const nodeExternals = require('webpack-node-externals')
+// const nodeExternals = require('webpack-node-externals')
 const TerserPlugin = require('terser-webpack-plugin')
 
 const output = {
@@ -44,7 +44,7 @@ module.exports = {
     }),
   ],
   target: 'node',
-  externals: [nodeExternals()],
+  // externals: [nodeExternals()],
   mode: 'production',
   optimization: {
     minimize: true,
