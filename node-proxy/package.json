@@ -8,7 +8,7 @@
     "serve": "ts-node -r tsconfig-paths/register app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "webpack": "npx webpack",
-    "build": "npm run webpack && pkg --compress GZip . ",
+    "build": "npm run webpack && pkg --compress GZip dist",
     "docker": "npm run webpack && sudo docker build -t prophet310/alist-encrypt:beta . ",
     "docker-arm": "npm run webpack && sudo docker build -t prophet310/alist-encrypt:beta-arm . ",
     "docker-all": "npm run webpack && sudo docker buildx build -t prophet310/alist-encrypt:beta-1.0 --platform=linux/arm64,linux/amd64 . --push "
@@ -43,20 +43,6 @@
     "ts-loader": "^9.4.4",
     "ts-node-dev": "^2.0.0",
     "webpack": "^5.88.2",
-    "webpack-cli": "^5.1.4",
-    "webpack-node-externals": "^3.0.0"
-  },
-  "bin": "dist/index.js",
-  "pkg": {
-    "options": [
-      "experimental-modules"
-    ],
-    "scripts": [
-      "dist/PRGAThreadCom.js"
-    ],
-    "assets": [
-      "dist/public/**/*"
-    ],
-    "outputPath": "build"
+    "webpack-cli": "^5.1.4"
   }
 }
