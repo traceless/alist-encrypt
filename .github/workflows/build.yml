@@ -2,6 +2,11 @@ name: build
 on:
   workflow_dispatch:
   push:
+    branches: [ 'main' ]
+    paths:
+      - 'node-proxy/**'
+  pull_request:
+    branches: [ 'main' ]
     paths:
       - 'node-proxy/**'
 
