@@ -2,11 +2,10 @@ import Datastore from 'nedb-promises'
 
 // let datastore = Datastore.create('/path/to/db.db')
 /**
- * 继承接口，定义新方法
+ * 封装新方法
  */
-class Nedb extends Datastore {
+class Nedb {
   constructor(dbFile) {
-    // this.super()
     this.datastore = Datastore.create(dbFile)
   }
 
