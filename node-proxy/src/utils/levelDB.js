@@ -6,7 +6,7 @@ import Datastore from 'nedb-promises'
  */
 class Nedb extends Datastore {
   constructor(dbFile) {
-    super()
+    this.super()
     this.datastore = Datastore.create(dbFile)
   }
 
