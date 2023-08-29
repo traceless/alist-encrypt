@@ -46,7 +46,6 @@ export default () => {
       new PkgConfig(),
     ],
     target: 'node',
-    // externals: [nodeExternals()],
     mode: 'production',
     optimization: {
       minimize: true,
@@ -80,14 +79,14 @@ export default () => {
 
 class PkgConfig {
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.afterEmit.tap('DistConfig', () => {
+    compiler.hooks.afterEmit.tap('PkgConfig', () => {
       const conf = JSON.parse(fs.readFileSync(path.resolve('./package.json'), 'utf-8'))
       const pkg_conf = JSON.parse(fs.readFileSync(path.resolve('./pkgconfig.dist.json'), 'utf-8'))
       pkg_conf['name'] = conf['name']
       pkg_conf['version'] = conf['version']
-      const dist_conf_path = path.join(output.path, 'package.json')
-      fs.writeFileSync(dist_conf_path, JSON.stringify(pkg_conf), { encoding: 'utf-8' })
-      console.log(dist_conf_path, pkg_conf)
+      const pkg_conf_path = path.join(output.path, 'package.json')
+      fs.writeFileSync(pkg_conf_path, JSON.stringify(pkg_conf), { encoding: 'utf-8' })
+      console.log(pkg_conf_path, pkg_conf)
     })
   }
 }
