@@ -2,7 +2,7 @@ name: release_docker
 
 on:
   push:
-    branches: ["master"]
+    branches: ["main"]
 
 jobs:
   release_docker:
