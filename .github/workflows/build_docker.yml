@@ -2,7 +2,7 @@ name: release_docker
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main","relase"]
 
 jobs:
   release_docker:
@@ -11,6 +11,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: |
+          cd node-proxy
+          npm install && npm run build
 
       - name: Docker meta
         id: meta
