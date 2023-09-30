@@ -24,7 +24,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: wangjinhai68/alist-encryptiont 
+          images:  ${{ secrets.DOCKERHUB_NAME }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
