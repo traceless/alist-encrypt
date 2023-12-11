@@ -71,6 +71,8 @@ arm 版本目前单独打包 beta-arm，后续再放一起
 
 ### 使用docker本地build
 
+需要修改其中192.168.31.254:5244为你的目标Alist的地址
+
 docker run
 
 ```sh
@@ -78,7 +80,7 @@ docker build -t my-alist-encrypt .
 docker run -d \
   -p 5344:5344 \
   -v /etc/conf:/node-proxy/conf \
-  -e ALIST_HOST=192.168.31.254:5254 \
+  -e ALIST_HOST=192.168.31.254:5244 \
   my-alist-encrypt
 ```
 
@@ -86,22 +88,20 @@ docker compose
 
 ```
 version: '3'
-services:
-  alist-encrypt:
-    image: prophet310/alist-encrypt:beta
-    restart: unless-stopped
-    hostname: alist-encrypt
-    container_name: alist-encrypt
-    volumes:
-      - ./alist-encrypt:/node-proxy/conf
-    environment:
-      PUID: 1026
-      PGID: 100
-      TZ: Asia/Shanghai
-      ALIST_HOST: 192.168.31.254:5254        # 建议加个设置项，类似这样
-    ports:
-      - 5344:5344
-    network_mode: bridge
+  services:
+    my-alist-encrypt:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      restart: unless-stopped
+      volumes:
+        - ./alist-encrypt:/node-proxy/conf
+      environment:
+        TZ: Asia/Shanghai
+        ALIST_HOST: 192.168.31.254:5244
+      ports:
+        - 5344:5344
+      network_mode: bridge
 ```
 
 ### 操作使用
