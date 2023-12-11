@@ -86,7 +86,7 @@ docker run -d \
 
 docker compose
 
-```
+```yaml
 version: '3'
   services:
     my-alist-encrypt:
