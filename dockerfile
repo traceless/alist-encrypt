@@ -1,12 +1,11 @@
 FROM node:gallium-alpine
 WORKDIR /node-proxy
 
-# 复制项目文件和启动脚本到容器
+# 复制项目文件到容器
 COPY node-proxy/dist /node-proxy
-COPY start.sh /node-proxy/start.sh
 
 # 给启动脚本执行权限
-RUN chmod +x /node-proxy/start.sh
+RUN chmod +x /node-proxy/docker_start.sh
 
 # 设置时区
 RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
