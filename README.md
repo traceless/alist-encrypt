@@ -73,7 +73,7 @@ arm 版本目前单独打包 beta-arm，后续再放一起
 
 docker run
 
-```
+```sh
 docker build -t my-alist-encrypt .
 docker run -d \
   -p 5344:5344 \
@@ -84,7 +84,8 @@ docker run -d \
 
 docker compose
 
-> version: '3'
+```
+version: '3'
 services:
   alist-encrypt:
     image: prophet310/alist-encrypt:beta
@@ -101,6 +102,7 @@ services:
     ports:
       - 5344:5344
     network_mode: bridge
+```
 
 ### 操作使用
 
