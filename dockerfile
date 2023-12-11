@@ -1,8 +1,9 @@
 FROM node:gallium-alpine
 WORKDIR /node-proxy
-COPY  node-proxy/dist /node-proxy
-RUN pwd
-RUN ls -la
+COPY node-proxy/dist /node-proxy
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 EXPOSE 5344
-ENTRYPOINT ["node", "index.js"]
+ENTRYPOINT ["/start.sh"]
+CMD ["node", "index.js"]
