@@ -78,7 +78,7 @@ docker build -t my-alist-encrypt .
 docker run -d \
   -p 5344:5344 \
   -v /etc/conf:/node-proxy/conf \
-  -e ALIST_HOST=192.168.31.254:5254 \ # 本地Alist的访问地址（ip:端口）
+  -e ALIST_HOST=192.168.31.254:5254 \ # 本地Alist的访问地址
   my-alist-encrypt
 ```
 
