@@ -68,6 +68,38 @@ arm 版本目前单独打包 beta-arm，后续再放一起
 
 对于路径的设置，目前是支持正则表达式的，推荐表达式例如: movie_encrypt/\* ，这样的话所有的 movie_encrypt 目录的文件都会被加密传输。
 
+
+### 使用docker本地build
+
+docker run
+
+> docker build -t my-alist-encrypt .
+> docker run -d \ 
+  -p 5344:5344 
+  -v /etc/conf:/node-proxy/conf
+  -e ALIST_HOST=192.168.31.254:5254 # 本地Alist的访问地址（ip:端口）
+  my-alist-encrypt
+
+docker compose
+
+> version: '3'
+services:
+  alist-encrypt:
+    image: prophet310/alist-encrypt:beta
+    restart: unless-stopped
+    hostname: alist-encrypt
+    container_name: alist-encrypt
+    volumes:
+      - ./alist-encrypt:/node-proxy/conf
+    environment:
+      PUID: 1026
+      PGID: 100
+      TZ: Asia/Shanghai
+      ALIST_HOST: 192.168.31.254:5254        # 建议加个设置项，类似这样
+    ports:
+      - 5344:5344
+    network_mode: bridge
+
 ### 操作使用
 
 1、alist 原本网页上的所有的操作都可以正常使用，因为 Alist-encrypt 它是透明代理，所以你所有的操作请求都是透传到 alist 上的，除了某些需要加密上传的操作和在线解密播放的操作。
