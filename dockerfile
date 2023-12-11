@@ -3,6 +3,7 @@ WORKDIR /node-proxy
 
 COPY node-proxy /node-proxy
 
+#给运行权限
 RUN chmod +x /node-proxy/docker_start.sh
 
 #安装环境
@@ -13,7 +14,7 @@ a/Shanghai /etc/localtime
 
 EXPOSE 5344
 
-# 设置容器启动时执行的命令
+# 设置容器启动时执行的命令（启动根据env修改ip和端口的脚本）
 ENTRYPOINT ["/node-proxy/docker_start.sh"]
 # CMD ["node", "app.js"]
 CMD ["npm", "run", "serve"]
