@@ -1,18 +1,16 @@
 FROM node:gallium-alpine
 WORKDIR /node-proxy
-
-# 复制项目文件到容器
-# COPY node-proxy/ /node-proxy
-
-# 给启动脚本执行权限
+# 复 制 项 目 文 件 到 容 器
+COPY node-proxy /node-proxy
+# 给 启 动 脚 本 执 行 权 限
 RUN chmod +x /node-proxy/docker_start.sh
-
-# 设置时区
-RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-
-# 暴露端口
+RUN npm install --omit=dev
+# 设 置 时 区
+RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asi
+a/Shanghai /etc/localtime
+# 暴 露 端 口
 EXPOSE 5344
-
-# 设置容器启动时执行的命令
+# 设 置 容 器 启 动 时 执 行 的 命 令
 ENTRYPOINT ["/node-proxy/docker_start.sh"]
-CMD ["node", "app.js"]
+#CMD ["node", "app.js"]
+CMD ["npm", "run", "serve"]
