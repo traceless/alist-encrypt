@@ -9,8 +9,7 @@ RUN chmod +x /node-proxy/docker_start.sh
 #安装环境
 RUN npm install --omit=dev
 
-RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asi
-a/Shanghai /etc/localtime
+RUN rm -rf /etc/localtime && ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 EXPOSE 5344
 
