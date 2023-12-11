@@ -2,7 +2,7 @@ FROM node:gallium-alpine
 WORKDIR /node-proxy
 
 # 复制项目文件到容器
-COPY node-proxy/ /node-proxy
+# COPY node-proxy/ /node-proxy
 
 # 给启动脚本执行权限
 RUN chmod +x /node-proxy/docker_start.sh
@@ -15,4 +15,4 @@ EXPOSE 5344
 
 # 设置容器启动时执行的命令
 ENTRYPOINT ["/node-proxy/docker_start.sh"]
-CMD ["node", "index.js"]
+CMD ["node", "app.js"]
