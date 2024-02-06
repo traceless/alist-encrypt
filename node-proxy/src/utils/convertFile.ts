@@ -66,7 +66,7 @@ export async function encryptFile(
       const newFileName = encodeName(password, encType, fileName) + ext
       relativePath = path.join(childPath, newFileName)
     }
-    if (enc === 'dec') {
+    if (enc === 'dec' && encName) {
       const newFileName = decodeName(password, encType, ext !== '' ? fileName.substring(0, fileName.length - ext.length) : fileName)
       if (newFileName) {
         relativePath = path.join(childPath, newFileName)

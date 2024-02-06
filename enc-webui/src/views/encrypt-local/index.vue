@@ -25,7 +25,7 @@
       <el-form-item label="密码">
         <el-input v-model="folderForm.password" style="max-width: 260px; margin-right: 10px" placeholder="12341234" />
       </el-form-item>
-      <el-form-item v-if="folderForm.operation == 'enc'" label="文件名">
+      <el-form-item label="文件名">
         加密
         <el-switch
           v-model="folderForm.encName"
