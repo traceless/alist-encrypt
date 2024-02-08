@@ -148,20 +148,22 @@ const handle = async (ctx, next) => {
     const fileName = path.basename(url)
     const realName = convertRealName(passwdInfo.password, passwdInfo.encType, url)
     // maybe from aliyundrive, check this req url while get file list from enc folder
-    if (url.endsWith('/') && request.method.toLocaleUpperCase() === 'GET') {
+    if (url.endsWith('/') && 'GET,DELETE'.includes(request.method.toLocaleUpperCase())) {
       let respBody = await httpClient(ctx.req, ctx.res)
-      const aurlArr = respBody.match(/href="[^"]*"/g)
-      // logger.debug('@@aurlArr', aurlArr)
-      if (aurlArr && aurlArr.length) {
-        for (let urlStr of aurlArr) {
-          urlStr = urlStr.replace('href="', '').replace('"', '')
-          const aurl = decodeURIComponent(urlStr.replace('href="', '').replace('"', ''))
-          const baseUrl = decodeURIComponent(url)
-          if (aurl.includes(baseUrl)) {
-            const fileName = path.basename(aurl)
-            const showName = convertShowName(passwdInfo.password, passwdInfo.encType, fileName)
-            logger.debug('@@aurl', urlStr, showName)
-            respBody = respBody.replace(path.basename(urlStr), encodeURI(showName)).replace(fileName, showName)
+      if(request.method.toLocaleUpperCase() === 'GET'){
+        const aurlArr = respBody.match(/href="[^"]*"/g)
+        // logger.debug('@@aurlArr', aurlArr)
+        if (aurlArr && aurlArr.length) {
+          for (let urlStr of aurlArr) {
+            urlStr = urlStr.replace('href="', '').replace('"', '')
+            const aurl = decodeURIComponent(urlStr.replace('href="', '').replace('"', ''))
+            const baseUrl = decodeURIComponent(url)
+            if (aurl.includes(baseUrl)) {
+              const fileName = path.basename(aurl)
+              const showName = convertShowName(passwdInfo.password, passwdInfo.encType, fileName)
+              logger.debug('@@aurl', urlStr, showName)
+              respBody = respBody.replace(path.basename(urlStr), encodeURI(showName)).replace(fileName, showName)
+            }
           }
         }
       }
