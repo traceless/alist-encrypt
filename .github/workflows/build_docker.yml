@@ -1,8 +1,15 @@
 name: release_docker
 
 on:
+  workflow_dispatch:
   push:
     branches: ["main","release"]
+    paths:
+      - 'node-proxy/**'
+  pull_request:
+    branches: [ 'main' ]
+    paths:
+      - 'node-proxy/**'
 
 jobs:
   release_docker:
