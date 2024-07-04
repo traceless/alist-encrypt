@@ -27,6 +27,7 @@ import { cacheFileInfo, getFileInfo } from '@/dao/fileDao'
 import { getWebdavFileInfo } from '@/utils/webdavClient'
 import staticServer from 'koa-static'
 import { logger } from '@/common/logger'
+import { encodeName } from '@/utils/commonUtil'
 
 async function sleep(time) {
   return new Promise((resolve) => {
@@ -165,7 +166,21 @@ async function proxyHandle(ctx, next) {
     if (filePath.indexOf('/d/') === 0) {
       filePath = filePath.replace('/d/', '/')
     }
-    const fileInfo = await getFileInfo(filePath)
+    // 尝试获取文件信息，如果未找到相应的文件信息，则对文件名进行加密处理后重新尝试获取文件信息
+    let fileInfo = await getFileInfo(filePath);
+
+    if (fileInfo === null) {
+      const rawFileName = decodeURIComponent(path.basename(filePath));
+      const ext = path.extname(rawFileName);
+      const encodedRawFileName = encodeURIComponent(rawFileName);
+      const encFileName = encodeName(passwdInfo.password, passwdInfo.encType, rawFileName);
+      const newFileName = encFileName + ext;
+    
+      filePath = filePath.replace(encodedRawFileName, newFileName);
+      request.urlAddr = request.urlAddr.replace(encodedRawFileName, newFileName);
+    
+      fileInfo = await getFileInfo(filePath);
+    }
     logger.info('@@getFileInfo:', filePath, fileInfo, request.urlAddr)
     if (fileInfo) {
       request.fileSize = fileInfo.size * 1
