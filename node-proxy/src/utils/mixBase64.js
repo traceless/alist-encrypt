@@ -1,7 +1,7 @@
 'use strict'
 import crypto from 'crypto'
 
-const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-*!'
+const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-~+'
 
 // use sha1 str to init
 function initKSA(passwd) {
@@ -117,7 +117,7 @@ MixBase64.getCheckBit = function (text) {
 
 MixBase64.randomSecret = function () {
   // 不能使用 = 号，url穿参数不支持
-  const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*~_'
+  const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-~+'
   const chars = source.split('')
   const newChars = []
   while (chars.length > 0) {

@@ -12,10 +12,8 @@ class MixEnc {
     // 说明是输入encode的秘钥，用于找回文件加解密
     this.passwdOutward = password
     // check base64
-    if (Buffer.from(password, 'base64').toString('base64') === password) {
-      this.passwdOutward = Buffer.from(password, 'base64').toString('hex')
-    } else if (password.length !== 32) {
-      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'MIX', 10000, 16, 'sha256').toString('hex')
+    if (password.length !== 32) {
+      this.passwdOutward = crypto.pbkdf2Sync(this.password, 'MIX', 1000, 16, 'sha256').toString('hex')
     }
     console.log('MixEnc.passwdOutward', this.passwdOutward)
     const encode = crypto.createHash('sha256').update(this.passwdOutward).digest()
@@ -49,10 +47,6 @@ class MixEnc {
   md5(content) {
     const md5 = crypto.createHash('md5')
     return md5.update(this.passwdOutward + content).digest('hex')
-  }
-
-  async cachePosition() {
-    console.log('cachePosition the mix ')
   }
 
   async setPositionAsync() {

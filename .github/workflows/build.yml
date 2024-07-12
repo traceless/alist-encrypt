@@ -1,0 +1,32 @@
+name: build
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'main' ]
+    paths:
+      - 'node-proxy/**'
+  pull_request:
+    branches: [ 'main' ]
+    paths:
+      - 'node-proxy/**'
+
+jobs:
+  release:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: |
+          cd node-proxy
+          npm install && npm run build
+      - name: Upload artifact
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: alist-encrypt-dev
+          path: |
+            node-proxy/build/*

@@ -1,0 +1,11 @@
+// we can add this to custom namespace, default is 'el'
+//@forward "element-plus/theme-chalk/src/mixins/config.scss" with (
+//  $namespace: "el"
+//);
+
+//base-theme
+@use "./base";
+//theme style such as dark-theme lighting
+@use "./dark";
+@use "./lighting";
+@use "./china-red";

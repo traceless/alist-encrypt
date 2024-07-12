@@ -1,4 +1,4 @@
-import levelDB from '../utils/levelDB.js'
+import levelDB from '@/utils/levelDB'
 
 export const userTable = 'userTable'
 

@@ -4,10 +4,11 @@ import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
 import crypto from 'crypto'
 import fs from 'fs'
-import { alistServer, webdavServer, port, initAlistConfig } from './config.js'
-import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao.js'
-import responseHandle from './middleware/responseHandle.js'
-import { encodeName, decodeName } from './utils/commonUtil.js'
+import { alistServer, webdavServer, port, initAlistConfig, version } from './config'
+import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao'
+import responseHandle from './middleware/responseHandle'
+import { encodeFolderName, decodeFolderName } from './utils/commonUtil'
+import { encryptFile, searchFile } from './utils/convertFile'
 
 // bodyparser解析body
 const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
@@ -15,7 +16,7 @@ const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
 // 总路径，添加所有的子路由
 const allRouter = new Router()
 // 拦截全部
-allRouter.all(/\/enc-api\/*/, bodyparserMw, responseHandle, async (ctx, next) => {
+allRouter.all(/^\/enc-api\/*/, bodyparserMw, responseHandle, async (ctx, next) => {
   console.log('@@log request-url: ', ctx.req.url)
   await next()
 })
@@ -39,7 +40,7 @@ allRouter.all('/enc-api/login', async (ctx, next) => {
 })
 
 // 拦截登录
-allRouter.all(/\/enc-api\/*/, async (ctx, next) => {
+allRouter.all(/^\/enc-api\/*/, async (ctx, next) => {
   // nginx不支持下划线headers
   const { authorizetoken: authorizeToken } = ctx.request.headers
   // 查询数据库是否有密码
@@ -65,6 +66,7 @@ router.all('/getUserInfo', async (ctx, next) => {
     userInfo,
     menuList: [],
     roles: ['admin'],
+    version,
   }
   ctx.body = { data }
 })
@@ -157,7 +159,7 @@ router.all('/delWebdavConfig', async (ctx, next) => {
 // get folder passwd encode
 router.all('/encodeFoldName', async (ctx, next) => {
   const { password, encType, folderPasswd, folderEncType } = ctx.request.body
-  const folderNameEnc = encodeName(password, encType, folderPasswd, folderEncType)
+  const folderNameEnc = encodeFolderName(password, encType, folderPasswd, folderEncType)
   ctx.body = { data: { folderNameEnc } }
   console.log('@@encodeFoldName', password, folderNameEnc)
 })
@@ -169,13 +171,29 @@ router.all('/decodeFoldName', async (ctx, next) => {
     ctx.body = { msg: 'folderName not encdoe', code: 500 }
     return
   }
-  const data = decodeName(password, encType, folderNameEnc)
+  const data = decodeFolderName(password, encType, folderNameEnc)
   if (!data) {
     ctx.body = { msg: 'folderName is error', code: 500 }
     return
   }
   const { folderEncType, folderPasswd } = data
   ctx.body = { data: { folderEncType, folderPasswd } }
+})
+
+// encrypt or decrypt file
+router.all('/encryptFile', async (ctx, next) => {
+  const { folderPath, outPath, encType, password, operation, encName } = ctx.request.body
+  if (!fs.existsSync(folderPath)) {
+    ctx.body = { msg: 'encrypt file path not exists', code: 500 }
+    return
+  }
+  const files = searchFile(folderPath)
+  if (files.length > 10000) {
+    ctx.body = { msg: 'too maney file, exceeding 10000', code: 500 }
+    return
+  }
+  encryptFile(password, encType, operation, folderPath, outPath, encName)
+  ctx.body = { msg: 'waiting operation' }
 })
 
 // 用这种方式代替前缀的功能，{ prefix: } 不能和正则联合使用

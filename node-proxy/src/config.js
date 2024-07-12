@@ -1,6 +1,6 @@
 import fs from 'fs'
-import { addUserInfo, getUserInfo } from './dao/userDao.js'
-import nedb from './utils/levelDB.js'
+import { addUserInfo, getUserInfo } from './dao/userDao'
+import nedb from './utils/levelDB'
 
 // inti config, fix ncc get local conf
 function getConfPath() {
@@ -12,22 +12,32 @@ if (!fs.existsSync(getConfPath())) {
   // fs.mkdirSync(path.resolve('conf'))
   fs.mkdirSync(process.cwd() + '/conf')
 }
-
+// 从环境变量上读取配置信息，docker首次启动时候可以直接进行配置
+const serverAddr = process.env.ALIST_HOST
+const serverHost = '192.168.1.100'
+const serverPort = 5244
+if (serverAddr && serverAddr.indexOf(':') > 6) {
+  serverHost = serverAddr.split(':')[0]
+  serverPort = serverAddr.split(':')[1]
+}
+console.log('@@serverAddr:', serverAddr)
 /** 全局代理alist，包括它的webdav和http服务，要配置上 */
 const alistServerTemp = {
   name: 'alist',
-  path: '/*', // 默认就是代理全部，不建议修改这里
+  path: '/*', // 默认就是代理全部，保留字段
   describe: 'alist 配置',
-  serverHost: '192.168.1.100',
-  serverPort: 5244,
+  serverHost,
+  serverPort,
   https: false,
   passwdList: [
     {
       password: '123456',
       describe: 'my video', // 加密内容描述
-      encType: 'rc4', // 算法类型，可选mix，rc4，默认mix
-      enable: true, // 是否开启
-      encPath: ['/aliyun/test/*', '/189cloud/atest/*'], // 路径支持正则表达式，常用的就是 尾巴带*，此目录的所文件都加密
+      encType: 'aesctr', // 算法类型，可选mix，rc4，默认aesctr
+      enable: true, // enable encrypt
+      encName: false, // encrypt file name
+      encSuffix: '', //
+      encPath: ['encrypt_folder/*', 'movie_encrypt/*'], // 路径支持正则表达式，常用的就是 尾巴带*，此目录的所文件都加密
     },
   ],
 }
@@ -38,18 +48,20 @@ const webdavServerTemp = [
     id: 'abcdefg',
     name: 'other-webdav',
     describe: 'webdav 电影',
-    path: '/test/*', // 代理全部路径，需要重启后生效。不能是"/enc-api/*" ，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
+    path: '^/test_dav_dir/*', // 代理全部路径，需要重启后生效。不能是"/enc-api/*" ，系统已占用。如果设置 "/*"，那么上面的alist的配置就不会生效哦
     enable: false, // 是否启动代理，需要重启后生效
-    serverHost: '192.168.1.100',
-    serverPort: 5244,
+    serverHost,
+    serverPort,
     https: false,
     passwdList: [
       {
         password: '123456',
-        encType: 'rc4', // 密码类型，mix：速度更快适合电视盒子之类，rc4: 更安全，速度比mix慢一点，几乎无感知。
+        encType: 'aesctr', // 密码类型，mix：速度更快适合电视盒子之类，rc4: 更安全，速度比mix慢一点，几乎无感知。
         describe: 'my video',
         enable: false,
-        encPath: ['/dav/aliyun/*', '/dav/189cloud/*'], // 子路径
+        encName: false, // encrypt file name
+        encNameSuffix: '', //
+        encPath: ['encrypt_folder/*', '/dav/189cloud/*'], // 子路径
       },
     ],
   },
@@ -123,6 +135,8 @@ initAlistConfig(configData.alistServer)
 
 /** 代理服务的端口 */
 export const port = configData.port || 5344
+
+export const version = '0.3.0'
 
 export const alistServer = configData.alistServer || alistServerTemp
 

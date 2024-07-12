@@ -1,0 +1,34 @@
+name: release
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: |
+          cd node-proxy
+          npm install && npm run build
+      - name: Compress
+        if: ${{ success() }}
+        run: |
+          cd node-proxy/build
+          ls -1 | xargs -I {} zip {}.zip {} && \
+            ls -1 *.zip | xargs -I {} shasum -a 256 {} >> sha256.txt
+      - name: Upload assets
+        if: ${{ success() }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            node-proxy/build/*.zip
+            node-proxy/build/sha256.txt
+          prerelease: false
+          token: ${{ secrets.REPO_TOKEN }}

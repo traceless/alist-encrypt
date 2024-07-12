@@ -1,0 +1,20 @@
+html.china-red {
+  //date
+  .el-date-range-picker {
+    --el-datepicker-text-color: var(--el-text-color-regular);
+    --el-datepicker-off-text-color: var(--el-text-color-placeholder);
+    --el-datepicker-header-text-color: var(--el-text-color-regular);
+    --el-datepicker-icon-color: var(--el-text-color-primary);
+    --el-datepicker-border-color: var(--el-disabled-border-color);
+    --el-datepicker-inner-border-color: var(--el-border-color-light);
+    --el-datepicker-inrange-bg-color: #ffece6;
+    --el-datepicker-inrange-hover-bg-color: var(--el-border-color-extra-light);
+    --el-datepicker-active-color: var(--el-color-primary);
+    --el-datepicker-hover-text-color: var(--el-color-primary);
+  }
+
+  .el-select-dropdown__item.hover,
+  .el-select-dropdown__item:hover {
+    background-color: #ffece6;
+  }
+}

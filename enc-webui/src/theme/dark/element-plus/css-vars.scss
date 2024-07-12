@@ -1,0 +1,17 @@
+@use 'sass:map';
+
+@use './var' as *;
+@use '../../mixins/var'  as *;
+@use '../../mixins/mixins'  as *;
+
+html.china-red {
+  color-scheme: china-red;
+  @each $type in (primary, success, warning, danger, error, info) {
+    @include set-css-color-rgb($colors, $type);
+  }
+
+  @each $type in (primary, success, warning, danger, error, info) {
+    @include set-css-color-type($colors, $type);
+  }
+  //--el-color-primary: #c72210;
+}

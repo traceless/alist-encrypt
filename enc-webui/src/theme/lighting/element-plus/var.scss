@@ -1,0 +1,63 @@
+/* Element Chalk Variables */
+@use 'sass:math';
+@use 'sass:map';
+@use '../../mixins/function.scss' as *;
+
+// types
+$types: primary, success, warning, danger, error, info;
+
+// change color
+$colors: () !default;
+$colors: map.deep-merge(
+  (
+    'white': #ffffff,
+    'black': #000000,
+    'primary': (
+      'base': #c72210//#409eff
+    ),
+    'success': (
+      'base': #45b207
+    ),
+    'warning': (
+      'base': #ec8828
+    ),
+    'danger': (
+      'base': #f56c6c
+    ),
+    'error': (
+      'base': #d24934
+    ),
+    'info': (
+      'base': #909399
+    )
+  ),
+  $colors
+);
+
+$color-white: map.get($colors, 'white') !default;
+$color-black: map.get($colors, 'black') !default;
+$color-primary: map.get($colors, 'primary', 'base') !default;
+$color-success: map.get($colors, 'success', 'base') !default;
+$color-warning: map.get($colors, 'warning', 'base') !default;
+$color-danger: map.get($colors, 'danger', 'base') !default;
+$color-error: map.get($colors, 'error', 'base') !default;
+$color-info: map.get($colors, 'info', 'base') !default;
+
+//$colors添加 --el-color-primary-light-7
+@mixin set-color-mix-level($type, $number, $mode: 'light', $mix-color: $color-white) {
+  $colors: map.deep-merge(
+    (
+      $type: (
+        '#{$mode}-#{$number}': mix($mix-color, map.get($colors, $type, 'base'), math.percentage(math.div($number, 10)))
+      )
+    ),
+    $colors
+  ) !global;
+}
+
+// $colors.primary.light-i
+@each $type in $types {
+  @for $i from 1 through 9 {
+    @include set-color-mix-level($type, $i, 'light', $color-white);
+  }
+}

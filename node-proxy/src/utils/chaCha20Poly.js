@@ -26,10 +26,6 @@ class ChaCha20Poly {
     })
   }
 
-  async cachePosition() {
-    console.log('cachePosition the chacha20 ')
-  }
-
   async setPositionAsync(_position) {
     const buf = Buffer.alloc(1024)
     const position = parseInt(_position / 1024)

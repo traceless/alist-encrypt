@@ -1,8 +1,10 @@
 import http from 'http'
 import https from 'node:https'
-import crypto from 'crypto'
-import levelDB from './levelDB.js'
-// import { pathExec } from './commonUtil.js'
+import crypto, { randomUUID } from 'crypto'
+import levelDB from './levelDB'
+import path from 'path'
+import { decodeName } from './commonUtil'
+// import { pathExec } from './commonUtil'
 const Agent = http.Agent
 const Agents = https.Agent
 
@@ -11,8 +13,9 @@ const httpsAgent = new Agents({ keepAlive: true })
 const httpAgent = new Agent({ keepAlive: true })
 
 export async function httpProxy(request, response, encryptTransform, decryptTransform) {
-  const { method, headers, urlAddr, passwdInfo } = request
-  console.log('@@request_info: ', method, urlAddr, headers, !!encryptTransform, !!decryptTransform)
+  const { method, headers, urlAddr, passwdInfo, url, fileSize } = request
+  const reqId = randomUUID()
+  console.log('@@request_info: ', reqId, method, urlAddr, headers, !!encryptTransform, !!decryptTransform)
   // 创建请求
   const options = {
     method,
@@ -24,7 +27,7 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
   return new Promise((resolve, reject) => {
     // 处理重定向的请求，让下载的流量经过代理服务器
     const httpReq = httpRequest.request(urlAddr, options, async (httpResp) => {
-      console.log('@@statusCode', httpResp.statusCode, httpResp.headers)
+      console.log('@@statusCode', reqId, httpResp.statusCode, httpResp.headers)
       response.statusCode = httpResp.statusCode
       if (response.statusCode % 300 < 5) {
         // 可能出现304，redirectUrl = undefined
@@ -33,40 +36,57 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
         if (decryptTransform && passwdInfo.enable) {
           const key = crypto.randomUUID()
           console.log()
-          await levelDB.setExpire(key, { redirectUrl, passwdInfo, fileSize: request.fileSize }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
+          await levelDB.setExpire(key, { redirectUrl, passwdInfo, fileSize }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
           // 、Referer
-          httpResp.headers.location = `/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(request.url)}`
+          httpResp.headers.location = `/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(url)}`
         }
         console.log('302 redirectUrl:', redirectUrl)
+      } else if (httpResp.headers['content-range'] && httpResp.statusCode === 200) {
+        response.statusCode = 206
       }
       // 设置headers
       for (const key in httpResp.headers) {
         response.setHeader(key, httpResp.headers[key])
       }
-      let resLength = 0
-      const dataStr = ''
+      // 下载时解密文件名
+      if (method === 'GET' && response.statusCode === 200 && passwdInfo && passwdInfo.enable && passwdInfo.encName) {
+        let fileName = decodeURIComponent(path.basename(url))
+        fileName = decodeName(passwdInfo.password, passwdInfo.encType, fileName.replace(path.extname(fileName), ''))
+        if (fileName) {
+          let cd = response.getHeader('content-disposition')
+          cd = cd ? cd.replace(/filename\*?=[^=;]*;?/g, '') : ''
+          console.log('解密文件名...', reqId, fileName)
+          response.setHeader('content-disposition', cd + `filename*=UTF-8''${encodeURIComponent(fileName)};`)
+        }
+      }
+
       httpResp
-        .on('data', (chunk) => {
-          resLength += chunk.length
-          // dataStr += chunk
-        })
         .on('end', () => {
-          resolve(resLength)
-          console.log('httpResp响应结束...', resLength, dataStr, request.url)
+          resolve()
+        })
+        .on('close', () => {
+          console.log('响应关闭...', reqId, urlAddr)
+          // response.destroy()
+          if (decryptTransform) decryptTransform.destroy()
         })
       // 是否需要解密
       decryptTransform ? httpResp.pipe(decryptTransform).pipe(response) : httpResp.pipe(response)
     })
     httpReq.on('error', (err) => {
-      console.log('@@httpProxy request error ', err, urlAddr, headers)
+      console.log('@@httpProxy request error ', reqId, err, urlAddr, headers)
     })
     // 是否需要加密
     encryptTransform ? request.pipe(encryptTransform).pipe(httpReq) : request.pipe(httpReq)
+    // 重定向的请求 关闭时 关闭被重定向的请求
+    response.on('close', () => {
+      console.log('响应关闭...', reqId, url)
+      httpReq.destroy()
+    })
   })
 }
 
 export async function httpClient(request, response) {
-  const { method, headers, urlAddr, reqBody } = request
+  const { method, headers, urlAddr, reqBody, url } = request
   console.log('@@request_client: ', method, urlAddr, headers)
   // 创建请求
   const options = {
@@ -93,7 +113,7 @@ export async function httpClient(request, response) {
         })
         .on('end', () => {
           resolve(result)
-          console.log('httpResp响应结束...', request.url)
+          console.log('httpResp响应结束...', url)
         })
     })
     httpReq.on('error', (err) => {
@@ -101,7 +121,7 @@ export async function httpClient(request, response) {
     })
     // check request type
     if (!reqBody) {
-      request.url ? request.pipe(httpReq) : httpReq.end()
+      url ? request.pipe(httpReq) : httpReq.end()
       return
     }
     // 发送请求

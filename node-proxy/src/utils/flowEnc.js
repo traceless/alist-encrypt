@@ -1,8 +1,10 @@
 'use strict'
 
-import MixEnc from './mixEnc.js'
-import Rc4Md5 from './rc4Md5.js'
-import AesCTR from './aesCTR.js'
+import MixEnc from './mixEnc'
+import Rc4Md5 from './rc4Md5'
+import AesCTR from './aesCTR'
+
+const cachePasswdOutward = {}
 
 class FlowEnc {
   constructor(password, encryptType = 'mix', fileSize = 0) {
@@ -26,16 +28,13 @@ class FlowEnc {
     if (encryptType === null) {
       throw new Error('FlowEnc error')
     }
+    cachePasswdOutward[password + encryptType] = this.passwdOutward
     this.encryptFlow = encryptFlow
     this.encryptType = encryptType
   }
 
   async setPosition(position) {
     await this.encryptFlow.setPositionAsync(position)
-  }
-
-  async cachePosition() {
-    await this.encryptFlow.cachePosition()
   }
 
   // 加密流转换
@@ -46,6 +45,15 @@ class FlowEnc {
   decryptTransform() {
     return this.encryptFlow.decryptTransform()
   }
+}
+
+FlowEnc.getPassWdOutward = function (password, encryptType) {
+  const passwdOutward = cachePasswdOutward[password + encryptType]
+  if (passwdOutward) {
+    return passwdOutward
+  }
+  const flowEnc = new FlowEnc(password, encryptType, 1)
+  return flowEnc.passwdOutward
 }
 
 // const flowEnc = new FlowEnc('abc1234')

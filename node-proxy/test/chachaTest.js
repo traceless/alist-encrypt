@@ -1,8 +1,8 @@
 import crypto from 'crypto'
-import ChaCha20 from '../src/utils/chaCha20.js'
-import Rc4 from '../src/utils/rc4Md5.js'
-import ChaCha20Poly from '../src/utils/chaCha20Poly.js'
-import AesCTR from '../src/utils/aesCTR.js'
+import ChaCha20 from '.@/utils/chaCha20'
+import Rc4 from '.@/utils/rc4Md5'
+import ChaCha20Poly from '.@/utils/chaCha20Poly'
+import AesCTR from '.@/utils/aesCTR'
 
 let decrypted = null
 const rc4System = crypto.createCipheriv('rc4', 'MY SECRET KEY', '')
@@ -33,20 +33,31 @@ const textBuf = Buffer.from(textPlain)
 console.log('@textBuf.length', textBuf.length)
 
 const startDate = Date.now()
-for (let i = 0; i < 523456; i++) {
+for (let i = 0; i < 1; i++) {
   // chaCha20Local.encrypt(textBuf)
   // rc4Local.encrypt(textBuf)
   // chaCha20System.encChaPoly(textBuf)
-  aseCTRSystem.encrypt(textBuf)
+  // aseCTRSystem.encrypt(textBuf)
 }
+const rc4BUf = Buffer.from(textPlain)
+rc4Local.setPosition(0)
+const encdata = rc4Local.encrypt(rc4BUf)
+rc4Local.setPosition(0)
+console.log('encd--------ata rc4BUf', rc4BUf.length)
+const position = 124
+rc4Local.setPosition(position)
+// rc4Local.encrypt(encdata.subarray(0, position))
+//
 
 const startPosition = Date.now()
 // chaCha20Local.setPosition(12345678)
 // rc4Local.setPosition(123456788)
 // console.log('startPosition time: ' + (Date.now() - startPosition))
 
-// rc4Local.setPositionAsync(523456024).then((res) => {
-//   console.log('rc4 startPosition async time: ' + (Date.now() - startPosition))
-// })
+rc4Local.setPositionAsync(position).then((res) => {
+  console.log('@@@encdata 33: ', rc4Local.encrypt(encdata.subarray(position, rc4BUf.length)).toString('utf-8'))
+
+  // console.log('rc4 startPosition async time: ' + (Date.now() - startPosition))
+})
 
 console.log('test time: ' + (Date.now() - startDate))
