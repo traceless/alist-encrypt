@@ -37,6 +37,30 @@ encNameRouter.all('/api/fs/list', async (ctx, next) => {
         fileInfo.name = convertShowName(passwdInfo.password, passwdInfo.encType, fileInfo.name)
       }
     }
+
+    const coverNameMap = {} //根据不含后缀的视频文件名找到对应的含后缀的封面文件名
+    const omitNames = [] //用于隐藏封面文件
+    const { path } = JSON.parse(ctx.req.reqBody)
+    result.data.content.forEach((fileInfo) => {
+      if (fileInfo.is_dir) {
+        return
+      }
+      if (fileInfo.type === 5) {
+        coverNameMap[fileInfo.name.split('.')[0]] = fileInfo.name
+      }
+    })
+    result.data.content.forEach((fileInfo) => {
+      if (fileInfo.is_dir) {
+        return
+      }
+      const coverName = coverNameMap[fileInfo.name.split('.')[0]]
+      if (fileInfo.type === 2 && coverName) {
+        omitNames.push(coverName)
+        fileInfo.thumb = `/d${path}/${coverName}`
+      }
+    })
+    //不展示封面文件，也许可以添加个配置让用户选择是否展示封面源文件
+    result.data.content = result.data.content.filter((fileInfo) => !omitNames.includes(fileInfo.name))
   }
 })
 
