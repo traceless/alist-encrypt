@@ -1,11 +1,12 @@
-'use strict'
 import fs from 'fs'
 import path from 'path'
 
 import mkdirp from 'mkdirp'
 import FlowEnc from './flowEnc'
-import { encodeName, decodeName } from './commonUtil'
+import { logger } from '@/common/logger'
+import { encodeName, decodeName } from './cryptoUtil'
 
+//找出文件夹下的文件
 export function searchFile(filePath: string) {
   const fileArray: { size: number; filePath: string }[] = []
   const files = fs.readdirSync(filePath)
@@ -23,10 +24,10 @@ export function searchFile(filePath: string) {
   return fileArray
 }
 
-// encrypt
+// 加密文件夹下的全部文件
 export async function encryptFile(
   password: string,
-  encType: string,
+  encType: EncryptType,
   enc: 'enc' | 'dec',
   encPath: string,
   outPath?: string,
@@ -34,18 +35,18 @@ export async function encryptFile(
 ) {
   const start = Date.now()
   const interval = setInterval(() => {
-    console.log(new Date(), 'waiting finish!!!')
+    logger.warn(new Date(), 'waiting finish!!!')
   }, 2000)
   if (!path.isAbsolute(encPath)) {
     encPath = path.join(process.cwd(), encPath)
   }
   outPath = outPath || path.join(process.cwd(), 'outFile', Date.now().toString())
-  console.log('you input:', password, encType, enc, encPath)
+  logger.info('文件加密配置: ', password, encType, enc, encPath)
   if (!fs.existsSync(encPath)) {
-    console.log('you input filePath is not exists ')
+    logger.warn('文件夹不存在！')
     return
   }
-  // init outpath dir
+  // init outPath dir
   if (!fs.existsSync(outPath)) {
     mkdirp.sync(outPath)
   }
@@ -84,10 +85,10 @@ export async function encryptFile(
     // console.log('@@outFilePath', outFilePath, encType, size)
     const writeStream = fs.createWriteStream(outFilePathTemp)
     const readStream = fs.createReadStream(filePath)
-    const promise = new Promise<void>((resolve, reject) => {
+    const promise = new Promise<void>((resolve) => {
       readStream.pipe(enc === 'enc' ? flowEnc.encryptTransform() : flowEnc.decryptTransform()).pipe(writeStream)
       readStream.on('end', () => {
-        console.log('@@finish filePath', filePath, outFilePathTemp)
+        logger.info(`加密完成: ${filePath} -> ${outFilePathTemp}`)
         fs.renameSync(outFilePathTemp, outFilePath)
         resolve()
       })
@@ -100,19 +101,21 @@ export async function encryptFile(
   }
   await Promise.all(promiseArr)
   fs.rmSync(tempDir, { recursive: true })
-  console.log('@@all finish', ((Date.now() - start) / 1000).toFixed(2) + 's')
+  logger.info('全部文件加密完成', ((Date.now() - start) / 1000).toFixed(2) + 's')
   clearInterval(interval)
 }
 
-export function convertFile(...args: [password: string, encType: string, enc: 'enc' | 'dec', encPath: string, outPath?: string, encName?: string]) {
+export function convertFile(
+  ...args: [password: string, encType: EncryptType, enc: 'enc' | 'dec', encPath: string, outPath?: string, encName?: string]
+) {
   const statTime = Date.now()
   if (args.length > 3) {
     encryptFile(...args).then(() => {
-      console.log('all file finish enc!!! time:', Date.now() - statTime)
+      logger.info('all file finish enc!!! time:', Date.now() - statTime)
       process.exit(0)
     })
   } else {
-    console.error('input error， example param:nodejs-linux passwd12345 rc4 enc ./myfolder /tmp/outPath encname  ')
+    console.error('input error， example param:nodejs-linux passwd12345 rc4 enc ./myFolder /tmp/outPath encName  ')
     process.exit(1)
   }
 }

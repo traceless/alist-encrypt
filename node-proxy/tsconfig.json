@@ -1,16 +1,24 @@
 {
   "compilerOptions": {
     "module": "NodeNext",
-    "target": "ES5",
-    "types": ["./src/@types"],
+    "target": "ESNext",
+    "types": [
+      "./src/@types"
+    ],
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] },
-    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
     // "allowImportingTsExtensions": true,
     "allowJs": true,
     "outDir": "./dist"
   },
-  "exclude": ["node_modules", "**/node_modules/*", "dist"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts"
+  ],
   "ts-node": {
     "compilerOptions": {
       "module": "NodeNext"

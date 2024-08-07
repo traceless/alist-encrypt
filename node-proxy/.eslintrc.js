@@ -23,11 +23,10 @@ module.exports = {
 
 function prettierrc() {
   const prettierrc_id = require.resolve('./.prettierrc')
-  var stat = fs.statSync(prettierrc_id)
+  const stat = fs.statSync(prettierrc_id)
   if (stat.mtimeMs > (process.prettierrc_file_mtimeMs || 0)) {
     process.prettierrc_file_mtimeMs = stat.mtimeMs
     require.cache[prettierrc_id] = undefined
   }
-  const conf = require('./.prettierrc')
-  return conf
+  return require('./.prettierrc')
 }
