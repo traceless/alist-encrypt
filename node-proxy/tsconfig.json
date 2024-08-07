@@ -12,7 +12,7 @@
       ]
     },
     // "allowImportingTsExtensions": true,
-    "allowJs": false,
+    "allowJs": true,
     "outDir": "./dist"
   },
   "include": [

@@ -1,8 +1,9 @@
 import path from 'path'
 import { cacheFileInfo } from '@/dao/fileDao'
 import { convertShowName } from '@/utils/cryptoUtil'
+import { webdav } from '@/@types/webdav'
 
-export const cacheWebdavFileInfo = async (fileInfo) => {
+export const cacheWebdavFileInfo = async (fileInfo: webdav.FileInfo) => {
   let contentLength = -1
   const href = fileInfo.href
   const fileName = path.basename(href)
@@ -11,8 +12,7 @@ export const cacheWebdavFileInfo = async (fileInfo) => {
   } else if (fileInfo.propstat.prop) {
     contentLength = fileInfo.propstat.prop.getcontentlength
   }
-  // logger.debug('@@@cacheWebdavFileInfo', href, fileName)
-  // it is a file
+
   if (contentLength !== undefined && contentLength > -1) {
     const fileDetail = { path: href, name: fileName, is_dir: false, size: contentLength }
     await cacheFileInfo(fileDetail)
@@ -24,7 +24,7 @@ export const cacheWebdavFileInfo = async (fileInfo) => {
   return fileDetail
 }
 
-export const getFileNameForShow = async (fileInfo, passwdInfo: PasswdInfo) => {
+export const getFileNameForShow = async (fileInfo: webdav.FileInfo, passwdInfo: PasswdInfo) => {
   let contentLength = -1
   const href = fileInfo.href
   const fileName = path.basename(href)

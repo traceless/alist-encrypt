@@ -6,8 +6,6 @@ export const flat = <T>(value: T | T[]): T => {
 }
 
 //存储请求的部分原始信息，供代理使用
-export function preProxy(serverConfig: WebdavServer, isWebdav: true): Middleware
-export function preProxy(serverConfig: AlistServer, isWebdav: false): Middleware
 export function preProxy(serverConfig: WebdavServer | AlistServer, isWebdav: boolean): Middleware {
   return async (ctx, next) => {
     const { serverHost, serverPort, https } = serverConfig
@@ -21,12 +19,13 @@ export function preProxy(serverConfig: WebdavServer | AlistServer, isWebdav: boo
     const request = ctx.request
     const protocol = https ? 'https' : 'http'
 
-    ctx.state.selfHost = request.headers.host // 原来的host保留，以后可能会用到
+    ctx.state.selfHost = `${protocol}://${request.headers.host}` // 原来的host保留，以后可能会用到
     ctx.state.origin = request.headers.origin
     request.headers.host = serverHost + ':' + serverPort
     ctx.state.urlAddr = `${protocol}://${request.headers.host}${request.url}`
     ctx.state.serverAddr = `${protocol}://${request.headers.host}`
     ctx.state.serverConfig = serverConfig
+    ctx.state.fileSize = Number(request.headers['content-length'] || flat(request.headers['x-expected-entity-length']) || 0)
 
     await next()
   }

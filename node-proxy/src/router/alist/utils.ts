@@ -42,9 +42,12 @@ export const copyOrMoveFileMiddleware: Middleware<
     fileNames = Object.assign([], names)
   }
 
-  const reqBody = { dst_dir: dstDir, src_dir: srcDir, names: fileNames }
-  // reset content-length length
   delete ctx.req.headers['content-length']
 
-  ctx.body = await httpClient({ urlAddr: state.urlAddr, reqBody: JSON.stringify(reqBody), request: ctx.req })
+  ctx.body = await httpClient({
+    urlAddr: state.urlAddr,
+    reqBody: JSON.stringify({ dst_dir: dstDir, src_dir: srcDir, names: fileNames }),
+    request: ctx.req,
+    response: ctx.res,
+  })
 }

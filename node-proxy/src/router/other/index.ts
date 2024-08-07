@@ -31,7 +31,6 @@ otherRouter.all(/^\/images\/*/, compose(bodyParserMiddleware, preProxy(alistServ
 
   return await httpFlowClient({
     urlAddr: state.urlAddr,
-    passwdInfo: state.passwdInfo,
     fileSize: state.fileSize,
     request: ctx.req,
     response: ctx.res,
@@ -92,14 +91,14 @@ otherRouter.all('/redirect/:key', async (ctx) => {
 })
 
 otherRouter.all<ProxiedState<AlistServer>, EmptyObj>(new RegExp(alistServer.path), preProxy(alistServer, false), async (ctx) => {
-  let respBody = await httpClient({
+  const body = await httpClient({
     urlAddr: ctx.state.urlAddr,
     reqBody: JSON.stringify(ctx.request.body),
     request: ctx.req,
     response: ctx.res,
   })
 
-  respBody = respBody.replace(
+  ctx.body = body.replace(
     '<body>',
     `<body>
     <div style="position: fixed;z-index:10010; top:7px; margin-left: 50%">
@@ -113,7 +112,6 @@ otherRouter.all<ProxiedState<AlistServer>, EmptyObj>(new RegExp(alistServer.path
       </a>
     </div>`
   )
-  ctx.body = respBody
 })
 
 export default otherRouter

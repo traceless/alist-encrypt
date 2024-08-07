@@ -91,12 +91,11 @@ declare global {
   //preProxy后将以下属性添加到ctx.state中供middleware使用
   type ProxiedState<T extends AlistServer | WebdavServer> = {
     isWebdav: boolean
+    selfHost: string
     urlAddr: string
     serverAddr: string
     serverConfig: T
-    selfHost: string
     origin: string
     fileSize: number
-    passwdInfo?: PasswdInfo
   }
 }

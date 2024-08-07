@@ -10,7 +10,7 @@ const output = {
 }
 export default () => {
   return <webpack.Configuration>{
-    entry: { index: path.resolve('./app.ts'), PRGAThreadCom: path.resolve('./src/utils/PRGAThreadCom.js') },
+    entry: { index: path.resolve('./app.ts'), PRGAThreadCom: path.resolve('./src/utils/PRGAThreadCom.ts') },
     output,
     module: {
       rules: [

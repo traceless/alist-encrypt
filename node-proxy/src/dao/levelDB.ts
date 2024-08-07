@@ -43,7 +43,7 @@ class Nedb {
   //存值，无过期时间
   async setValue(key: string, value: Value) {
     await this.datastore.removeMany({ key }, {})
-    logger.info('存储键值(无过期时间)', key, JSON.stringify(value))
+    logger.trace('存储键值(无过期时间)', key, JSON.stringify(value))
     await this.datastore.insert({ key, expire: -1, value })
   }
 
@@ -51,7 +51,7 @@ class Nedb {
   async setExpire(key: string, value: Value, second = 6 * 10) {
     await this.datastore.removeMany({ key }, {})
     const expire = Date.now() + second * 1000
-    logger.info(`存储键值(过期时间${expire})`, key, JSON.stringify(value))
+    logger.trace(`存储键值(过期时间${expire})`, key, JSON.stringify(value))
     await this.datastore.insert({ key, expire, value })
   }
 

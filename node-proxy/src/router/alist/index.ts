@@ -91,7 +91,7 @@ alistRouter.all<ProxiedState<AlistServer>, ParsedContext<alist.FsGetRequestBody>
 
   const encrypted = passwdInfo && passwdInfo.encName
 
-  logger.info(`文件路径: ${filePath} 是否被加密 ${encrypted}`)
+  logger.info(`文件路径: ${filePath} 是否被加密 ${Boolean(encrypted)}`)
 
   if (encrypted) {
     // reset content-length length
@@ -155,7 +155,6 @@ alistRouter.put<ProxiedState<AlistServer>, EmptyObj>('/fs/put', emptyMiddleware,
   const state = ctx.state
   const uploadPath = headers['file-path'] ? decodeURIComponent(headers['file-path'] as string) : '/-'
   const { passwdInfo } = pathFindPasswd(state.serverConfig.passwdList, uploadPath)
-  state.fileSize = Number(headers['content-length'] || 0)
 
   const encrypted = passwdInfo && passwdInfo.encName
   logger.info(`上传文件: ${uploadPath} 加密${Boolean(encrypted)}`)
@@ -219,6 +218,7 @@ alistRouter.all<ProxiedState<AlistServer>, ParsedContext<alist.FsRenameRequestBo
     urlAddr,
     reqBody: JSON.stringify(reqBody),
     request: ctx.req,
+    response: ctx.res,
   })
 })
 
@@ -252,6 +252,7 @@ alistRouter.all<ProxiedState<AlistServer>, ParsedContext<alist.FsRemoveRequestBo
     urlAddr: state.urlAddr,
     reqBody: JSON.stringify(reqBody),
     request: ctx.req,
+    response: ctx.res,
   })
 })
 

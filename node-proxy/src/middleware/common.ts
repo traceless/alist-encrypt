@@ -87,11 +87,14 @@ export const exceptionMiddleware: Middleware = async (
   try {
     await next()
     if (ctx.status === 404) {
-      ctx.throw(404, '请求资源未找到!')
+      if (ctx.state?.isWebdav) {
+        logger.warn(ctx.state?.urlAddr, '404')
+      } else {
+        ctx.throw(404, '请求资源未找到!')
+      }
     }
   } catch (err) {
-    logger.error('@@err')
-    console.trace(err)
+    logger.error(err)
 
     const status = err.status || 500
     // 生产环境时 500 错误的详细错误内容不返回给客户端，因为可能包含敏感信息
@@ -111,29 +114,28 @@ export const exceptionMiddleware: Middleware = async (
 }
 
 export const proxyHandler: Middleware = async <T extends AlistServer & WebdavServer>(ctx: ParameterizedContext<ProxiedState<T>>) => {
-  const { state, req: request, res: response } = ctx
-
-  const { headers } = request
+  const state = ctx.state
+  const { method, headers } = ctx.req
   // 要定位请求文件的位置 bytes=98304-
   const range = headers.range
   const start = range ? Number(range.replace('bytes=', '').split('-')[0]) : 0
+  const urlPath = new URL(state.urlAddr).pathname
   // 检查路径是否满足加密要求，要拦截的路径可能有中文
-  const { passwdInfo } = pathFindPasswd(state.serverConfig.passwdList, decodeURIComponent(request.url))
+  const { passwdInfo } = pathFindPasswd(state.serverConfig.passwdList, decodeURIComponent(urlPath))
 
   logger.info('匹配密码信息', passwdInfo === null ? '无密码' : passwdInfo.password)
 
   let encryptTransform: Transform, decryptTransform: Transform
   // fix webdav move file
-  if (request.method.toLocaleUpperCase() === 'MOVE' && headers.destination) {
+  if (method.toLocaleUpperCase() === 'MOVE' && headers.destination) {
     let destination = flat(headers.destination)
-    destination = state.serverAddr + destination.substring(destination.indexOf(path.dirname(request.url)), destination.length)
-    request.headers.destination = destination
+    destination = state.serverAddr + destination.substring(destination.indexOf(path.dirname(urlPath)), destination.length)
+    headers.destination = destination
   }
 
   // 如果是上传文件，那么进行流加密，目前只支持webdav上传，如果alist页面有上传功能，那么也可以兼容进来
-  if (request.method.toLocaleUpperCase() === 'PUT' && passwdInfo) {
+  if (method.toLocaleUpperCase() === 'PUT' && passwdInfo) {
     // 兼容macos的webdav客户端x-expected-entity-length
-    ctx.state.fileSize = Number(headers['content-length'] || flat(headers['x-expected-entity-length']) || 0)
     // 需要知道文件长度，等于0 说明不用加密，这个来自webdav奇怪的请求
     if (ctx.state.fileSize !== 0) {
       encryptTransform = new FlowEnc(passwdInfo.password, passwdInfo.encType, ctx.state.fileSize).encryptTransform()
@@ -141,7 +143,7 @@ export const proxyHandler: Middleware = async <T extends AlistServer & WebdavSer
   }
 
   // 如果是下载文件，那么就进行判断是否解密
-  if ('GET,HEAD,POST'.includes(request.method.toLocaleUpperCase()) && passwdInfo) {
+  if ('GET,HEAD,POST'.includes(method.toLocaleUpperCase()) && passwdInfo) {
     // 根据文件路径来获取文件的大小
     let filePath = ctx.req.url.split('?')[0]
     // 如果是alist的话，那么必然有这个文件的size缓存（进过list就会被缓存起来）
@@ -173,9 +175,9 @@ export const proxyHandler: Middleware = async <T extends AlistServer & WebdavSer
 
     if (fileInfo) {
       state.fileSize = fileInfo.size
-    } else if (request.headers.authorization) {
+    } else if (headers.authorization) {
       // 这里要判断是否webdav进行请求, 这里默认就是webdav请求了
-      const authorization = request.headers.authorization
+      const authorization = headers.authorization
       const webdavFileInfo = await getWebdavFileInfo(state.urlAddr, authorization)
       logger.info('@@webdavFileInfo:', filePath, webdavFileInfo)
       if (webdavFileInfo) {
@@ -187,8 +189,6 @@ export const proxyHandler: Middleware = async <T extends AlistServer & WebdavSer
         state.fileSize = webdavFileInfo.size
       }
     }
-
-    state.passwdInfo = passwdInfo
 
     // logger.info('@@@@request.filePath ', request.filePath, result)
     if (state.fileSize !== 0) {
@@ -202,10 +202,10 @@ export const proxyHandler: Middleware = async <T extends AlistServer & WebdavSer
 
   await httpFlowClient({
     urlAddr: state.urlAddr,
-    passwdInfo: state.passwdInfo,
+    passwdInfo,
     fileSize: state.fileSize,
-    request,
-    response,
+    request: ctx.req,
+    response: ctx.res,
     encryptTransform,
     decryptTransform,
   })

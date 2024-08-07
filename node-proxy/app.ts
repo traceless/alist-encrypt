@@ -4,6 +4,7 @@ import http from 'http'
 import Koa from 'koa'
 import serve from 'koa-static'
 
+import { port } from '@/config'
 import { logger } from '@/common/logger'
 import alisRouter from '@/router/alist'
 import otherRouter from '@/router/other'
@@ -25,7 +26,7 @@ app.use(otherRouter.routes())
 
 const server = http.createServer(app.callback())
 server.maxConnections = 1000
-server.listen(5343, () => logger.info('服务启动成功: ' + 5343))
+server.listen(port, () => logger.info('服务启动成功: ' + port))
 
 setInterval(() => {
   logger.debug('server_connections', server.connections, Date.now())

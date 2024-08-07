@@ -4,8 +4,8 @@ import { pathToRegexp } from 'path-to-regexp'
 
 import Crcn from './crypto/crc6-8'
 import MixBase64 from './crypto/mixBase64'
-import { getPassWdOutward } from './flowEnc'
 import { logger } from '@/common/logger'
+import { getPassWdOutward } from './flowEnc'
 
 const crc6 = new Crcn(6)
 const origPrefix = 'orig_'
