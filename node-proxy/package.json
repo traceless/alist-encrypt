@@ -2,10 +2,10 @@
   "name": "alist-encrypt",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "app.ts",
   "scripts": {
-    "dev": "ts-node-dev -r tsconfig-paths/register app.js",
-    "serve": "ts-node -r tsconfig-paths/register app.js",
+    "dev": "ts-node-dev -r tsconfig-paths/register app.ts",
+    "serve": "ts-node -r tsconfig-paths/register app.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "webpack": "npx webpack",
     "build": "npm run webpack && pkg --compress GZip dist",
@@ -31,6 +31,9 @@
     "typescript": "^5.1.6"
   },
   "devDependencies": {
+    "@types/koa-bodyparser": "^4.3.12",
+    "@types/koa-router": "^7.4.8",
+    "@types/koa-static": "^4.0.4",
     "@typescript-eslint/eslint-plugin": "^5.55.0",
     "@typescript-eslint/parser": "^5.55.0",
     "copy-webpack-plugin": "^11.0.0",
