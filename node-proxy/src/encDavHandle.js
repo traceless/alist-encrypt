@@ -48,16 +48,16 @@ function cacheWebdavFileInfo(fileInfo) {
   } else if (fileInfo.propstat.prop) {
     getcontentlength = fileInfo.propstat.prop.getcontentlength
   }
-  // logger.debug('@@@cacheWebdavFileInfo', href, fileName)
+  logger.info('@@cacheWebdavFileInfo', href, fileName)
   // it is a file
   if (getcontentlength !== undefined && getcontentlength > -1) {
     const fileDetail = { path: href, name: fileName, is_dir: false, size: getcontentlength }
-    cacheFileInfo(fileDetail)
+    cacheFileInfo(fileDetail, true)
     return fileDetail
   }
   // cache this folder info
   const fileDetail = { path: href, name: fileName, is_dir: true, size: 0 }
-  cacheFileInfo(fileDetail)
+  cacheFileInfo(fileDetail, true)
   return fileDetail
 }
 
@@ -83,7 +83,7 @@ const preHandle = async (ctx, next) => {
       // cache source file info, realName has execute encodeUrl()，this '(' '+' can't encodeUrl.
       const realName = convertRealName(passwdInfo.password, passwdInfo.encType, decodeURI(url))
       // when the name contain the + , ! ,
-      const sourceUrl = path.dirname(url) + '/' + realName
+      const sourceUrl = decodeURI(path.dirname(url)) + '/' + realName
       const sourceFileInfo = await getFileInfo(sourceUrl)
       logger.debug('@@@sourceFileInfo', sourceFileInfo, reqFileName, realName, url, sourceUrl)
       // it is file, convert file name
@@ -206,7 +206,7 @@ const preHandle = async (ctx, next) => {
     const fileDetail = { path: request.url, name: fileName, is_dir: false, size: contentLength }
     logger.info('@@webdav_put_info', request.url, fileName, request.headers)
     // 在页面上传文件，rclone会重复上传，所以要进行缓存文件信息,让他能找到文件信息，也不能在next() 因为rclone copy命令会出异常
-    await cacheFileInfo(fileDetail)
+    await cacheFileInfo(fileDetail, true)
     const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, contentLength * 1)
     return await httpProxy(request, response, flowEnc.encryptTransform())
   }
@@ -246,7 +246,7 @@ const preHandle = async (ctx, next) => {
     let fileInfo = await getFileInfo(decodeURI(request.url))
     if (!fileInfo) {
       // 尝试使用加密的名字，realFileName可能是目录或者无后缀文件名
-      const encUrl = path.dirname(request.url) + '/' + realName
+      const encUrl = decodeURI(path.dirname(request.url)) + '/' + realName
       // encUrl已经encodeUrl了
       fileInfo = await getFileInfo(encUrl)
     }
@@ -266,14 +266,14 @@ const preHandle = async (ctx, next) => {
     let filePath = urlPath
     request.fileSize = 0
     // 尝试获取文件信息，如果未找到相应的文件信息，则对文件名进行加密处理后重新尝试获取文件信息
-    let fileInfo = await getFileInfo(filePath)
+    let fileInfo = await getFileInfo(filePath, true)
     if (fileInfo === null) {
       const realFileName = convertRealName(passwdInfo.password, passwdInfo.encType, filePath)
       // 可能是处理webdav进来了，filePath可能需要decodeURIComponent
       const encodedRawFileName = path.basename(filePath)
       logger.info('@@webdav_encodeName:', filePath, fileInfo, request.urlAddr)
       filePath = filePath.replace(encodedRawFileName, realFileName)
-      fileInfo = await getFileInfo(filePath)
+      fileInfo = await getFileInfo(filePath, true)
       if (fileInfo) {
         // 使用加密的名字
         request.urlAddr = request.urlAddr.replace(encodedRawFileName, encodeURIComponent(realFileName))
@@ -292,7 +292,7 @@ const preHandle = async (ctx, next) => {
         webdavFileInfo.path = filePath
         // 某些get请求返回的size=0，不要缓存起来
         if (webdavFileInfo.size * 1 > 0) {
-          cacheFileInfo(webdavFileInfo)
+          cacheFileInfo(webdavFileInfo, true)
         }
         request.fileSize = webdavFileInfo.size * 1
       }

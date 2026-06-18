@@ -139,7 +139,7 @@ export function pathFindPasswd(passwdList, url) {
         if (!passwdInfo.encFolder) {
           const folders = url.split('/')
           for (const folderName of folders) {
-            const data = decodeFromFolder(passwdInfo.password, passwdInfo.encType, decodeURIComponent(folderName))
+            const data = decodeFromFolder(passwdInfo.password, passwdInfo.encType, folderName)
             if (data) {
               newPasswdInfo.encType = data.folderEncType
               newPasswdInfo.password = data.folderPasswd

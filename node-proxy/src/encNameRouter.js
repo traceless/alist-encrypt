@@ -51,7 +51,7 @@ const cacheFileInfoList = async (ctx, next) => {
     const fileInfo = content[i]
     fileInfo.path = realfoldPath + '/' + fileInfo.name
     // 这里要注意闭包问题，mad
-    logger.debug('@@cacheFileInfo', fileInfo.path)
+    logger.debug('@@cacheFileInfo_path', fileInfo.path)
     cacheFileInfo(fileInfo)
   }
   // waiting cacheFileInfo a moment
@@ -128,6 +128,7 @@ encNameRouter.put('/api/fs/put', async (ctx, next) => {
   if (passwdInfo) {
     // you can custom Suffix
     if (passwdInfo.encName) {
+      // convertRealName()会处理掉orig_的名字，所以用原始的encodeName
       const ext = passwdInfo.encSuffix || path.extname(fileName)
       const encName = encodeName(passwdInfo.password, passwdInfo.encType, fileName)
       const filePath = path.dirname(uploadPath) + '/' + encName + ext
