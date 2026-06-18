@@ -21,7 +21,7 @@ export async function cacheFileInfo(fileInfo, decodeExc) {
 // 获取文件信息，偶尔要清理一下缓存，这里存储的是真实的文件路径，云盘的路径
 export async function getFileInfo(path, decodeExc) {
   let pathKey = fileInfoTable + path
-  if (decodeExc) pathKey = decodeURIComponent(pathKey)
+  if (decodeExc) pathKey = decodeURI(pathKey)
   const value = await levelDB.getValue(pathKey)
   return value
 }

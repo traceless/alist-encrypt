@@ -32,7 +32,7 @@ function getFileNameForShow(fileInfo, passwdInfo) {
   // logger.debug('@@fileInfo_show', JSON.stringify(fileInfo))
   // is not dir
   if (getcontentlength !== undefined && getcontentlength > -1) {
-    const showName = convertShowName(passwdInfo.password, passwdInfo.encType, href)
+    const showName = convertShowName(passwdInfo.password, passwdInfo.encType, decodeURI(href))
     return { fileName, showName }
   }
   // cache this folder info
@@ -48,7 +48,7 @@ function cacheWebdavFileInfo(fileInfo) {
   } else if (fileInfo.propstat.prop) {
     getcontentlength = fileInfo.propstat.prop.getcontentlength
   }
-  logger.info('@@cacheWebdavFileInfo', href, fileName)
+  logger.info('@@cacheWebdavFileInfo', decodeURI(href), fileName)
   // it is a file
   if (getcontentlength !== undefined && getcontentlength > -1) {
     const fileDetail = { path: href, name: fileName, is_dir: false, size: getcontentlength }
@@ -66,7 +66,7 @@ const preHandle = async (ctx, next) => {
   const request = ctx.req
   const response = ctx.res
   const { passwdList } = request.webdavConfig
-  const { passwdInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
+  const { passwdInfo } = pathFindPasswd(passwdList, decodeURI(request.url))
   // 创建目录
   if (ctx.method.toLocaleUpperCase() === 'MKCOL' && passwdInfo && passwdInfo.encName) {
     // 对名字进行加密, TODO
@@ -88,8 +88,8 @@ const preHandle = async (ctx, next) => {
       logger.debug('@@@sourceFileInfo', sourceFileInfo, reqFileName, realName, url, sourceUrl)
       // it is file, convert file name
       if (sourceFileInfo && !sourceFileInfo.is_dir) {
-        request.url = path.dirname(request.url) + '/' + realName
-        request.urlAddr = path.dirname(request.urlAddr) + '/' + realName
+        request.url = path.dirname(request.url) + '/' + encodeURI(realName)
+        request.urlAddr = path.dirname(request.urlAddr) + '/' + encodeURI(realName)
       }
     }
     // decrypt file name
@@ -114,7 +114,7 @@ const preHandle = async (ctx, next) => {
               const displayname = decodeURI(fileName).replace(/&/g, '&amp;').replace(/</g, '&gt;')
               const hrefName = fileName.replace(/&/g, '&amp;').replace(/</g, '&gt;')
               respBody = respBody.replace(`${hrefName}</D:href>`, `${encodeURI(showXmlName)}</D:href>`)
-              respBody = respBody.replace(`${displayname}</D:displayname>`, `${decodeURI(showXmlName)}</D:displayname>`)
+              respBody = respBody.replace(`${displayname}</D:displayname>`, `${showXmlName}</D:displayname>`)
             }
           }
         })
@@ -123,6 +123,7 @@ const preHandle = async (ctx, next) => {
       } else if (passwdInfo && passwdInfo.encName) {
         // 这里PROPFIND请求的是文件信息，上面得到是列表后，客户端还会继续请求每个文件的信息。。。
         const fileInfo = respJson
+        // showName已经是decodeUrl处理过了
         const { fileName, showName } = getFileNameForShow(fileInfo, passwdInfo)
         // logger.debug('@@getFileNameForShow2 file', fileName, showName, url, respJson.propstat)
         if (fileName) {
@@ -130,7 +131,7 @@ const preHandle = async (ctx, next) => {
           const displayname = decodeURI(fileName).replace(/&/g, '&amp;').replace(/</g, '&gt;')
           const hrefName = fileName.replace(/&/g, '&amp;').replace(/</g, '&gt;')
           respBody = respBody.replace(`${hrefName}</D:href>`, `${encodeURI(showXmlName)}</D:href>`)
-          respBody = respBody.replace(`${displayname}</D:displayname>`, `${decodeURI(showXmlName)}</D:displayname>`)
+          respBody = respBody.replace(`${displayname}</D:displayname>`, `${showXmlName}</D:displayname>`)
         }
       }
     }
@@ -196,8 +197,8 @@ const preHandle = async (ctx, next) => {
     if (passwdInfo.encName) {
       fileName = convertRealName(passwdInfo.password, passwdInfo.encType, decodeURI(request.url))
       // logger.info('@@convert file name', fileName, realName)
-      request.url = path.dirname(request.url) + '/' + fileName
-      request.urlAddr = path.dirname(request.urlAddr) + '/' + fileName
+      request.url = path.dirname(request.url) + '/' + encodeURI(fileName)
+      request.urlAddr = path.dirname(request.urlAddr) + '/' + encodeURI(fileName)
     }
     // cache file before upload in next(), rclone cmd 'copy' will PROPFIND this file when the file upload success right now
     const contentLength = request.headers['content-length'] || request.headers['x-expected-entity-length'] || 0
@@ -225,8 +226,8 @@ const preHandle = async (ctx, next) => {
         if (aurlArr && aurlArr.length) {
           for (let urlStr of aurlArr) {
             urlStr = urlStr.replace('href="', '').replace('"', '')
-            const aurl = decodeURIComponent(urlStr.replace('href="', '').replace('"', ''))
-            const baseUrl = decodeURIComponent(url)
+            const aurl = decodeURI(urlStr.replace('href="', '').replace('"', ''))
+            const baseUrl = decodeURI(url)
             if (aurl.includes(baseUrl)) {
               const fileName = path.basename(aurl)
               const showName = convertShowName(passwdInfo.password, passwdInfo.encType, fileName)
@@ -252,8 +253,8 @@ const preHandle = async (ctx, next) => {
     }
     // 替换连接
     if (fileInfo && !fileInfo.is_dir) {
-      request.url = path.dirname(request.url) + '/' + realName
-      request.urlAddr = path.dirname(request.urlAddr) + '/' + realName
+      request.url = path.dirname(request.url) + '/' + encodeURI(realName)
+      request.urlAddr = path.dirname(request.urlAddr) + '/' + encodeURI(realName)
     }
   }
   // 如果是下载文件，那么就进行判断是否解密
@@ -269,14 +270,14 @@ const preHandle = async (ctx, next) => {
     let fileInfo = await getFileInfo(filePath, true)
     if (fileInfo === null) {
       const realFileName = convertRealName(passwdInfo.password, passwdInfo.encType, filePath)
-      // 可能是处理webdav进来了，filePath可能需要decodeURIComponent
+      // 可能是处理webdav进来了，filePath 需要decodeURI=true
       const encodedRawFileName = path.basename(filePath)
       logger.info('@@webdav_encodeName:', filePath, fileInfo, request.urlAddr)
       filePath = filePath.replace(encodedRawFileName, realFileName)
       fileInfo = await getFileInfo(filePath, true)
       if (fileInfo) {
         // 使用加密的名字
-        request.urlAddr = request.urlAddr.replace(encodedRawFileName, encodeURIComponent(realFileName))
+        request.urlAddr = request.urlAddr.replace(encodedRawFileName, encodeURI(realFileName))
       }
     }
     // 文件复制后，群晖就会立刻查询文件的信息 HEAD，这里就有一些系列的判断需要处理。。。

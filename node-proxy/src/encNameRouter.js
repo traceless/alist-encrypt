@@ -73,7 +73,7 @@ const decryptFileList = async (ctx, next) => {
     for (let i = 0; i < content.length; i++) {
       const fileInfo = content[i]
       //  Check path if the file name needs to be encrypted
-      const { passwdInfo } = pathFindPasswd(passwdList, decodeURI(fileInfo.path))
+      const { passwdInfo } = pathFindPasswd(passwdList, fileInfo.path)
       if (!passwdInfo) {
         continue
       }
@@ -119,7 +119,7 @@ encNameRouter.put('/api/fs/put', async (ctx, next) => {
   const { headers, webdavConfig } = request
   const contentLength = headers['content-length'] || 0
   request.fileSize = contentLength * 1
-  const uploadEncPath = headers['file-path'] ? decodeURIComponent(headers['file-path']) : '/-'
+  const uploadEncPath = headers['file-path'] ? decodeURI(headers['file-path']) : '/-'
   const fileName = path.basename(uploadEncPath)
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, uploadEncPath)
   logger.info('@@fs/put', uploadEncPath)

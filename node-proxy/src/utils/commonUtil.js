@@ -21,14 +21,14 @@ export function convertRealName(password, encType, pathText, encSuffix) {
 
   // try encode name, fileName don't need decodeURI，encodeUrl func can't encode that like '(' '!'  in nodejs
   const ext = encSuffix || path.extname(fileName)
-  const encName = encodeName(password, encType, decodeURIComponent(fileName))
-  console.log('@@decodeURI(fileName)', decodeURIComponent(fileName))
+  const encName = encodeName(password, encType, fileName)
+  console.log('@@decodeURI(fileName)', fileName)
   return encName + ext
 }
 
 // if file name has encrypt, return show name
 export function convertShowName(password, encType, pathText) {
-  const fileName = path.basename(decodeURIComponent(pathText))
+  const fileName = path.basename(pathText)
   const ext = path.extname(fileName)
   const encName = fileName.replace(ext, '')
   // encName don't need decodeURI
