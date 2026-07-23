@@ -127,7 +127,7 @@ async function proxyHandle(ctx, next) {
   const { passwdList } = request.webdavConfig
 
   // 检查路径是否满足加密要求，要拦截的路径可能有中文
-  const { pathInfo } = pathFindPasswd(passwdList, decodeURIComponent(request.url))
+  const { pathInfo } = pathFindPasswd(passwdList, decodeURI(request.url))
   logger.info('@@webdavpasswdInfo', pathInfo)
 
   await httpProxy(request, response)
@@ -169,7 +169,7 @@ proxyRouter.put('/api/fs/put-back', async (ctx, next) => {
   const contentLength = headers['content-length'] || 0
   request.fileSize = contentLength * 1
 
-  const uploadPath = headers['file-path'] ? decodeURIComponent(headers['file-path']) : '/-'
+  const uploadPath = headers['file-path'] ? decodeURI(headers['file-path']) : '/-'
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, uploadPath)
   if (passwdInfo) {
     const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)

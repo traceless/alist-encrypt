@@ -4,6 +4,7 @@ import path from 'path'
 
 import MixBase64 from './mixBase64'
 import Crcn from './crc6-8'
+import { logger } from '@/common/logger'
 
 const crc6 = new Crcn(6)
 const origPrefix = 'orig_'
@@ -22,7 +23,7 @@ export function convertRealName(password, encType, pathText, encSuffix) {
   // try encode name, fileName don't need decodeURI，encodeUrl func can't encode that like '(' '!'  in nodejs
   const ext = encSuffix || path.extname(fileName)
   const encName = encodeName(password, encType, fileName)
-  console.log('@@decodeURI(fileName)', fileName)
+  console.log('@@decodeURI(fileName)', fileName, encName)
   return encName + ext
 }
 
@@ -33,10 +34,7 @@ export function convertShowName(password, encType, pathText) {
   const encName = fileName.replace(ext, '')
   // encName don't need decodeURI
   let showName = decodeName(password, encType, encName)
-  if (showName === null) {
-    showName = origPrefix + fileName
-  }
-  return showName
+  return showName === null ? origPrefix + fileName : showName
 }
 
 export function convertRealPath(passwdList, fpath) {
@@ -83,8 +81,17 @@ export function encodeName(password, encType, plainName) {
   encodeName += crc6Check
   return encodeName
 }
-
+// 字符判断
+const unsafePattern = /[^a-zA-Z0-9\-_+~]/g
 export function decodeName(password, encType, encodeName) {
+  // 判断是否长度是否余
+  const crcType = (encodeName.length * 6) % 8
+  if (crcType !== 6 && crcType !== 12) {
+    logger.debug('@@orig_decode fail', encodeName)
+  }
+  if (unsafePattern.test(encodeName)) {
+    return null
+  }
   const crc6Check = encodeName.substring(encodeName.length - 1)
   const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
   const mix64 = new MixBase64(passwdOutward)
@@ -92,7 +99,6 @@ export function decodeName(password, encType, encodeName) {
   const subEncName = encodeName.substring(0, encodeName.length - 1)
   const crc6Bit = crc6.checksum(Buffer.from(subEncName + passwdOutward))
   // console.log(subEncName, MixBase64.getSourceChar(crc6Bit), crc6Check)
-  // TODO, 校验encodeName是属于mix64的字符才可以
   if (MixBase64.getSourceChar(crc6Bit) !== crc6Check) {
     return null
   }

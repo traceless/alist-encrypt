@@ -78,9 +78,9 @@ const decryptFileList = async (ctx, next) => {
         continue
       }
       // ingore encName
-      if (passwdInfo.encFolder && fileInfo.is_dir) {
+      if (fileInfo.is_dir && passwdInfo.encFolder) {
         fileInfo.name = convertShowName(passwdInfo.password, passwdInfo.encType, fileInfo.name)
-      } else if (passwdInfo.encName && !fileInfo.is_dir) {
+      } else if (!fileInfo.is_dir && passwdInfo.encName) {
         fileInfo.name = convertShowName(passwdInfo.password, passwdInfo.encType, fileInfo.name)
       }
     }
@@ -119,11 +119,11 @@ encNameRouter.put('/api/fs/put', async (ctx, next) => {
   const { headers, webdavConfig } = request
   const contentLength = headers['content-length'] || 0
   request.fileSize = contentLength * 1
-  const uploadEncPath = headers['file-path'] ? decodeURI(headers['file-path']) : '/-'
+  const uploadEncPath = headers['file-path'] ? decodeURIComponent(headers['file-path']) : '/-'
   const fileName = path.basename(uploadEncPath)
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, uploadEncPath)
   logger.info('@@fs/put', uploadEncPath)
-  let uploadPath = convertRealPath(ctx.req.webdavConfig.passwdList, path.dirname(uploadEncPath))
+  let uploadPath = convertRealPath(ctx.req.webdavConfig.passwdList, decodeURIComponent(path.dirname(uploadEncPath)))
   uploadPath = uploadPath + '/' + fileName
   if (passwdInfo) {
     // you can custom Suffix
@@ -245,7 +245,7 @@ const preHandleFolderPath = async (ctx, next) => {
   const { webdavConfig } = ctx.req
   const fileRealPath = convertRealPath(ctx.req.webdavConfig.passwdList, filePath)
   // 判断是否请求目录，只能通过之前的缓存来判断了
-  const fileInfo = await getFileInfo(encodeURIComponent(fileRealPath))
+  const fileInfo = await getFileInfo(fileRealPath)
   if (fileInfo && fileInfo.is_dir) {
     ctx.request.body.path = fileRealPath
     await next()
@@ -305,12 +305,12 @@ const handleFolderPath = async (ctx, next) => {
     let realFileName = path.basename(filePath)
     let fileRealPath = folderRealPath + '/' + realFileName
     logger.debug('@rename_realPath', fileRealPath)
-    let fileInfo = await getFileInfo(encodeURIComponent(fileRealPath))
+    let fileInfo = await getFileInfo(fileRealPath)
     if (!fileInfo) {
       // 尝试使用加密的名字，realFileName可能是目录或者无后缀文件名
       realFileName = convertRealName(passwdInfo.password, passwdInfo.encType, filePath)
       fileRealPath = folderRealPath + '/' + realFileName
-      fileInfo = await getFileInfo(encodeURIComponent(fileRealPath))
+      fileInfo = await getFileInfo(fileRealPath)
     }
     if (fileInfo) {
       if (fileInfo.is_dir && passwdInfo.encFolder) {
@@ -363,7 +363,7 @@ const handleDownload = async (ctx, next) => {
   }
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
   const folderPath = path.dirname(filePath)
-  const folderRealPath = convertRealPath(ctx.req.webdavConfig.passwdList, folderPath)
+  const folderRealPath = convertRealPath(ctx.req.webdavConfig.passwdList, decodeURIComponent(folderPath))
   ctx.req.url = ctx.req.url.replace(folderPath, folderRealPath)
   ctx.req.urlAddr = ctx.req.urlAddr.replace(folderPath, folderRealPath)
   if (passwdInfo && passwdInfo.encName) {
@@ -371,7 +371,8 @@ const handleDownload = async (ctx, next) => {
     delete ctx.req.headers['content-length']
     // Check whether the file name refers to an encrypted file or a directory
     const fileName = path.basename(filePath)
-    const realName = convertRealName(passwdInfo.password, passwdInfo.encType, fileName)
+    console.log('@@@ppppfileName', filePath, fileName)
+    const realName = convertRealName(passwdInfo.password, passwdInfo.encType, decodeURIComponent(fileName))
     // Replace the real-name before downloading
     const realFilePath = folderRealPath + '/' + realName
     // 尝试获取文件信息，如果未找到相应的文件信息，则对文件名进行加密处理后重新尝试获取文件信息

@@ -60,16 +60,28 @@ const cipher = crypto.createCipheriv('aes-128-ctr', key, iv)
 const encdata = cipher.update(fileDate)
 
 
+console.log('====分隔符=====')
+const utf8String = '🫠'
+const buffer = Buffer.from(utf8String, 'utf8')
+const gbkString = buffer.toString('utf16le')
+console.log('gbkString:  ', gbkString, buffer.length)
 
+const s = "围绕为稍等电风扇水岸东方阿第三方山东发斯蒂芬地方🫠";
+const d2 = Buffer.from(s, 'utf8')// 2字节
 const dd = new aesCTR('12341234', '11164')
-dd.setPosition(64)
-console.log('@@@iv', dd.iv.toString('hex'))
 
-console.log('@pass', passwdOutward, Buffer.from(encdata).toString('hex'))
+const d = dd.encrypt(d2)
+console.log('ue16 ', d.toString('utf16le'), d2)
 
-const buf = Buffer.from([0x12, 0x34, 0x56, 0x78, 0x32, 0x24, 0x16, 0x78]);
-console.log(buf.length, buf.readUInt32BE(1).toString(16));
+// 文件名编码
+function encodeFilename(name) {
+  return Buffer.from(name, 'utf8').toString('base64url');
+}
 
-const d = pathExec(['test/.*', 'abc/.*'], '/adfadf/testd/test/abc/fdf')
+// 文件名解码
+function decodeFilename(code) {
+  return Buffer.from(code, 'base64url').toString('utf8');
+}
 
-// 输出：https://xxx.com/新内容?a=1&b=2
+console.log(encodeFilename("测去玩儿水电费艾师傅老地方试.txt"));
+console.log(decodeFilename("5rWL6K+VLnR4dA"));
