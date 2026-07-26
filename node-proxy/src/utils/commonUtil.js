@@ -27,6 +27,16 @@ export function convertRealName(password, encType, pathText, encSuffix) {
   return encName + ext
 }
 
+export function convertRealPathName(password, encType, pathText) {
+  if (pathText.indexOf(origPrefix) === 0) {
+    return pathText.replace(origPrefix, '')
+  }
+  // try encode name, fileName don't need decodeURI，encodeUrl func can't encode that like '(' '!'  in nodejs
+  const encName = encodeName(password, encType, pathText)
+  console.log('@@decodeURI(pathText)', encName)
+  return encName
+}
+
 // if file name has encrypt, return show name
 export function convertShowName(password, encType, pathText) {
   const fileName = path.basename(pathText)
@@ -37,19 +47,27 @@ export function convertShowName(password, encType, pathText) {
   return showName === null ? origPrefix + fileName : showName
 }
 
-export function convertRealPath(passwdList, fpath) {
+export function convertRealPath(passwdList, fpath, encodeUri = false) {
   let foldPath = fpath
   const { passwdInfo, pathInfo } = pathFindPasswd(passwdList, foldPath)
   if (passwdInfo && passwdInfo.encFolder) {
     // 尝试解密路径，去掉第一个目录
     const foldNames = pathInfo[0].split('/')
+    console.log('@@@foldNames', foldNames)
     foldNames.shift()
     let encFoldPath = ''
     let realFoldPath = ''
     for (let name of foldNames) {
-      const realFoldName = convertRealName(passwdInfo.password, passwdInfo.encType, name)
+      // webdav 传进来的路径是 /dav/aliyun/encfolder/abc/, name = ''
+      realFoldPath += '/'
+      if (name !== '') {
+        let realFoldName = convertRealPathName(passwdInfo.password, passwdInfo.encType, name)
+        if (encodeUri) {
+          realFoldName = encodeURI(realFoldName)
+        }
+        realFoldPath += realFoldName
+      }
       encFoldPath += '/' + name
-      realFoldPath += '/' + realFoldName
     }
     foldPath = foldPath.replace(encFoldPath, realFoldPath)
   }

@@ -11,7 +11,7 @@ export async function initFileTable() {
 }
 
 // 缓存文件信息，存储文件的中文路径，去掉decodeURIComponent，兼容带%符号的路径
-export async function cacheFileInfo(fileInfo, decodeExc) {
+export async function cacheFileInfo(fileInfo, decodeExc = false) {
   if (decodeExc) fileInfo.path = decodeURI(fileInfo.path)
   const pathKey = fileInfoTable + fileInfo.path
   fileInfo.table = fileInfoTable
@@ -19,7 +19,7 @@ export async function cacheFileInfo(fileInfo, decodeExc) {
 }
 
 // 获取文件信息，偶尔要清理一下缓存，这里存储的是真实的文件路径，云盘的路径
-export async function getFileInfo(path, decodeExc) {
+export async function getFileInfo(path, decodeExc = false) {
   let pathKey = fileInfoTable + path
   if (decodeExc) pathKey = decodeURI(pathKey)
   const value = await levelDB.getValue(pathKey)

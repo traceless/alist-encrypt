@@ -341,7 +341,7 @@ encNameRouter.all('/api/fs/rename', bodyparserMw, handleFolderPath, async (ctx, 
   ctx.status = ctx.res.statusCode
   ctx.body = respBody
 })
-// 替换字符，http://alist.com/p/encname.txt?sign=12.. 替换 http://alist.com/p/realname.txt?sign=12..
+// 替换字符，http://alist.com/p/show电影.txt?sign=12.. 替换 http://alist.com/p/realname.txt?sign=12..
 const regexPath = /\/([^\\/]*?)(\?|$)/
 const handleDownload = async (ctx, next) => {
   const request = ctx.req
