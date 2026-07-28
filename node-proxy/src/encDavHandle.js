@@ -8,6 +8,7 @@ import { httpClient, httpProxy } from './utils/httpClient'
 import { XMLParser } from 'fast-xml-parser'
 import FlowEnc from '@/utils/flowEnc'
 import { getWebdavFileInfo } from '@/utils/webdavClient'
+import { log } from 'console'
 
 async function sleep(time) {
   return new Promise((resolve) => {
@@ -36,7 +37,7 @@ function getFileNameForShow(fileInfo, passwdInfo) {
     return { fileName, showName }
   } else if (passwdInfo.encFolder) {
     // example: /dav/aliyun/atest/1324ef/ -> /dav/aliyun/atest/U9UjdknW2/
-
+    // 最好去掉最后的'/' endsWith('/'),虽然不去掉也能正常返回
     const showFolderName = convertShowName(passwdInfo.password, passwdInfo.encType, decodeURI(href))
     return { fileName, showFolderName }
   }
@@ -79,36 +80,41 @@ const preHandle = async (ctx, next) => {
     const realUrl = convertRealPath(passwdList, decodeURI(url))
     ctx.req.url = ctx.req.url.replace(url, realUrl)
     ctx.req.urlAddr = ctx.req.urlAddr.replace(url, realUrl)
-    logger.info('@@method MKCOL', request.urlAddr, request.url, realUrl)
+    const fileName = path.basename(realUrl)
+    const fileDetail = { path: request.url, name: fileName, is_dir: true, size: 0 }
+    logger.info('@@MKCOL_fileDetail', fileDetail)
+    // 在页面创建文件夹，需要缓存起来，不然群晖会去查询这个文件夹是否存在，不存在就会报错，实际已经创建成功。
+    await cacheFileInfo(fileDetail, true)
     return await httpProxy(ctx.req, ctx.res)
+  }
+  // 先处理路径，判断是目录还是文件。
+  const url = request.url
+  const urlAddr = request.urlAddr
+  let isDir = false
+  // ===== 需要判断是否为目录请求，是的话，就全部加密 ====
+  // 处理目录加密,realPathUrl已经处理了encode返回
+  let realPathUrl = convertRealPath(passwdList, decodeURI(url), true)
+  const ends = url.endsWith('/') ? '' : '/'
+  const realPathInfo = await getFileInfo(decodeURI(realPathUrl) + ends)
+  // realPathUrl = realPathUrl.replace('查尔斯顿', '%E6%9F%A5%E5%B0%94%E6%96%AF%E9%A1%BF')
+  logger.info('@@@realPathInfo011', url, realPathUrl, decodeURI(realPathUrl), realPathInfo)
+  if (realPathInfo && realPathInfo.is_dir) {
+    isDir = true
+    ctx.req.url = ctx.req.url.replace(url, realPathUrl)
+    ctx.req.urlAddr = ctx.req.urlAddr.replace(url, realPathUrl)
+    logger.info('@@@realPathInfo22', realPathInfo, pathInfo)
+  } else {
+    // 说明请求的是可能文件（也可能是首次路径进来），替换加密路径
+    const fileName = path.basename(url)
+    const folderPath = path.dirname(url)
+    let realPath = convertRealPath(ctx.req.webdavConfig.passwdList, decodeURI(folderPath), true)
+    realPath = realPath + '/' + fileName
+    ctx.req.url = url.replace(url, realPath)
+    ctx.req.urlAddr = urlAddr.replace(url, realPath)
+    logger.info('@@@realfileinfo22', url, realPath)
   }
   // 列表查询或者文件信息查询，把返回来的名字进行加密
   if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo && passwdInfo.encName) {
-    // check dir, convert url
-    const url = request.url
-    const matchPath = pathInfo[0]
-    let isDir = false
-    // ===== 需要判断是否为目录请求，是的话，就全部加密 ====
-    // 处理目录加密,realPathUrl已经处理了encode返回
-    let realPathUrl = convertRealPath(passwdList, decodeURI(url), true)
-    const ends = url.endsWith('/') ? '' : '/'
-    const realPathInfo = await getFileInfo(decodeURI(realPathUrl) + ends)
-    // realPathUrl = realPathUrl.replace('查尔斯顿', '%E6%9F%A5%E5%B0%94%E6%96%AF%E9%A1%BF')
-    logger.info('@@@realPathInfo011', url, realPathUrl, decodeURI(decodeURI(realPathUrl)), realPathInfo)
-    if (realPathInfo && realPathInfo.is_dir) {
-      isDir = true
-      ctx.req.url = ctx.req.url.replace(url, realPathUrl)
-      ctx.req.urlAddr = ctx.req.urlAddr.replace(url, realPathUrl)
-      logger.info('@@@realPathInfo22', realPathInfo, pathInfo)
-    } else {
-      // 说明请求的是文件，替换加密路径
-      const fileName = path.basename(url)
-      const folderPath = path.dirname(url)
-      let realPath = convertRealPath(ctx.req.webdavConfig.passwdList, decodeURI(folderPath), true)
-      realPath = realPath + '/' + fileName
-      ctx.req.url = ctx.req.url.replace(url, realPath)
-      ctx.req.urlAddr = ctx.req.urlAddr.replace(url, realPath)
-    }
     // 先判断是否查询当前目录
     if (passwdInfo.encName && !isDir) {
       // check dir, convert url
@@ -119,11 +125,12 @@ const preHandle = async (ctx, next) => {
       // when the name contain the + , ! ,
       const sourceUrl = decodeURI(path.dirname(fileUrl)) + '/' + realName
       const sourceFileInfo = await getFileInfo(sourceUrl)
-      logger.info('@@@sourceFileInfo', sourceFileInfo, reqFileName, realName, fileUrl, sourceUrl)
-      // it is file, convert file name
+      logger.info('@@@sourceFileInfo', sourceFileInfo, reqFileName, realName, encodeURIComponent(realName), fileUrl, sourceUrl)
+      // it is file, encodeURI(realName) 不支持处理括号()的编码
       if (sourceFileInfo && !sourceFileInfo.is_dir) {
-        request.url = path.dirname(request.url) + '/' + encodeURI(realName)
-        request.urlAddr = path.dirname(request.urlAddr) + '/' + encodeURI(realName)
+        request.url = path.dirname(request.url) + '/' + sourceFileInfo.name
+        logger.info('@@@source33333o', sourceFileInfo.name)
+        request.urlAddr = path.dirname(request.urlAddr) + '/' + sourceFileInfo.name
       }
     }
 
@@ -161,7 +168,7 @@ const preHandle = async (ctx, next) => {
               // 因为上面执行了replace，所以一定要前置 /，不然会出现orig_orig_xxx.txt的情况
               respBody = respBody.replace(`/${hrefName}${endsWith}</D:href>`, `/${encodeURI(showXmlName)}${endsWith}</D:href>`)
               respBody = respBody.replace(`${displayname}</D:displayname>`, `${showXmlName}</D:displayname>`)
-              // logger.info('@@respBody12221', ctx.req.url, url, fileName, displayname, showXmlName, respBody)
+              logger.info('@@respBody12221', ctx.req.url, url, fileName, displayname, showXmlName, respBody)
             }
           }
         })
@@ -181,9 +188,12 @@ const preHandle = async (ctx, next) => {
           const hrefName = fileName.replace(/&/g, '&amp;').replace(/</g, '&gt;')
           let endsWith = showName ? '' : '/'
           // 这个是查询文件详情，所以可以直接替换
+          logger.info('@@dddressdadd5', ctx.req.url, url, respBody)
           respBody = respBody.replace(ctx.req.url, url)
           // respBody = respBody.replace(`/${hrefName}${endsWith}</D:href>`, `/${encodeURI(showXmlName)}${endsWith}</D:href>`)
           respBody = respBody.replace(`${displayname}</D:displayname>`, `${showXmlName}</D:displayname>`)
+          logger.info('@@dddresp1234555', ctx.req.url, url, fileName, displayname, showXmlName, respBody)
+
         }
       }
     }
@@ -207,7 +217,19 @@ const preHandle = async (ctx, next) => {
 
   // 相同密码目录则加密平移，否则destName按原来明文名字存到新路径，orig_这个也会恢复原明文
   if ('COPY,MOVE'.includes(request.method.toLocaleUpperCase())) {
-    if (passwdInfo && passwdInfo.encName) {
+    // 目标的目录进行加密后处理
+    const destPath = request.headers.destination
+    // const fileName = path.basename(url)
+    const destfolderPath = path.dirname(destPath)
+    let realDestPath = convertRealPath(passwdList, decodeURI(destfolderPath), true)
+    request.headers.destination = realDestPath + '/' + path.basename(destPath)
+    if (isDir) {
+      realDestPath = convertRealPath(passwdList, decodeURI(destPath), true)
+      request.headers.destination = realDestPath
+    }
+    logger.info('@@@destfolderPath233', url, request.headers.destination)
+
+    if (passwdInfo && passwdInfo.encName && !isDir) {
       const showName = path.basename(decodeURI(request.url))
       const realName = convertRealName(passwdInfo.password, passwdInfo.encType, decodeURI(request.url))
       // 直接获取用户名
@@ -215,11 +237,11 @@ const preHandle = async (ctx, next) => {
       request.urlAddr = path.dirname(request.urlAddr) + '/' + encodeURI(realName)
       // 判断移动后的目标地址是否加密名字
       const { passwdInfo: destPasswd } = pathFindPasswd(request.webdavConfig.passwdList, decodeURI(request.headers.destination))
-      // 如果是同一个加密路径则保持原加密名字，否则按原明文名字存储，避免认错
+      // 如果是同一个加密路径则保持原加密名字，否则按新的加密目录的原明文名字存储（新目录会显示orig_xxx）
+      // 因为密码可能不一样，不能直接显示名称，本来就不推荐迁移到不同加密目录下。
       if (destPasswd && destPasswd.id === passwdInfo.id) {
         const realDestName = convertRealName(passwdInfo.password, passwdInfo.encType, decodeURI(request.headers.destination))
         request.headers.destination = path.dirname(request.headers.destination) + '/' + encodeURI(realDestName)
-        logger.info('@@distName_enc', encodeURI(realName))
       } else if (showName.indexOf(origPrefix) === 0) {
         // 如果是orig_开头，则恢复原明文名字，此时也是realName
         request.headers.destination = path.dirname(request.headers.destination) + '/' + encodeURI(realName)
@@ -228,6 +250,7 @@ const preHandle = async (ctx, next) => {
     // 群晖再移动文件后，会立刻查询这个文件，如果文件不存在或者显示的文字不一样就会显示异常，实际移动成功。
     // 一般移动到新的加密目录才会出现这样的页面错误，实际不影响使用。
     let destination = request.headers.destination
+
     const destUrl = new URL(destination)
     const userName = destUrl.username
     // destination，获取/dav/xxx的路径
