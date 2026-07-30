@@ -22,17 +22,16 @@ const origPrefix = 'orig_'
 const parser = new XMLParser({ removeNSPrefix: true })
 
 function getFileNameForShow(fileInfo, passwdInfo) {
-  let getcontentlength = -1
   const href = fileInfo.href
   const fileName = path.basename(href)
+  let propstat = fileInfo.propstat
   if (fileInfo.propstat instanceof Array) {
-    getcontentlength = fileInfo.propstat[0].prop.getcontentlength
-  } else if (fileInfo.propstat.prop) {
-    getcontentlength = fileInfo.propstat.prop.getcontentlength
+    propstat = fileInfo.propstat[0]
   }
+  const resType = propstat.prop.resourcetype ?? {}
+  const isFolder = Object.hasOwn(resType, 'collection')
   // logger.debug('@@fileInfo_show', JSON.stringify(fileInfo))
-  // is not dir
-  if (getcontentlength !== undefined && getcontentlength > -1) {
+  if (!isFolder) {
     const showName = convertShowName(passwdInfo.password, passwdInfo.encType, decodeURI(href))
     return { fileName, showName }
   } else if (passwdInfo.encFolder) {
@@ -46,23 +45,25 @@ function getFileNameForShow(fileInfo, passwdInfo) {
 }
 
 function cacheWebdavFileInfo(fileInfo) {
-  let getcontentlength = -1
   const href = fileInfo.href
   const fileName = path.basename(href)
+  let propstat = fileInfo.propstat
   if (fileInfo.propstat instanceof Array) {
-    getcontentlength = fileInfo.propstat[0].prop.getcontentlength
-  } else if (fileInfo.propstat.prop) {
-    getcontentlength = fileInfo.propstat.prop.getcontentlength
+    propstat = fileInfo.propstat[0]
   }
-  logger.info('@@cacheWebdavFileInfo', decodeURI(href), href, fileName)
-  // it is a file
-  if (getcontentlength !== undefined && getcontentlength > -1) {
-    const fileDetail = { path: href, name: fileName, is_dir: false, size: getcontentlength }
+  // 有一些文件不返回
+  const resType = propstat.prop.resourcetype ?? {}
+  const isFolder = Object.hasOwn(resType, 'collection')
+  // 这里可以判断是否有
+  if (!isFolder) {
+    const getcontentlength = propstat.prop.getcontentlength
+    const fileDetail = { path: href, name: fileName, is_dir: isFolder, size: getcontentlength }
     cacheFileInfo(fileDetail, true)
     return fileDetail
   }
+  logger.info('@@cacheWebdavFileInfo', decodeURI(href), href, fileName, isFolder)
   // cache this folder info
-  const fileDetail = { path: href, name: fileName, is_dir: true, size: 0 }
+  const fileDetail = { path: href, name: fileName, is_dir: isFolder, size: 0 }
   cacheFileInfo(fileDetail, true)
   return fileDetail
 }
@@ -87,14 +88,14 @@ const preHandle = async (ctx, next) => {
     ctx.req.url = ctx.req.url.replace(url, realUrl)
     ctx.req.urlAddr = ctx.req.urlAddr.replace(url, realUrl)
     const fileName = path.basename(realUrl)
-    const fileDetail = { path: request.url, name: fileName, is_dir: true, size: 0 }
+    const fileDetail = { path: request.url, showPath: url, name: fileName, is_dir: true, size: 0 }
     logger.info('@@MKCOL_fileDetail', fileDetail)
     // 在页面创建文件夹，需要缓存起来，不然群晖会去查询这个文件夹是否存在，不存在就会报错，实际已经创建成功。
     await cacheFileInfo(fileDetail, true)
     return await httpProxy(ctx.req, ctx.res)
   }
 
-  //  判断是目录还是文件。
+  //  判断是目录还是文件，直接通过缓存来判断
   const url = request.url
   const urlAddr = request.urlAddr
   let isDir = false
@@ -114,9 +115,9 @@ const preHandle = async (ctx, next) => {
     ctx.req.url = ctx.req.url.replace(url, realPathUrl)
     ctx.req.urlAddr = ctx.req.urlAddr.replace(url, realPathUrl)
   } else {
-    // 说明请求的是可能文件（也可能是跟路径进来），只替换真实路径，不替换文件名
+    // 说明请求的是可能文件（也可能是跟目录进来），只替换真实路径，不替换文件名
     const fileName = path.basename(url)
-    let realPath = convertRealPath(ctx.req.webdavConfig.passwdList, decodeURI(folderPath), true)
+    let realPath = convertRealPath(passwdList, decodeURI(folderPath), true)
     realPath = realPath + '/' + fileName
     ctx.req.url = url.replace(url, realPath)
     ctx.req.urlAddr = urlAddr.replace(url, realPath)
@@ -285,7 +286,7 @@ const preHandle = async (ctx, next) => {
     const contentLength = request.headers['content-length'] || request.headers['x-expected-entity-length'] || 0
     // 注意这里缓存的路径，不要跟上面 cacheWebdavFileInfo 冲突, 不然size会归0
     // 上传之后要立刻缓存起来，把加密的名字对应的路径缓存起来
-    const fileDetail = { path: request.url, name: fileName, is_dir: false, size: contentLength }
+    const fileDetail = { path: request.url, showPath: url, name: fileName, is_dir: false, size: contentLength }
     logger.info('@@webdav_put_info', request.url, fileName, request.headers)
     // 在页面上传文件，rclone会重复上传，所以要进行缓存文件信息,让他能找到文件信息，也不能在next() 因为rclone copy命令会出异常
     await cacheFileInfo(fileDetail, true)
@@ -298,28 +299,11 @@ const preHandle = async (ctx, next) => {
     // check dir, convert url
     const realName = convertRealName(passwdInfo.password, passwdInfo.encType, decodeURI(url))
     // maybe from aliyundrive, check this req url while get file list from enc folder
-    // 这里的代码应该是过时了，无法验证，因为GET和endsWith('/')不可能同时出现，会报错405
+    // 这里的代码应该是过时了，无法验证，因为GET和endsWith('/')不可能同时出现，会报错405，之前是为了兼容网页版webdav
     if (url.endsWith('/') && 'GET,DELETE'.includes(request.method.toLocaleUpperCase())) {
       let respBody = await httpClient(ctx.req, ctx.res)
-      if (request.method.toLocaleUpperCase() === 'GET') {
-        const aurlArr = respBody.match(/href="[^"]*"/g)
-        logger.info('@@ali_urlArr', aurlArr, respBody)
-        if (aurlArr && aurlArr.length) {
-          for (let urlStr of aurlArr) {
-            urlStr = urlStr.replace('href="', '').replace('"', '')
-            const aurl = decodeURI(urlStr.replace('href="', '').replace('"', ''))
-            const baseUrl = decodeURI(url)
-            if (aurl.includes(baseUrl)) {
-              const fileName = path.basename(aurl)
-              const showName = convertShowName(passwdInfo.password, passwdInfo.encType, fileName)
-              logger.debug('@@ali_url', urlStr, showName)
-              respBody = respBody.replace(path.basename(urlStr), encodeURI(showName)).replace(fileName, showName)
-            }
-          }
-        }
-      }
       logger.info('@@GET_DELETE', respBody)
-      ctx.status = respBody.statusCode
+      ctx.status = ctx.res.statusCode
       ctx.body = respBody
       return
     }

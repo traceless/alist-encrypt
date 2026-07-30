@@ -47,7 +47,10 @@ export function convertShowName(password, encType, pathText) {
   return showName === null ? origPrefix + fileName : showName
 }
 
-export function convertRealPath(passwdList, fpath, encodeUri = false) {
+export function convertRealPath(passwdList = {}, fpath, encodeUri = false) {
+  if (passwdList instanceof Array) {
+    logger.info('@@')
+  }
   let foldPath = fpath
   const { passwdInfo, pathInfo } = pathFindPasswd(passwdList, foldPath)
   if (passwdInfo && passwdInfo.encFolder) {
