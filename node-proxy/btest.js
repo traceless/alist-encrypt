@@ -50,6 +50,12 @@ function pathExec(encPath, url) {
   }
   return null
 }
+
+const filename = 'abc123%E4%B8%96%E7%BA%AA&%E8%AE%B0%E5%BE%971'
+const hrefName = filename.replace(/&/g, '&amp;').replace(/</g, '&gt;')
+console.log('@@@hrefName', hrefName)
+
+
 const fileDate = new Uint8Array(32).fill(1)
 
 const passwdOutward = crypto.pbkdf2Sync('12341234', 'AES-CTR', 1000, 16, 'sha256').toString('hex')

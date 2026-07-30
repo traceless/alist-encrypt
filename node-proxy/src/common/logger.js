@@ -14,5 +14,5 @@ log4js.configure({
   },
 })
 // warn info debug
-const category = process.env.RUN_MODE === 'DEV' ? 'debug' : 'default'
+const category = process.env.RUN_MODE === 'DEV' ? 'info' : 'default'
 export const logger = log4js.getLogger(category)

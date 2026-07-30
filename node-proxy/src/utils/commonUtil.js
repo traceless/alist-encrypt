@@ -53,7 +53,7 @@ export function convertRealPath(passwdList, fpath, encodeUri = false) {
   if (passwdInfo && passwdInfo.encFolder) {
     // 尝试解密路径，去掉第一个目录
     const foldNames = pathInfo[0].split('/')
-    console.log('@@@foldNames', foldNames)
+    console.log('@@@foldNames', pathInfo, foldNames, encodeUri)
     foldNames.shift()
     let encFoldPath = ''
     let realFoldPath = ''

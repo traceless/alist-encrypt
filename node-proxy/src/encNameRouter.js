@@ -123,7 +123,7 @@ encNameRouter.put('/api/fs/put', async (ctx, next) => {
   const fileName = path.basename(uploadEncPath)
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, uploadEncPath)
   logger.info('@@fs/put', uploadEncPath)
-  let uploadPath = convertRealPath(ctx.req.webdavConfig.passwdList, decodeURIComponent(path.dirname(uploadEncPath)))
+  let uploadPath = convertRealPath(ctx.req.webdavConfig.passwdList, path.dirname(uploadEncPath))
   uploadPath = uploadPath + '/' + fileName
   if (passwdInfo) {
     // you can custom Suffix
@@ -363,6 +363,7 @@ const handleDownload = async (ctx, next) => {
   }
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
   const folderPath = path.dirname(filePath)
+  logger.info('@@handleDownload', filePath)
   const folderRealPath = convertRealPath(ctx.req.webdavConfig.passwdList, decodeURIComponent(folderPath))
   ctx.req.url = ctx.req.url.replace(folderPath, folderRealPath)
   ctx.req.urlAddr = ctx.req.urlAddr.replace(folderPath, folderRealPath)

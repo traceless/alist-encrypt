@@ -10,7 +10,7 @@ export async function initFileTable() {
   console.log('init db')
 }
 
-// 缓存文件信息，存储文件的中文路径，去掉decodeURIComponent，兼容带%符号的路径
+// 缓存文件信息，存储文件的云盘真实路径，去掉decodeURIComponent，兼容带%符号的路径
 export async function cacheFileInfo(fileInfo, decodeExc = false) {
   if (decodeExc) fileInfo.path = decodeURI(fileInfo.path)
   const pathKey = fileInfoTable + fileInfo.path
