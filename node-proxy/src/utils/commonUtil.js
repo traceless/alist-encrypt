@@ -19,7 +19,6 @@ export function convertRealName(password, encType, pathText, encSuffix) {
   if (fileName.indexOf(origPrefix) === 0) {
     return fileName.replace(origPrefix, '')
   }
-
   // try encode name, fileName don't need decodeURI，encodeUrl func can't encode that like '(' '!'  in nodejs
   const ext = encSuffix || path.extname(fileName)
   const encName = encodeName(password, encType, fileName)
@@ -27,17 +26,18 @@ export function convertRealName(password, encType, pathText, encSuffix) {
   return encName + ext
 }
 
-export function convertRealPathName(password, encType, pathText) {
+// 加密文件夹名字
+export function convertRealFolderName(password, encType, pathText) {
   if (pathText.indexOf(origPrefix) === 0) {
     return pathText.replace(origPrefix, '')
   }
   // try encode name, fileName don't need decodeURI，encodeUrl func can't encode that like '(' '!'  in nodejs
   const encName = encodeName(password, encType, pathText)
-  console.log('@@decodeURI(pathText)', encName)
+  console.log('@@decodeURI(folderName)', encName)
   return encName
 }
 
-// if file name has encrypt, return show name
+// if fileName or folderName has encrypt, return show name
 export function convertShowName(password, encType, pathText) {
   const fileName = path.basename(pathText)
   const ext = path.extname(fileName)
@@ -47,16 +47,29 @@ export function convertShowName(password, encType, pathText) {
   return showName === null ? origPrefix + fileName : showName
 }
 
-export function convertRealPath(passwdList = {}, fpath, encodeUri = false) {
-  if (passwdList instanceof Array) {
-    logger.info('@@')
+export function convertFilePath(passwdInfoOrList = {}, fpath, encOrDec = true) {
+  let folderPath = fpath
+  let passwdInfo = passwdInfoOrList
+  let regExpRes = null
+  if (Array.isArray(passwdInfoOrList)) {
+    const { passwdInfo: data, regExpRes: result } = pathFindPasswd(passwdInfoOrList, folderPath)
+    passwdInfo = data
+    regExpRes = result
+  } else if (passwdInfo?.encFolder) {
+    // 重新计算
+    for (const expPath of passwdInfo.encPath) {
+      regExpRes = pathToRegexp(new RegExp(expPath)).exec(folderPath)
+      if (regExpRes) {
+        break
+      }
+    }
   }
-  let foldPath = fpath
-  const { passwdInfo, pathInfo } = pathFindPasswd(passwdList, foldPath)
-  if (passwdInfo && passwdInfo.encFolder) {
+  // 正常情况下regExpRes不会为null
+  if (passwdInfo?.encFolder && regExpRes) {
+    // const pathInfo = passwdInfo.result
     // 尝试解密路径，去掉第一个目录
-    const foldNames = pathInfo[0].split('/')
-    console.log('@@@foldNames', pathInfo, foldNames, encodeUri)
+    const foldNames = regExpRes[0].split('/')
+    logger.info('@foldNames', regExpRes, foldNames)
     foldNames.shift()
     let encFoldPath = ''
     let realFoldPath = ''
@@ -64,17 +77,31 @@ export function convertRealPath(passwdList = {}, fpath, encodeUri = false) {
       // webdav 传进来的路径是 /dav/aliyun/encfolder/abc/, name = ''
       realFoldPath += '/'
       if (name !== '') {
-        let realFoldName = convertRealPathName(passwdInfo.password, passwdInfo.encType, name)
-        if (encodeUri) {
-          realFoldName = encodeURI(realFoldName)
+        // 还原加密名字
+        if (encOrDec) {
+          realFoldPath += convertRealFolderName(passwdInfo.password, passwdInfo.encType, name)
+        } else {
+          realFoldPath += convertShowName(passwdInfo.password, passwdInfo.encType, name)
         }
-        realFoldPath += realFoldName
       }
       encFoldPath += '/' + name
     }
-    foldPath = foldPath.replace(encFoldPath, realFoldPath)
+    logger.info('@@@@foldPath', folderPath, encFoldPath, realFoldPath)
+    folderPath = folderPath.replace(encFoldPath, realFoldPath)
   }
-  return foldPath
+  return folderPath
+}
+
+export function convertShowPath(passwdInfoOrList = {}, fpath, encodeUri = false) {
+  let folderPath = encodeUri ? decodeURI(fpath) : fpath
+  folderPath = convertFilePath(passwdInfoOrList, folderPath, false)
+  return encodeUri ? encodeURI(folderPath) : folderPath
+}
+
+export function convertRealPath(passwdInfoOrList = {}, fpath, encodeUri = false) {
+  let folderPath = encodeUri ? decodeURI(fpath) : fpath
+  folderPath = convertFilePath(passwdInfoOrList, folderPath, true)
+  return encodeUri ? encodeURI(folderPath) : folderPath
 }
 
 // 判断是否为匹配的路径encPath:[]
@@ -157,8 +184,8 @@ export function decodeFromFolder(password, encType, encodeName) {
 export function pathFindPasswd(passwdList, url) {
   for (const passwdInfo of passwdList) {
     for (const filePath of passwdInfo.encPath) {
-      const result = passwdInfo.enable ? pathToRegexp(new RegExp(filePath)).exec(url) : null
-      if (result) {
+      const regExpRes = passwdInfo.enable ? pathToRegexp(new RegExp(filePath)).exec(url) : null
+      if (regExpRes) {
         // check folder name is can decode
         // getPassInfo()
         const newPasswdInfo = Object.assign({}, passwdInfo)
@@ -170,11 +197,11 @@ export function pathFindPasswd(passwdList, url) {
             if (data) {
               newPasswdInfo.encType = data.folderEncType
               newPasswdInfo.password = data.folderPasswd
-              return { passwdInfo: newPasswdInfo, pathInfo: result }
+              return { passwdInfo: newPasswdInfo, regExpRes }
             }
           }
         }
-        return { passwdInfo, pathInfo: result }
+        return { passwdInfo, regExpRes }
       }
     }
   }

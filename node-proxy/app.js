@@ -125,11 +125,9 @@ async function proxyHandle(ctx, next) {
   const request = ctx.req
   const response = ctx.res
   const { passwdList } = request.webdavConfig
-
   // 检查路径是否满足加密要求，要拦截的路径可能有中文
   const { pathInfo } = pathFindPasswd(passwdList, decodeURI(request.url))
   logger.info('@@webdavpasswdInfo', pathInfo)
-
   await httpProxy(request, response)
 }
 // 测试方法
