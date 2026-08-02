@@ -21,7 +21,7 @@ class ChaCha20 {
     // share you folder passwdOutward safety
     this.passwdOutward = password
     if (password.length !== 32) {
-      // add 'RC4' as salt
+      // add 'CHA20' as salt
       this.passwdOutward = crypto.pbkdf2Sync(this.password, 'CHA20', 1000, 16, 'sha256').toString('hex')
     }
     // add salt

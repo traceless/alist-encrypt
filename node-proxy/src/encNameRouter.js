@@ -27,12 +27,14 @@ const encNameRouter = new Router()
 // 缓存alist的文件信息
 const cacheFileInfoList = async (ctx, next) => {
   const { path: foldPath } = ctx.request.body
-  const realfoldPath = convertRealPath(ctx.req.webdavConfig.passwdList, foldPath)
+
+  const { passwdInfo } = pathFindPasswd(ctx.req.webdavConfig.passwdList, foldPath)
+  const realfoldPath = convertRealPath(passwdInfo, foldPath)
   ctx.request.body.path = realfoldPath
 
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
   ctx.req.reqBody = JSON.stringify(ctx.request.body)
-  logger.info('@@fs/reqBody', realfoldPath, ctx.req.reqBody)
+  logger.info('@@fs/reqBody', foldPath, realfoldPath, ctx.req.reqBody)
   delete ctx.req.headers['content-length']
   const respBody = await httpClient(ctx.req)
   // logger.info('@@@respBody', respBody)
@@ -50,8 +52,13 @@ const cacheFileInfoList = async (ctx, next) => {
   for (let i = 0; i < content.length; i++) {
     const fileInfo = content[i]
     fileInfo.path = realfoldPath + '/' + fileInfo.name
+    if (passwdInfo?.encName) {
+      fileInfo.showPath = foldPath + '/' + convertShowName(passwdInfo.password, passwdInfo.encType, fileInfo.name)
+    } else {
+      fileInfo.showPath = foldPath + '/' + fileInfo.name
+    }
     // 这里要注意闭包问题，mad
-    logger.debug('@@cacheFileInfo_path', fileInfo.path)
+    logger.debug('@@cacheFileInfo_path', foldPath, fileInfo)
     cacheFileInfo(fileInfo)
   }
   // waiting cacheFileInfo a moment

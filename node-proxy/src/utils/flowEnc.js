@@ -3,7 +3,8 @@
 import MixEnc from './mixEnc'
 import Rc4Md5 from './rc4Md5'
 import AesCTR from './aesCTR'
-import ChaCha20 from './chaCha20'
+import ChaCha20 from './chacha20'
+import crypto from 'crypto'
 
 const cachePasswdOutward = {}
 
@@ -11,7 +12,9 @@ class FlowEnc {
   constructor(password, encryptType = 'chacha20', fileSize = 0) {
     fileSize *= 1
     let encryptFlow = null
-    // 这里可以优化，把cachePasswdOutward的值替换password
+    // 使用缓存的密码避免大量计算
+    const passwdOutward = cachePasswdOutward[password + encryptType]
+    password = passwdOutward ? passwdOutward : password
     if (encryptType === 'chacha20') {
       console.log('@@chacha20', encryptType)
       encryptFlow = new ChaCha20(password, fileSize)
@@ -61,6 +64,16 @@ FlowEnc.getPassWdOutward = function (password, encryptType) {
   }
   const flowEnc = new FlowEnc(password, encryptType, 1)
   return flowEnc.passwdOutward
+}
+// 用于文件加密的混淆
+FlowEnc.getPassWdMd5Bytes = function (passwdOutward) {
+  const passwdByte = cachePasswdOutward[passwdOutward]
+  if (passwdByte) {
+    return passwdByte
+  }
+  const md5Byte = crypto.createHash('md5').update(passwdOutward).digest()
+  cachePasswdOutward[passwdOutward] = md5Byte
+  return md5Byte
 }
 
 // const flowEnc = new FlowEnc('abc1234')

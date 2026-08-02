@@ -36,6 +36,32 @@ CRCn.generateTable8 = function (polynomial) {
   }
   return csTable
 }
+/**
+ * CRC8 CCITT (0x07)
+ * @param {string|Buffer} data
+ * @returns {number} 0~0xFF
+ */
+function crc8(data) {
+  if (typeof data === 'string') {
+    data = Buffer.from(data, 'utf8');
+  }
+  const POLY = 0x07;
+  let crc = 0x00;
+
+  for (const byte of data) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i++) {
+      if (crc & 0x80) {
+        crc = ((crc << 1) ^ POLY) & 0xFF;
+      } else {
+        crc = (crc << 1) & 0xFF;
+      }
+    }
+  }
+  return crc & 0xFF;
+}
+
+
 
 // CRC8_DALLAS_MAXIM，跟上面的比较的话，不需要输入和输出的反转
 CRCn.generateTable8MAXIM = function (polynomial) {
@@ -74,22 +100,24 @@ CRCn.generateTable6 = function () {
   return csTable
 }
 
-CRCn.generateTable6test = function () {
-  const csTable = [] // 256 max len byte array
-  for (let i = 0; i < 256; i++) {
-    let curr = i
-    for (let j = 0; j < 8; ++j) {
-      if ((curr & 0x80) !== 0) {
-        // 0x03(多项式：x6+x+1，00100011)，最高位不需要异或，直接去掉
-        // 0x30 = (reverse 0x03) >> (8-6)
-        curr = ((curr << 1) ^ 0x03) % 256
-      } else {
-        curr = (curr << 1) % 256
-      }
-    }
-    csTable[i] = curr >> 2
+function crc16(data) {
+  if (typeof data === 'string') {
+    data = Buffer.from(data, 'utf8');
   }
-  return csTable
+  const POLY = 0x1021;
+  let crc = 0x0000;
+  for (const byte of data) {
+    crc ^= byte << 8;
+    for (let i = 0; i < 8; i++) {
+      if (crc & 0x8000) {
+        crc = (crc << 1) ^ POLY;
+      } else {
+        crc <<= 1;
+      }
+      crc &= 0xFFFF; // 保持16位
+    }
+  }
+  return crc;
 }
 
 // This "enum" can be used to indicate what kind of CRC8 checksum you will be calculating

@@ -4,6 +4,8 @@ import path from 'path'
 
 import MixBase64 from './mixBase64'
 import Crcn from './crc6-8'
+import { crc32 } from './crcn'
+import base64Util from './base64url'
 import { logger } from '@/common/logger'
 
 const crc6 = new Crcn(6)
@@ -11,6 +13,22 @@ const origPrefix = 'orig_'
 function isBadText(str) {
   // return /[ÃÂ�]/.test(str)
   return /[ÃÂ�¤§½]/.test(str)
+}
+/**
+ * 判断字符串【全部字符】都在 U+4E00～U+9FFF
+ * @param {string} str
+ * @returns {boolean}
+ */
+function isCJKCode(str) {
+  // ^ 开头 $ 结尾，整个字符串完全匹配；+ 至少1个字符，空字符串返回false
+  return /^[\u4e00-\u9fff]+$/.test(str)
+}
+
+const chachaType = 'chacha20'
+const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_~'
+const getChar = function (index) {
+  // 不能使用 = 号，url穿参数不支持
+  return source.split('')[index]
 }
 
 // check file name, return real name
@@ -129,17 +147,35 @@ export function encodeName(password, encType, plainName) {
   encodeName += crc6Check
   return encodeName
 }
+
+export function encodeName2(password, encType, plainName) {
+  const isBad = isBadText(plainName)
+  // 加密的时候就不允许加密乱码的文件名，对于之前加密过的名字可能会显示密文
+  if (isBad) {
+    logger.warn('@isBad plainName', plainName)
+    return plainName
+  }
+  const nameBuf = Buffer.from(plainName, 'utf8')
+  const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
+  const cha20 = new FlowEnc(passwdOutward, chachaType, nameBuf.length)
+  const encNameBytes = cha20.encryptFlow.encrypt(nameBuf)
+
+  // 加上CRC32校验码，加上MD5避免文件名产生可校验特征
+  const md5 = FlowEnc.getPassWdMd5Bytes(passwdOutward)
+  // 转base64url或者是转cjk
+  const crc32Val = crc32(Buffer.concat([encNameBytes, md5]))
+  // 3. 把crc32写入4字节Buffer【小端】
+  const crcBuf = Buffer.alloc(4)
+  crcBuf.writeUInt32LE(crc32Val, 0)
+  // 合并原始字节+crc16Bit，输出baes64Url
+  const combined = Buffer.concat([encNameBytes, crcBuf])
+  return base64Util.encode4Url(combined)
+}
+
 // 字符判断
 const unsafePattern = /[^a-zA-Z0-9\-_+~]/g
-export function decodeName(password, encType, encodeName) {
-  // 判断是否长度是否余
-  const crcType = (encodeName.length * 6) % 8
-  if (crcType !== 6 && crcType !== 12) {
-    logger.debug('@@orig_decode fail', encodeName)
-  }
-  if (unsafePattern.test(encodeName)) {
-    return null
-  }
+
+export function decodeOldName(password, encType, encodeName) {
   const crc6Check = encodeName.substring(encodeName.length - 1)
   const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
   const mix64 = new MixBase64(passwdOutward)
@@ -156,6 +192,50 @@ export function decodeName(password, encType, encodeName) {
     decodeStr = mix64.decode(subEncName).toString('utf8')
   } catch (e) {
     console.log('@@mix64 decode error', subEncName)
+  }
+  if (isBadText(decodeStr)) {
+    logger.error('@decodeold bad name', decodeStr)
+  }
+  return decodeStr
+}
+// 兼容原来的加密
+export function decodeName(password, encType, encodeName) {
+  // 判断字符是否正确，
+  if (unsafePattern.test(encodeName)) {
+    return null
+  } else if (isCJKCode(encodeName)) {
+    // 判断是否cjk的编码，则进行cjk解码
+    return null
+  }
+  // 由于新算法采用base64url，取模一定是等于0,2,3，所以可以进行区分
+  const crcMod = encodeName.length % 4
+  if (crcMod === 1) {
+    return decodeOldName(password, encType, encodeName)
+  }
+  // 开始解码，后4字节是CRC32校验码
+  const fullBuf = base64Util.decode4Url(encodeName)
+  const encNameBytes = fullBuf.subarray(0, fullBuf.length - 4)
+  const crc32Bytes = fullBuf.subarray(fullBuf.length - 4)
+  // 校验crc32
+  const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
+  const passWdMd5Bytes = FlowEnc.getPassWdMd5Bytes(passwdOutward)
+  const crc32Val = crc32(Buffer.concat([encNameBytes, passWdMd5Bytes]))
+  const crcBuf = Buffer.alloc(4)
+  crcBuf.writeUInt32LE(crc32Val, 0)
+  if (Buffer.compare(crc32Bytes, crcBuf) !== 0) {
+    // 校验失败，可能是出现名字凑巧是base64url的字符串
+    logger.warn('@crc32 error', encodeName)
+    return null
+  }
+  // 校验通过开始解密
+  const cha20 = new FlowEnc(passwdOutward, chachaType, encNameBytes.length)
+  const decNameByte = cha20.encryptFlow.decrypt(encNameBytes)
+  // 如果用户在云盘手动创建文件例如：abcd123acb.txt, 依然有一定概率碰撞通过了crc32的校验，但这种情况下可能会出现乱码，如果不是乱码也允许显示
+  const decodeStr = Buffer.from(decNameByte).toString('utf8')
+  if (isBadText(decodeStr)) {
+    // 因为加密名字就已经不允许加密乱码，所以这里出现乱码，则有可能出现了CRC32碰撞
+    logger.error('@decode bad name', decodeStr)
+    return null
   }
   return decodeStr
 }
@@ -207,4 +287,3 @@ export function pathFindPasswd(passwdList, url) {
   }
   return {}
 }
-
