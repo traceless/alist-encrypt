@@ -17,6 +17,7 @@ class MixEnc {
     }
     console.log('MixEnc.passwdOutward', this.passwdOutward)
     const encode = crypto.createHash('sha256').update(this.passwdOutward).digest()
+
     const decode = []
     const length = encode.length
     const decodeCheck = {}
@@ -38,9 +39,8 @@ class MixEnc {
       }
     }
     this.encode = encode
+    this.key = encode
     this.decode = Buffer.from(decode)
-    // console.log('@encode:', this.encode.toString('hex'))
-    // console.log('@decode:', this.decode.toString('hex'))
   }
 
   // MD5
@@ -76,7 +76,7 @@ class MixEnc {
   // 加密方法
   encodeData(data) {
     data = Buffer.from(data)
-    for (let i = data.length; i--; ) {
+    for (let i = data.length; i--;) {
       data[i] ^= this.encode[data[i] % 32]
     }
     return data
@@ -84,7 +84,7 @@ class MixEnc {
 
   // 解密方法
   decodeData(data) {
-    for (let i = data.length; i--; ) {
+    for (let i = data.length; i--;) {
       data[i] ^= this.decode[data[i] % 32]
     }
     return data

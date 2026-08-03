@@ -32,7 +32,7 @@ class Rc4Md5 {
     // add salt
     const passwdSalt = this.passwdOutward + sizeSalt
     // fileHexKey: file passwd，could be share
-    this.fileHexKey = crypto.createHash('md5').update(passwdSalt).digest('hex')
+    this.key = crypto.createHash('md5').update(passwdSalt).digest('hex')
     this.resetKSA()
   }
 
@@ -40,7 +40,7 @@ class Rc4Md5 {
     const offset = parseInt(this.position / segmentPosition) * segmentPosition
     const buf = Buffer.alloc(4)
     buf.writeInt32BE(offset)
-    const rc4Key = Buffer.from(this.fileHexKey, 'hex')
+    const rc4Key = Buffer.from(this.key, 'hex')
     let j = rc4Key.length - buf.length
     for (let i = 0; i < buf.length; i++, j++) {
       rc4Key[j] = rc4Key[j] ^ buf[i]

@@ -10,6 +10,7 @@ export async function initFileTable() {
 }
 
 // 缓存文件信息，存储文件的云盘真实路径，去掉decodeURIComponent，兼容带%符号的路径
+// fileInfo:{name, is_dir, size, path, showPath}
 export async function cacheFileInfo(fileInfo, decodeExc = false) {
   if (decodeExc) fileInfo.path = decodeURI(fileInfo.path)
   const pathKey = fileInfoTable + fileInfo.path
@@ -17,7 +18,7 @@ export async function cacheFileInfo(fileInfo, decodeExc = false) {
   await levelDB.setExpire(pathKey, fileInfo, 3 * 24 * hoursTime)
   // 缓存请求展示路径，方便查询对应的加密路径
   if (fileInfo.showPath) {
-    console.log('@@baseUrlfinfo.save', fileInfo.showPath)
+    console.log('@@basefileInfo.save', fileInfo.showPath)
     await levelDB.setExpire(fileInfoTable + fileInfo.showPath, fileInfo, 3 * 24 * hoursTime)
   }
 }

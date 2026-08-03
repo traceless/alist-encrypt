@@ -1,6 +1,5 @@
 'use strict'
 
-import MixEnc from './mixEnc'
 import Rc4Md5 from './rc4Md5'
 import AesCTR from './aesCTR'
 import ChaCha20 from './chacha20'
@@ -18,29 +17,24 @@ class FlowEnc {
     if (encryptType === 'chacha20') {
       console.log('@@chacha20', encryptType)
       encryptFlow = new ChaCha20(password, fileSize)
-      this.passwdOutward = encryptFlow.passwdOutward
-    }
-    if (encryptType === 'mix') {
-      console.log('@@mix', encryptType)
-      encryptFlow = new MixEnc(password, fileSize)
-      this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === 'rc4') {
       console.log('@@rc4', encryptType, fileSize)
       encryptFlow = new Rc4Md5(password, fileSize)
-      this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === 'aesctr') {
       console.log('@@AesCTR', encryptType, fileSize)
       encryptFlow = new AesCTR(password, fileSize)
-      this.passwdOutward = encryptFlow.passwdOutward
     }
     if (encryptType === null) {
       throw new Error('FlowEnc error')
     }
-    cachePasswdOutward[password + encryptType] = this.passwdOutward
     this.encryptFlow = encryptFlow
+    this.passwdOutward = encryptFlow.passwdOutward
     this.encryptType = encryptType
+    this.key = encryptFlow.key
+    cachePasswdOutward[password + encryptType] = this.passwdOutward
+
   }
 
   async setPosition(position) {

@@ -27,9 +27,9 @@ class ChaCha20 {
     // add salt
     const passwdSalt = this.passwdOutward + sizeSalt
     // fileHexKey: file passwd，could be share
-    const passwdKey = crypto.createHash('sha256').update(passwdSalt).digest()
+    this.key = crypto.createHash('sha256').update(passwdSalt).digest()
     const nonce = crypto.createHash('md5').update(this.sizeSalt).digest().subarray(0, 12)
-    this._constructor(passwdKey, nonce)
+    this._constructor(this.key, nonce)
   }
   // counter = 0，this.counter 代表加密的块
   _constructor(key, nonce, counter = 1) {
@@ -42,7 +42,7 @@ class ChaCha20 {
     }
     // key: 32字节 Uint8Array
     // nonce: 12字节 Uint8Array (RFC8439标准)
-    this.key = [...key]
+    this.skey = [...key]
     this.nonce = [...nonce]
     this.counter = counter
     this._bufPos = 0
@@ -68,7 +68,7 @@ class ChaCha20 {
       0x3320646e,
       0x79622d32,
       0x6b206574, // 常量 "expand 32-byte k"
-      ...this._bytesToUint32(this.key), // 32字节key → 8个u32
+      ...this._bytesToUint32(this.skey), // 32字节key → 8个u32
       this.counter, // 计数器
       ...this._bytesToUint32(this.nonce), // 12字节nonce → 3个u32
     ]

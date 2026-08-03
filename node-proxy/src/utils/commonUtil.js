@@ -156,14 +156,10 @@ export function encodeName2(password, encType, plainName) {
     return plainName
   }
   const nameBuf = Buffer.from(plainName, 'utf8')
-  const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
-  const cha20 = new FlowEnc(passwdOutward, chachaType, nameBuf.length)
+  const cha20 = new FlowEnc(password, encType, nameBuf.length)
   const encNameBytes = cha20.encryptFlow.encrypt(nameBuf)
-
-  // 加上CRC32校验码，加上MD5避免文件名产生可校验特征
-  const md5 = FlowEnc.getPassWdMd5Bytes(passwdOutward)
-  // 转base64url或者是转cjk
-  const crc32Val = crc32(Buffer.concat([encNameBytes, md5]))
+  // 转base64url或者是转cjk，加上MD5避免文件名产生可校验特征
+  const crc32Val = crc32(Buffer.concat([encNameBytes, cha20.key]))
   // 3. 把crc32写入4字节Buffer【小端】
   const crcBuf = Buffer.alloc(4)
   crcBuf.writeUInt32LE(crc32Val, 0)
@@ -216,21 +212,19 @@ export function decodeName(password, encType, encodeName) {
   const fullBuf = base64Util.decode4Url(encodeName)
   const encNameBytes = fullBuf.subarray(0, fullBuf.length - 4)
   const crc32Bytes = fullBuf.subarray(fullBuf.length - 4)
-  // 校验crc32
-  const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
-  const passWdMd5Bytes = FlowEnc.getPassWdMd5Bytes(passwdOutward)
-  const crc32Val = crc32(Buffer.concat([encNameBytes, passWdMd5Bytes]))
-  const crcBuf = Buffer.alloc(4)
-  crcBuf.writeUInt32LE(crc32Val, 0)
-  if (Buffer.compare(crc32Bytes, crcBuf) !== 0) {
+  const cha20 = new FlowEnc(password, encType, encNameBytes.length)
+  // 校验crc32，添加key混淆避免有特征
+  const crc32Val = crc32(Buffer.concat([encNameBytes, cha20.key]))
+  // Buffer.compare(crc32Bytes, crcBuf) !== 0
+  // 之前写入的小端序
+  if (crc32Bytes.readUInt32LE(0) !== crc32Val) {
     // 校验失败，可能是出现名字凑巧是base64url的字符串
     logger.warn('@crc32 error', encodeName)
     return null
   }
   // 校验通过开始解密
-  const cha20 = new FlowEnc(passwdOutward, chachaType, encNameBytes.length)
   const decNameByte = cha20.encryptFlow.decrypt(encNameBytes)
-  // 如果用户在云盘手动创建文件例如：abcd123acb.txt, 依然有一定概率碰撞通过了crc32的校验，但这种情况下可能会出现乱码，如果不是乱码也允许显示
+  // 如果用户在云盘手动创建文件例如：abcd123acb.txt, 依然有一定概率碰撞通过了crc32的校验通过，但如果不是乱码也允许显示
   const decodeStr = Buffer.from(decNameByte).toString('utf8')
   if (isBadText(decodeStr)) {
     // 因为加密名字就已经不允许加密乱码，所以这里出现乱码，则有可能出现了CRC32碰撞

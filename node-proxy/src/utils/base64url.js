@@ -13,7 +13,6 @@ const PAD_CHAR = '='
 function encode(bufData, charTabel = BASE64_TABLE) {
   const buffer = bufData instanceof Buffer ? bufData : Buffer.from(bufData, 'utf8')
   const data = new Uint8Array(buffer)
-
   const output = []
   let idx = 0
   const len = data.length
