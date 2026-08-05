@@ -4,6 +4,7 @@ import path from 'path'
 
 import MixBase64 from './mixBase64'
 import Crcn from './crc6-8'
+import { cjkToBin, binToCjk } from './cjk-encode'
 import { crc32 } from './crcn'
 import base64Util from './base64url'
 import { logger } from '@/common/logger'
@@ -133,7 +134,7 @@ export function pathExec(encPath, url) {
   return null
 }
 // 不允许加密乱码名字
-export function encodeName(password, encType, plainName) {
+export function encodeName2(password, encType, plainName) {
   const isBad = isBadText(plainName)
   if (isBad) {
     console.log('@isBadText', plainName)
@@ -148,7 +149,7 @@ export function encodeName(password, encType, plainName) {
   return encodeName
 }
 
-export function encodeName2(password, encType, plainName) {
+export function encodeName(password, encType, plainName) {
   const isBad = isBadText(plainName)
   // 加密的时候就不允许加密乱码的文件名，对于之前加密过的名字可能会显示密文
   if (isBad) {
@@ -163,9 +164,10 @@ export function encodeName2(password, encType, plainName) {
   // 3. 把crc32写入4字节Buffer【小端】
   const crcBuf = Buffer.alloc(4)
   crcBuf.writeUInt32LE(crc32Val, 0)
-  // 合并原始字节+crc16Bit，输出baes64Url
+  // 合并原始字节+crc16Bit，输出baes64Url或者cjk编码
   const combined = Buffer.concat([encNameBytes, crcBuf])
-  return base64Util.encode4Url(combined)
+  // base64Util.encode4Url(combined)
+  return binToCjk(combined)
 }
 
 // 字符判断
@@ -196,20 +198,22 @@ export function decodeOldName(password, encType, encodeName) {
 }
 // 兼容原来的加密
 export function decodeName(password, encType, encodeName) {
-  // 判断字符是否正确，
-  if (unsafePattern.test(encodeName)) {
-    return null
+  // 判断字符是否正确
+  let codeType = 0
+  if (!unsafePattern.test(encodeName)) {
+    codeType = 1
   } else if (isCJKCode(encodeName)) {
     // 判断是否cjk的编码，则进行cjk解码
-    return null
+    codeType = 2
   }
   // 由于新算法采用base64url，取模一定是等于0,2,3，所以可以进行区分
   const crcMod = encodeName.length % 4
-  if (crcMod === 1) {
+  if (crcMod === 1 && codeType === 1) {
     return decodeOldName(password, encType, encodeName)
   }
+  // 判断是否cjk的编码，则进行cjk解码
+  const fullBuf = codeType === 2 ? cjkToBin(encodeName) : base64Util.decode4Url(encodeName)
   // 开始解码，后4字节是CRC32校验码
-  const fullBuf = base64Util.decode4Url(encodeName)
   const encNameBytes = fullBuf.subarray(0, fullBuf.length - 4)
   const crc32Bytes = fullBuf.subarray(fullBuf.length - 4)
   const cha20 = new FlowEnc(password, encType, encNameBytes.length)
