@@ -155,7 +155,6 @@ router.all('/delWebdavConfig', async (ctx, next) => {
   fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
   ctx.body = { data: webdavServer }
 })
-
 // get folder passwd encode
 router.all('/encodeFoldName', async (ctx, next) => {
   const { password, encType, folderPasswd, folderEncType } = ctx.request.body
@@ -166,7 +165,7 @@ router.all('/encodeFoldName', async (ctx, next) => {
 
 router.all('/decodeFoldName', async (ctx, next) => {
   const { password, folderNameEnc, encType } = ctx.request.body
-  const arr = folderNameEnc.split('_')
+  const arr = folderNameEnc.split('&')
   if (arr.length < 2) {
     ctx.body = { msg: 'folderName not encdoe', code: 500 }
     return

@@ -10,8 +10,6 @@ import { logger } from './common/logger'
 import levelDB from './utils/levelDB'
 import crypto from 'crypto'
 import { cacheFileInfo, getFileInfo } from './dao/fileDao'
-import { idText } from 'typescript'
-import { get } from 'http'
 
 async function sleep(time) {
   return new Promise((resolve) => {
@@ -63,7 +61,7 @@ const cacheFileInfoList = async (ctx, next) => {
       fileInfo.showPath = foldPath + '/' + fileInfo.name
     }
     // 这里要注意闭包问题，mad
-    logger.info('@@cacheFileInfo_path', foldPath, fileInfo)
+    logger.debug('@@cacheFileInfo_path', foldPath, fileInfo)
     cacheFileInfo(fileInfo)
   }
   // waiting cacheFileInfo a moment
@@ -170,7 +168,10 @@ encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
   const fileNames = Object.assign([], names)
   if (passwdInfo && passwdInfo.encName) {
     for (let i = 0; i < names.length; i++) {
-      fileNames[i] = convertRealName(passwdInfo.password, passwdInfo.encType, names[i])
+      const folderInfo = await getFileInfo(folderPath + '/' + names[i])
+      if (folderInfo) {
+        fileNames[i] = path.basename(folderInfo.path)
+      }
       logger.info('@@remove name', fileNames[i])
     }
   }
@@ -231,8 +232,16 @@ encNameRouter.all('/api/fs/dirs', bodyparserMw, async (ctx, next) => {
 // 因为文件目录可以是适配多个算法，所以尽可能从缓存读取路径映射
 encNameRouter.all('/api/fs/mkdir', bodyparserMw, async (ctx, next) => {
   const { path: foldPath } = ctx.request.body
-  const folder = await getFileInfo(foldPath)
-  const realfoldPath = folder?.path ?? foldPath
+  const { webdavConfig } = ctx.req
+
+  const folder = await getFileInfo(path.dirname(foldPath))
+  const subPath = folder?.path ?? path.dirname(foldPath)
+  let name = path.basename(foldPath)
+  const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, foldPath)
+  if (passwdInfo?.encFolder) {
+    name = convertRealName(passwdInfo.password, passwdInfo.encType, name)
+  }
+  const realfoldPath = subPath + '/' + name
   ctx.request.body.path = realfoldPath
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
   ctx.req.reqBody = JSON.stringify(ctx.request.body)
@@ -295,7 +304,7 @@ const preHandleFolderPath = async (ctx, next) => {
     ctx.request.body.path = fileRealPath
     return await next()
   }
-  // 尝试以文件的路径进行请求
+  // 尝试以文件的路径进行请求，除非缓存失效，否则这里代码不会执行
   const folderRealPath = convertRealPath(ctx.req.webdavConfig.passwdList, path.dirname(filePath))
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
   if (passwdInfo?.encName) {

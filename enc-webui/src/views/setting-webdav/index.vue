@@ -136,7 +136,7 @@ const configTemp = {
       encName: false, // encrypt file name
       encFolder: false, // encrypt file name
       encSuffix: '', //
-      describe: 'my video',
+      describe: 'my_video',
       encPath: '/onedrive/encrypt/.*'
     }
   ]
@@ -153,7 +153,7 @@ const addPasswd = () => {
     enable: true,
     encName: false, // encrypt file name
     encFolder: false, // encrypt file name
-    describe: 'my video',
+    describe: 'my_video',
     encPath: '/dav/encrypt/*'
   })
 }

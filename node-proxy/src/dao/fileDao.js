@@ -18,8 +18,8 @@ export async function cacheFileInfo(fileInfo, decodeExc = false) {
   await levelDB.setExpire(pathKey, fileInfo, 3 * 24 * hoursTime)
   // 缓存请求展示路径，方便查询对应的加密路径
   if (fileInfo.showPath) {
-    console.log('@@basefileInfo.save', fileInfo.showPath)
-    await levelDB.setExpire(fileInfoTable + fileInfo.showPath, fileInfo, 3 * 24 * hoursTime)
+    // 增强缓存时间，比较依赖缓存设计
+    await levelDB.setExpire(fileInfoTable + fileInfo.showPath, fileInfo, 7 * 24 * hoursTime)
   }
 }
 

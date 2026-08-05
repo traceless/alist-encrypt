@@ -233,14 +233,15 @@ export function decodeName(password, encType, encodeName) {
   }
   return decodeStr
 }
-
+// 使用& 切分
+const splitFlig = '&'
 export function encodeFromFolder(password, encType, folderPasswd, folderEncType) {
-  const passwdInfo = folderEncType + '_' + folderPasswd
+  const passwdInfo = folderEncType + splitFlig + folderPasswd
   return encodeName(password, encType, passwdInfo)
 }
 
 export function decodeFromFolder(password, encType, encodeName) {
-  const arr = encodeName.split('_')
+  const arr = encodeName.split(splitFlig)
   if (arr.length < 2) {
     return false
   }
@@ -249,8 +250,8 @@ export function decodeFromFolder(password, encType, encodeName) {
   if (!decodeStr) {
     return decodeStr
   }
-  const folderEncType = decodeStr.substring(0, decodeStr.indexOf('_'))
-  const folderPasswd = decodeStr.substring(decodeStr.indexOf('_') + 1)
+  const folderEncType = decodeStr.substring(0, decodeStr.indexOf(splitFlig))
+  const folderPasswd = decodeStr.substring(decodeStr.indexOf(splitFlig) + 1)
   return { folderEncType, folderPasswd }
 }
 

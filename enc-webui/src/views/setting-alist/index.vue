@@ -77,7 +77,7 @@
             <el-form :model="folderForm">
               <el-form-item prop="folderName" label="文件夹备注">
                 <el-input v-model="folderForm.folderName" style="max-width: 260px" placeholder="folder name" />
-                <span color="gray" style="font-size: 13px; margin-left: 12px">不能有下划线</span>
+                <span color="gray" style="font-size: 13px; margin-left: 12px">不能有特殊符号</span>
               </el-form-item>
               <el-form-item prop="enctype" label="算法类型">
                 <el-radio-group v-model="folderForm.folderEncType" style="margin: 0 15px" size="small">
@@ -141,7 +141,7 @@ const changeLanguage = (langParam) => {
   setLanguage(langParam)
 }
 const folderForm = reactive({
-  folderName: 'my video',
+  folderName: 'my_video',
   encType: 'aesctr',
   folderPasswd: '123456', // 文件夹密码
   folderNameEnc: '',
@@ -165,7 +165,7 @@ const alistConfigForm = reactive({
       encName: false, // encrypt file name
       encFolder: false, // encrypt file name
       encSuffix: '', //
-      describe: 'my video',
+      describe: 'my_video',
       encPath: '333'
     }
   ]
@@ -180,7 +180,7 @@ const addPasswd = () => {
     enable: true,
     encName: true, // encrypt file name
     encFolder: false, // encrypt file name
-    describe: 'my video',
+    describe: 'my_video',
     encPath: '/aliyun/encrypt/.*'
   })
 }
@@ -196,7 +196,7 @@ const checkFoldName = (item) => {
 
 const encodeFoldName = async () => {
   const res = await encodeFoldNameReq(folderForm)
-  folderForm.folderNameEnc = `${folderForm.folderName}_${res.data.folderNameEnc}`
+  folderForm.folderNameEnc = `${folderForm.folderName}&${res.data.folderNameEnc}`
 }
 
 const decodeFoldName = async () => {
