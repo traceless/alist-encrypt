@@ -15,22 +15,6 @@ function isBadText(str) {
   // return /[ÃÂ�]/.test(str)
   return /[ÃÂ�¤§½]/.test(str)
 }
-/**
- * 判断字符串【全部字符】都在 U+4E00～U+9FFF
- * @param {string} str
- * @returns {boolean}
- */
-function isCJKCode(str) {
-  // ^ 开头 $ 结尾，整个字符串完全匹配；+ 至少1个字符，空字符串返回false
-  return /^[\u4e00-\u9fff]+$/.test(str)
-}
-
-const chachaType = 'chacha20'
-const source = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_~'
-const getChar = function (index) {
-  // 不能使用 = 号，url穿参数不支持
-  return source.split('')[index]
-}
 
 // check file name, return real name
 export function convertRealName(password, encType, pathText, encSuffix) {
@@ -149,7 +133,7 @@ export function encodeName2(password, encType, plainName) {
   return encodeName
 }
 
-export function encodeName(password, encType, plainName) {
+export function encodeName(password, encType, plainName, codeType = 1) {
   const isBad = isBadText(plainName)
   // 加密的时候就不允许加密乱码的文件名，对于之前加密过的名字可能会显示密文
   if (isBad) {
@@ -171,8 +155,9 @@ export function encodeName(password, encType, plainName) {
 }
 
 // 字符判断
-const unsafePattern = /[^a-zA-Z0-9\-_+~]/g
-
+// const unsafePattern = /[^a-zA-Z0-9\-_+~]/
+const isBase64Code = /^[A-Za-z0-9\-_+~]+$/
+const isCjkCode = /^[\u4e00-\u9fff]+$/
 export function decodeOldName(password, encType, encodeName) {
   const crc6Check = encodeName.substring(encodeName.length - 1)
   const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
@@ -200,18 +185,23 @@ export function decodeOldName(password, encType, encodeName) {
 export function decodeName(password, encType, encodeName) {
   // 判断字符是否正确
   let codeType = 0
-  if (!unsafePattern.test(encodeName)) {
+  if (isBase64Code.test(encodeName)) {
     codeType = 1
-  } else if (isCJKCode(encodeName)) {
+  } else if (isCjkCode.test(encodeName)) {
     // 判断是否cjk的编码，则进行cjk解码
     codeType = 2
+  } else {
+    return null
   }
+  // 
+  console.log('@@@cjk test',0x4E00 - 0xCFFF,  String.fromCodePoint(0xCFFF + 1))
+
   // 由于新算法采用base64url，取模一定是等于0,2,3，所以可以进行区分
   const crcMod = encodeName.length % 4
   if (crcMod === 1 && codeType === 1) {
     return decodeOldName(password, encType, encodeName)
   }
-  // 判断是否cjk的编码，则进行cjk解码
+  // 选择base64url或者cjk进行解码
   const fullBuf = codeType === 2 ? cjkToBin(encodeName) : base64Util.decode4Url(encodeName)
   // 开始解码，后4字节是CRC32校验码
   const encNameBytes = fullBuf.subarray(0, fullBuf.length - 4)
@@ -222,7 +212,7 @@ export function decodeName(password, encType, encodeName) {
   // Buffer.compare(crc32Bytes, crcBuf) !== 0
   // 之前写入的小端序
   if (crc32Bytes.readUInt32LE(0) !== crc32Val) {
-    // 校验失败，可能是出现名字凑巧是base64url的字符串
+    // 校验失败，可能是原文件凑巧是base64url的字符串，或者是用户自己改乱了
     logger.warn('@crc32 error', encodeName)
     return null
   }
@@ -231,7 +221,7 @@ export function decodeName(password, encType, encodeName) {
   // 如果用户在云盘手动创建文件例如：abcd123acb.txt, 依然有一定概率碰撞通过了crc32的校验通过，但如果不是乱码也允许显示
   const decodeStr = Buffer.from(decNameByte).toString('utf8')
   if (isBadText(decodeStr)) {
-    // 因为加密名字就已经不允许加密乱码，所以这里出现乱码，则有可能出现了CRC32碰撞
+    // 因为加密名字就已经不允许加密乱码，所以这里出现乱码，则有可能出现了CRC32碰撞问题，之前的base64加密的依然可以显示原乱码
     logger.error('@decode bad name', decodeStr)
     return null
   }
