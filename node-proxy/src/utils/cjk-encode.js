@@ -1,6 +1,7 @@
 /**
  * Binary <-> CJK汉字映射
  * 区间 U+4E00 ~ U+9FFF (0x4E00 ~ 0x9FFF)
+ * 15个字节是 (0x4E00 ~ 0xCFFF)，存在NFD的多个码点，有可能导致webdav服务器存储了多个字节，到时候无法解码
  * 每个汉字承载 14 bit
  */
 const CJK_BASE = 0x4e00

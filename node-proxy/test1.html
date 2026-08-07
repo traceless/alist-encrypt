@@ -167,10 +167,10 @@
 <body>
 
     <div class="container">
-        <h1>🔐 AES-CTR 加密工具</h1>
+        <h1>🔐 在线加密工具</h1>
 
         <div class="warning">
-            <strong>注意：</strong> CTR 模式不提供完整性校验。如果密码错误，解密将生成乱码文件且不会报错。请妥善保管密码。
+            <strong>注意：</strong> AES-CTR 模式不提供完整性校验。如果密码错误，解密将生成乱码文件且不会报错。请妥善保管密码。
         </div>
 
         <div class="tabs">
@@ -201,7 +201,7 @@
                 <label>输入密码</label>
                 <input type="text" id="decrypt-password" placeholder="输入解密密码">
             </div>
-            <button onclick="processDecryption()" id="btn-decrypt">解密并下载</button>
+            <button onclick="processEncryption()" id="btn-decrypt">解密并下载</button>
         </div>
 
         <div id="status-msg" class="status"></div>
@@ -222,7 +222,7 @@
                 .map(b => b.toString(16).padStart(2, '0'))
                 .join('');
         }
-        // 1. 转换函数
+        // 2. 转换函数
         function hexToUint8Array(hex) {
             const bytes = new Uint8Array(hex.length / 2);
             for (let i = 0; i < hex.length; i += 2) {
@@ -241,11 +241,11 @@
             document.getElementById('status').innerText = text;
         }
 
-        // 3. 从密码派生密钥 (PBKDF2)
-        async function deriveKey(password, sizeSalt) {
+        // 1. 从密码派生密钥 (PBKDF2)
+        async function derivePwdKey(password, sizeSalt) {
             sizeSalt = sizeSalt + ''
             const enc = new TextEncoder();
-            const keyMaterial = await window.crypto.subtle.importKey(
+            const keyMaterial = await crypto.subtle.importKey(
                 "raw",
                 enc.encode(password),
                 { name: "PBKDF2" },
@@ -254,7 +254,7 @@
             );
             // 生成16字节数据。
             const keyLength = 16
-            const passwdBit = await window.crypto.subtle.deriveBits(
+            const passwdBit = await crypto.subtle.deriveBits(
                 {
                     name: "PBKDF2",
                     salt: enc.encode('AES-CTR'),
@@ -264,24 +264,25 @@
                 keyMaterial,
                 keyLength * 8
             );
-            const passwdOutward = bufferToHex(passwdBit)
-            const passkey = md5Utils(passwdOutward + sizeSalt)
-            console.log('@@passkey-md5', passwdOutward + sizeSalt, passwdOutward, passkey)
-            return passkey
+            return bufferToHex(passwdBit)
+
         }
-        // 生成importKey，用于下一步加密的参数
-        async function getAesImpKey(password, size) {
-            const passkey = deriveKey(password, size)
-            const aesctr = await window.crypto.subtle.importKey(
+        // getAesKey
+        async function getAesKey(password, sizeSalt) {
+            const passwdOutward = derivePwdKey(password, sizeSalt)
+            const passkey = md5Utils(passwdOutward + sizeSalt)
+            const aesctr = await crypto.subtle.importKey(
                 "raw",                      // 格式：原始字节流
                 passkey,                    // 数据：密码的字节数组
                 { name: "AES-CTR", length: 128 },       // 算法：声明这个材料将用于 AES-CTR 算法
                 false,                    // 不可导出：安全起见，不允许把这个中间材料再变回字节数组
                 ["encrypt", "decrypt"]
             );
+            return aesctr
+
         }
 
-        // 读取 Blob 为 ArrayBuffer
+        // 2. 读取 Blob 为 ArrayBuffer
         async function readFileAsArrayBuffer(blob) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -290,8 +291,7 @@
                 reader.readAsArrayBuffer(blob);
             });
         }
-
-        // nonce: Uint8Array, increment number，增加couter
+        // aesctr 分片加密需要用到
         function incrementIV(nonce, increment) {
             const iv = new DataView(nonce.buffer)
             const MAX_UINT32 = 0xffffffff
@@ -310,56 +310,73 @@
                 overflow = numBig
                 iv.setUint32(12 - idx * 4, numLittle)
             }
+            console.log('@@new incrementIV', bufferToHex(iv.buffer))
             return iv.buffer
         }
-        // 确保chunkIndex是 16倍数，如果不是的话，需要去掉前面的几个字节
+
+        // 确保chunkIndex是16倍数，这里加密或者解密都通一个函数
         async function encryptChunk(passkey, iv, chunkIndex, fileData) {
             const increment = Math.floor(chunkIndex / 16)
             let nonce = iv
             if (increment) {
-                // 生成新的 nonce
                 nonce = incrementIV(iv, increment)
             }
-            // 执行 AES-CTR 加密
-            const encryptedContent = await window.crypto.subtle.encrypt(
-                {
-                    name: "AES-CTR",
-                    counter: nonce,
-                    length: 64 // 计数器长度，通常为 64 或 128
-                },
+            // 执行 AES-CTR 加密或者解密 都一样。// 计数器长度，通常为 64 或 128ƒ
+            const encryptedContent = await crypto.subtle.encrypt(
+                { name: "AES-CTR", counter: nonce, length: 64 },
                 passkey,
                 fileData
             );
-            console.log('@@@encryptChunk fileData', chunkIndex, bufferToHex(nonce), encryptedContent)
+            console.log('@@@encrypt Chunk', chunkIndex, encryptedContent.byteLength)
             return new Uint8Array(encryptedContent)
         }
 
         // 创建可读流的实现方法，生成一个可读流用于输出文件
         function createReadableStream(key, iv, file) {
-            // 3. 准备输出流 (使用 Stream API 实现真正的流式下载，不占内存)
-            // 注意：这里我们构建一个自定义的 ReadableStream
+            const sleep = async function (time) {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve()
+                    }, time || 3000)
+                })
+            }
+            const CHUNK_SIZE = 1024 * 1024 * 1; // 1MB 分片，字节必须要是16的倍数，因为处理position需要除以16
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            // 状态变量
+            let chunkIndex = 0;
             const stream = new ReadableStream({
                 async start(controller) {
                     try {
                         // 3.2 分片读取并加密文件
-                        const CHUNK_SIZE = 1024 * 1024 * 10; // 1MB 分片，字节必须要是16的倍数，因为处理position需要除以16
-                        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-                        for (let i = 0; i < totalChunks; i++) {
-                            updateProgress(Math.floor(i / totalChunks * 100), '下载中');
-                            const start = i * CHUNK_SIZE;
-                            const end = Math.min(start + CHUNK_SIZE, file.size);
-                            const chunkBlob = file.slice(start, end);
-                            // 读取分片为 ArrayBuffer
-                            const chunkBuffer = await readFileAsArrayBuffer(chunkBlob);
-                            // 加密当前分片
-                            const encryptedChunk = await encryptChunk(key, iv, start, chunkBuffer);
-                            // 将加密后的数据推入流
-                            controller.enqueue(encryptedChunk);
-                            // 更新进度
-                            const percent = 5 + ((i + 1) / totalChunks) * 95;
-                            updateProgress(percent, `加密中... ${((i + 1) / totalChunks * 100).toFixed(1)}%`);
+                        console.log("准备开始加密分片...");
+                    } catch (err) {
+                        controller.error(err);
+                        console.error(err);
+                    }
+                },
+                async pull(controller) {
+                    try {
+                        if (chunkIndex >= totalChunks) {
+                            controller.close();
+                            console.log("流已关闭，所有数据发送完毕。");
+                            return;
                         }
-                        controller.close(); // 结束流
+                        // 模拟测试下载
+                        await sleep(234)
+                        // 3.2 分片读取并加密文件
+                        const start = chunkIndex * CHUNK_SIZE;
+                        const end = Math.min(start + CHUNK_SIZE, file.size);
+                        const chunkBlob = file.slice(start, end);
+                        // 读取分片为 ArrayBuffer
+                        const chunkBuffer = await readFileAsArrayBuffer(chunkBlob);
+                        // 加密当前分片
+                        const encryptedChunk = await encryptChunk(key, iv, start, chunkBuffer);
+                        // 将加密后的数据推入流
+                        controller.enqueue(encryptedChunk);
+                        // 更新进度
+                        const percent = 5 + ((chunkIndex + 1) / totalChunks) * 95;
+                        updateProgress(percent, `加密中... ${((chunkIndex + 1) / totalChunks * 100).toFixed(1)}%`);
+                        chunkIndex++
                     } catch (err) {
                         controller.error(err);
                         console.error(err);
@@ -369,11 +386,47 @@
             return stream
         }
 
+        // await saveStreamBigFile(stream, "large-file.zip");
+        /**
+         * 超大文件流式保存（内存最优）
+         * @param {ReadableStream} stream
+         * @param {string} filename
+         */
+        async function saveStreamOneFile(stream, filename) {
+            // 唤起系统保存弹窗
+            const fileHandle = await window.showSaveFilePicker({
+                suggestedName: filename
+            });
+            // 创建本地可写流
+            const writable = await fileHandle.createWritable();
+            // 管道直写：流 → 磁盘，零中间缓存
+            await stream.pipeTo(writable);
+            writable.close();
+        }
+
+        // 一次性选择文件夹，统一保存在这文件夹下面
+        async function saveStreamListFile(params) {
+            const dirHandle = await window.showDirectoryPicker({
+                mode: "readwrite"
+            });
+            // 循环写入多个文件，**不会再弹出任何窗口**
+            for (const item of fileList) {
+                // 在选中的目录创建文件
+                const fileHandle = await dirHandle.getFileHandle(item.name, { create: true });
+                // 获取写入流
+                const writable = await fileHandle.createWritable();
+                // 写入内容，可以传string/blob
+                await writable.write(item.content);
+                await writable.close();
+                await stream.pipeTo(writable);
+            }
+        }
+
+
 
         // 3. 加密过程
         async function processEncryption() {
             const fileInput = document.getElementById('encrypt-file-input');
-            
             const password = document.getElementById('encrypt-password').value;
             const btn = document.getElementById('btn-encrypt');
 
@@ -387,15 +440,19 @@
                 // const fileData = new Uint8Array(32).fill(1)
                 console.log('正在加密...', 'loading', file.size, typeof fileData);
                 // 获取密钥
-                const passkey = await getAesImpKey(password, file.size);
+                const passkey = await getAesKey(password, file.size);
                 // 生成随机 Salt (16字节) 和 Nonce (8字节)
                 const nonce = md5Utils(file.size + '')
+
                 console.log('@@key-enc', passkey)
                 const stream = createReadableStream(passkey, nonce, file)
-
+                await saveStreamBigFile(stream, file.name + ".ctr")
+                if (stream) {
+                    return
+                }
                 const response = new Response(stream);
-                const blob = await response.blob();
-                console.log('@@密文', bufferToHex(blob))
+                const blob = await response.blob()
+                // const blob = new Blob([encryptedContent], { type: "application/octet-stream" });
                 downloadFile(blob, file.name + ".ctr");
                 showStatus('加密成功！', 'success');
             } catch (e) {
@@ -414,6 +471,48 @@
 
             if (!fileInput.files.length) return showStatus('请选择加密文件', 'error');
             if (!password) return showStatus('请输入密码', 'error');
+
+            try {
+                showStatus('正在解密...', 'loading');
+                btn.disabled = true;
+
+                const file = fileInput.files[0];
+                const fileData = await file.arrayBuffer();
+
+                // 提取 Salt (前16字节) 和 Nonce (接下来8字节)
+                const salt = fileData.slice(0, 16);
+                const nonce = fileData.slice(16, 24);
+                const data = fileData.slice(24);
+
+                // 获取密钥
+                const key = await deriveKey(password, new Uint8Array(salt));
+                console.log('@@key-dec', key)
+                // 重建计数器块
+                const counterBlock = createCounterBlock(new Uint8Array(nonce));
+
+                // 执行 AES-CTR 解密
+                // 注意：CTR 解密不会报错，即使密码错误也会输出乱码
+                const decryptedContent = await crypto.subtle.decrypt(
+                    {
+                        name: "AES-CTR",
+                        counter: counterBlock,
+                        length: 64
+                    },
+                    key,
+                    data
+                );
+
+                const originalName = file.name.replace(/\.ctr$/, '');
+                const blob = new Blob([decryptedContent], { type: "application/octet-stream" });
+
+                downloadFile(blob, originalName);
+                showStatus('解密完成！请检查文件内容是否正确', 'success');
+            } catch (e) {
+                console.error(e);
+                showStatus('解密过程出错: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
         }
 
         // --- 辅助函数 ---
