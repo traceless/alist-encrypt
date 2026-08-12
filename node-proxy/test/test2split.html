@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>大文件分片 100MiB FileSystemAccess</title>
+</head>
+<body>
+<h3>选择超大文件，生成分片 xxx.001, xxx.002 …</h3>
+<input type="file" id="fileInput" />
+<button id="btnStart">开始分片</button>
+<div id="status"></div>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const fileInput = $("#fileInput");
+const btnStart = $("#btnStart");
+const status = $("#status");
+
+const PART_SIZE = 100 * 1024 * 1024; // 100MiB
+let sourceFile = null;
+
+fileInput.onchange = e => {
+  sourceFile = e.target.files[0];
+  if (!sourceFile) return;
+  const gb = (sourceFile.size / 1024 / 1024 / 1024).toFixed(2);
+  status.textContent = `已选择: ${sourceFile.name} | ${gb} GB`;
+  btnStart.disabled = false;
+};
+
+btnStart.onclick = async () => {
+  if (!sourceFile) return;
+  btnStart.disabled = true;
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+    const totalSize = sourceFile.size;
+    let offset = 0;
+    let partIndex = 1;
+
+    while (offset < totalSize) {
+      const end = Math.min(offset + PART_SIZE, totalSize);
+      const sliceBlob = sourceFile.slice(offset, end);
+
+      const partName = `${sourceFile.name}.${String(partIndex).padStart(3, "0")}`;
+      status.textContent = `写入 ${partName} | ${((offset / totalSize) * 100).toFixed(1)}%`;
+
+      const fh = await dirHandle.getFileHandle(partName, { create: true });
+      const writable = await fh.createWritable();
+      await writable.write(sliceBlob);
+      await writable.close();
+
+      offset = end;
+      partIndex++;
+    }
+
+    status.textContent = `✅分片完成，共 ${partIndex -1} 个分片`;
+  } catch (err) {
+    status.textContent = `错误: ${err.message}`;
+    console.error(err);
+  } finally {
+    btnStart.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

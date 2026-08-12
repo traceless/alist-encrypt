@@ -18,10 +18,12 @@ getWebdavFileInfo(
 ).then((res) => {
   console.log(res)
 })
-const passwd = '12345'
+const passwd = '123456'
 const strText = '12阿道夫阿a距纳秒级别，百万循环才看得出微小差异；单次调用完全忽略。阿斯顿发斯蒂芬41'
 const strBytes = Buffer.from(strText, 'utf8') // 2字节
-const aesctr = new aesCTR(passwd, strBytes.length)
+// 40393
+const aesctr = new aesCTR(passwd, 40393)
+console.log(aesctr.passwdOutward, aesctr.sizeSalt, aesctr.iv.toString('hex'))
 const aseencbur = aesctr.encrypt(strBytes)
 const utf8data = Buffer.from(strText, 'utf-8')
 

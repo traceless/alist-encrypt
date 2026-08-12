@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <title>zip.js SplitDataWriter 大文件分卷压缩 10G低内存</title>
+</head>
+
+<body>
+  <h3>选择本地大文件分卷压缩</h3>
+  <input type="file" id="fileInput" multiple>
+  <div>
+    <label>单卷大小 MB：<input type="number" id="splitMb" value="100" min="10"></label>
+    <button id="startBtn">开始分卷压缩</button>
+  </div>
+  <div id="status"></div>
+  <div id="progress"></div>
+  <script type="importmap">
+        {
+            "imports": {
+                "@zip.js/zip.js": "https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.11/+esm",
+                "streamsaver": "https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/+esm"
+            }
+        }
+    </script>
+  <script type="module">
+    // 1.导入主模块
+    import * as zip from "https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.4/dist/zip.min.js";
+    // 2.单独导入SplitDataWriter！重点！独立模块
+    // import { SplitDataWriter } from "https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.4/dist/split-data-writer.min.js";
+    import { ZipWriter, BlobReader, SplitDataWriter, Reader, configure } from '@zip.js/zip.js';
+
+    const fileInput = document.getElementById("fileInput");
+    const startBtn = document.getElementById("startBtn");
+    const statusEl = document.getElementById("status");
+    const progressEl = document.getElementById("progress");
+
+
+    async function runSplitZip(files, splitSizeMB) {
+      const splitSize = splitSizeMB * 1024 * 1024;
+      statusEl.textContent = "初始化分卷压缩...";
+
+      // SplitDataWriter来自单独导入
+      const splitWriter = new SplitDataWriter(splitSize, async (blob, index, isLast) => {
+        const ext = isLast ? ".zip" : `.z${String(index + 1).padStart(2, '0')}`;
+        const fileName = `archive${ext}`;
+        statusEl.textContent = `输出分卷 ${fileName}  ${(blob.size / 1024 / 1024).toFixed(2)}MB`;
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url); // 立刻释放blob内存，防止10G场景OOM
+      });
+
+      const zipWriter = new ZipWriter(splitWriter, {
+        level: 3
+      });
+
+      let totalSize = files.reduce((sum, f) => sum + f.size, 0);
+      let processedBytes = 0;
+
+      for (const file of files) {
+        statusEl.textContent = `正在添加文件：${file.name} ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+
+        await zipWriter.add(file.name, new BlobReader(file), {
+          onprogress: (currentFileBytes) => {
+            const totalProcessed = processedBytes + currentFileBytes;
+            const percent = ((totalProcessed / totalSize) * 100).toFixed(2);
+            progressEl.textContent = `总进度：${percent}%  ${totalProcessed}/${totalSize} bytes`;
+          }
+        });
+        processedBytes += file.size;
+      }
+
+      await zipWriter.close();
+      statusEl.textContent = "✅分卷完成 archive.z01、archive.z02 … archive.zip";
+    }
+
+
+    startBtn.onclick = async () => {
+      const files = Array.from(fileInput.files);
+      if (!files.length) {
+        alert("请选择至少一个文件");
+        return;
+      }
+      const splitMb = Number(document.getElementById("splitMb").value);
+      if (isNaN(splitMb) || splitMb < 10) {
+        alert("单卷最小10MB");
+        return;
+      }
+
+      try {
+        startBtn.disabled = true;
+        await runSplitZip(files, splitMb);
+      } catch (err) {
+        statusEl.textContent = `错误：${err.message}`;
+        console.error(err);
+      } finally {
+        startBtn.disabled = false;
+      }
+    };
+  </script>
+</body>
+
+</html>

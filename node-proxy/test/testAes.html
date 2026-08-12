@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>文件加密工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f3f4f9;
+            padding: 24px 12px;
+            min-height: 100vh;
+        }
+
+        .wrapper {
+            max-width: 560px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #111827;
+            margin-bottom: 6px;
+        }
+
+        .header .desc {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+
+        .tag-stat {
+            display: inline-block;
+            background: #ede9fe;
+            color: #7c3aed;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 14px;
+        }
+
+        .warn-box {
+            background: #fffbeb;
+            border: 1px solid #fef08a;
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #92400e;
+            line-height: 1.5;
+            margin: 20px 0;
+        }
+
+        .tabs {
+            display: flex;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 22px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            border: none;
+            background: #f3f4f6;
+            padding: 12px 0;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: #ffffff;
+            font-weight: 500;
+            color: #111;
+        }
+
+        .panel {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel.show {
+            display: flex;
+        }
+
+        .label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+        .drop-zone {
+            border: 1px dashed #d1d5db;
+            border-radius: 10px;
+            background: #f8fafc;
+            padding: 30px 12px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .drop-zone:hover {
+            border-color: #6366f1;
+            background: #f5f7ff;
+        }
+
+        .drop-zone p {
+            font-size: 15px;
+            color: #374151;
+        }
+
+        .drop-zone small {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .row-two {
+            display: flex;
+            gap: 12px;
+        }
+
+        .row-two button {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        .small-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: -8px;
+        }
+
+        .btn-small {
+            width: 40px;
+            height: 35px;
+            background: #4f46aa;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 5px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .btn-main {
+            width: 100%;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-main:disabled {
+            background: #a5b4fc;
+        }
+
+        .bottom-hint {
+            font-size: 12px;
+            color: #6366f1;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .file-list {
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 8px;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin: 4px 0;
+            font-size: 13px;
+        }
+
+        .rm {
+            width: 50px;
+            border: none;
+            background: none;
+            color: #dc2626;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .progress-wrap {
+            border: none;
+        }
+
+        .progress-text {
+            font-size: 13px;
+            color: #4b5563;
+            margin-bottom: 4px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-inner {
+            height: 100%;
+            background: #4f46e5;
+            width: 0%;
+            transition: 0.2s;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* =====自定义Toast提示（顶部弹出）===== */
+        .toast-container {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            min-width: 260px;
+            max-width: 360px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-size: 14px;
+            animation: toastIn 0.25s ease forwards;
+        }
+
+        .toast-success {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .toast-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        @keyframes toastIn {
+            from {
+                transform: translateY(-120%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes toastOut {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateY(-120%);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toast-container" id="toastWrap"></div>
+
+    <div class="wrapper">
+        <div class="header">
+            <h1>文件加密工具</h1>
+            <div class="desc">本地加密 · 文件不上传 · 隐私安全</div>
+            <div class="tag-stat">访问统计不可用</div>
+        </div>
+
+        <div class="warn-box">
+            注意：流加密不提供完整性校验。密码或算法错误会生成乱码文件且不报错，请妥善保管密码并确认算法。
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="encrypt">加密</button>
+            <button class="tab-btn" data-tab="decrypt">解密</button>
+            <button class="tab-btn" data-tab="zipsplit">转压缩包</button>
+        </div>
+
+        <!-- 加密面板 -->
+        <div class="panel show" id="panel-encrypt">
+            <label class="label">选择文件或文件夹</label>
+            <div class="drop-zone" id="dropEnc">
+                <p>点击选择文件（支持多选）</p>
+                <small>或选择文件夹批量处理</small>
+                <input type="file" id="fileEnc" multiple>
+            </div>
+            <div class="row-two">
+                <button id="btnFolderEnc">选择文件夹</button>
+                <input type="file" id="btnFolderEnc_input" display="none" multiple webkitdirectory>
+                <button id="btnClearEnc">清空列表</button>
+            </div>
+            <div class="file-list" id="listEnc"></div>
+
+            <label class="label">设置密码</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="password" id="pwdEnc_inp" placeholder="建议至少8位字符" style="flex:1;">
+                <div style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                    <button class="btnShowPwd btn-small" id="pwdEnc">显示</button>
+                </div>
+            </div>
+            <label class="label">加密算法</label>
+            <select id="algoEnc">
+                <option value="aes-ctr">AES-CTR</option>
+                <option value="chacha20">CHACHA20</option>
+            </select>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:5px;">
+                <input type="checkbox" id="toggleAppendEnc" checked style="width:auto;">
+                <label for="toggleAppendEnc" style="font-size:15px;margin:0;">加密名字</label>
+            </div>
+
+            <label class="label">处理块大小</label>
+            <select id="blockEnc">
+                <option value="50">50 MB</option>
+                <option value="100" selected>100 MB</option>
+                <option value="500">500 MB</option>
+            </select>
+            <div class="small-hint">处理完一块就写入硬盘，总内存不会随完整文件大小累积。</div>
+
+            <div>
+                <div class="progress-text" id="encProgText">就绪</div>
+                <div class="progress-bar">
+                    <div class="progress-inner" id="encProgBar"></div>
+                </div>
+            </div>
+            <button class="btn-main" id="btnStartEnc">开始加密</button>
+            <div class="bottom-hint">流式模式：边处理边写入硬盘，内存占用更小，支持大文件。多文件自动选择输出目录，无需逐个确认。</div>
+        </div>
+
+        <!-- 解密面板 -->
+        <div class="panel" id="panel-decrypt">
+            <label class="label">选择加密文件或文件夹</label>
+            <div class="drop-zone" id="dropDec">
+                <p>点击选择加密文件（支持多选）</p>
+                <small>或选择文件夹批量处理</small>
+                <input type="file" id="fileDec" multiple>
+            </div>
+            <div class="row-two">
+                <button id="btnFolderDec">选择文件夹</button>
+                <input type="file" id="btnFolderDec_input" display="none" multiple webkitdirectory>
+                <button id="btnClearDec">清空列表</button>
+            </div>
+            <div class="file-list" id="listDec"></div>
+
+            <label class="label">输入密码</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="password" id="pwdDec_inp" placeholder="输入加密时设置的密码" style="flex:1;">
+                <div style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                    <button class="btnShowPwd btn-small" id="pwdDec">显示</button>
+                </div>
+            </div>
+
+            <label class="label">解密算法</label>
+            <select id="algoDec">
+                <option value="aes-ctr">AES‑CTR</option>
+                <option value="chacha20">CHACHA20</option>
+            </select>
+
+            <div style="display:flex;align-items:center;gap:10px;margin-top:5px;">
+                <input type="checkbox" id="toggleAppendDec" checked style="width:auto;">
+                <label for="toggleAppendDec" style="font-size:15px;margin:0;">解密名字</label>
+            </div>
+
+            <label class="label">处理块大小</label>
+            <select id="blockDec">
+                <option value="50">50 MB</option>
+                <option value="100" selected>100 MB</option>
+                <option value="500">500 MB</option>
+            </select>
+            <div class="small-hint">处理完一块就写入硬盘，总内存不会随完整文件大小累积。</div>
+
+            <div class="progress-wrap">
+                <div class="progress-text" id="decProgText">就绪</div>
+                <div class="progress-bar">
+                    <div class="progress-inner" id="decProgBar"></div>
+                </div>
+            </div>
+            <button class="btn-main" id="btnStartDec">开始解密</button>
+            <div class="bottom-hint">流式模式：内存占用更小，支持大文件。多文件自动选择输出目录，无需逐个确认。</div>
+        </div>
+
+        <!-- 转压缩包面板 -->
+        <div class="panel" id="panel-zipsplit" >
+            <label class="label">选择待打包文件（加密解密都一样）</label>
+            <div class="drop-zone" id="dropZip">
+                <p>点击选择文件（支持多选）</p>
+                <small>或选择文件夹批量处理</small>
+                <input type="file" id="fileZip" multiple>
+            </div>
+            <div class="row-two">
+                <button id="btnFolderZip">选择文件夹</button>
+                <input type="file" id="btnFolderZip_input" display="none" multiple webkitdirectory>
+                <button id="btnClearZip">清空列表</button>
+            </div>
+            <div class="file-list" id="listZip"></div>
+
+            <label class="label">输入密码</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="password" id="pwdZip_inp" placeholder="输入加密时密码" style="flex:1;">
+                <div style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                    <button class="btnShowPwd btn-small" id="pwdZip">显示</button>
+                </div>
+            </div>
+
+            <label class="label">加解密算法</label>
+            <select id="algoDec">
+                <option value="aes-ctr">AES‑CTR</option>
+                <option value="chacha20">CHACHA20</option>
+            </select>
+
+            <label class="label">Zip单卷大小</label>
+            <select id="zipSize">
+                <option value="100">100 MB</option>
+                <option value="500">500 MB</option>
+                <option value="1000">1GB </option>
+            </select>
+
+            <div class="progress-wrap">
+                <div class="progress-text" id="zipProgText">就绪</div>
+                <div class="progress-bar">
+                    <div class="progress-inner" id="zipProgBar"></div>
+                </div>
+            </div>
+            <button class="btn-main" id="btnStartZip">生成分卷压缩包</button>
+        </div>
+    </div>
+
+    <script>
+        const MB = 1024 * 1024;
+        let encFiles = [], decFiles = [], zipFiles = [];
+        const toastWrap = document.getElementById('toastWrap');
+        /**
+         * 自定义提示框，替代alert
+         * @param {string} msg 文字
+         * @param {'success'|'error'} type
+         */
+        function showToast(msg, type = 'success') {
+            const t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            t.innerText = msg;
+            toastWrap.appendChild(t);
+            setTimeout(() => {
+                t.style.animation = 'toastOut 0.25s ease forwards';
+                setTimeout(() => t.remove(), 250);
+            }, 2400);
+        }
+        function formatFileSize(bytes, decimals = 2) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            // 定义单位数组
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+            // 计算单位索引：log(1024)/log(1024) = 1 (KB), log(1024*1024)/log(1024) = 2 (MB)
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            // 计算数值并保留指定小数位
+            return (bytes / Math.pow(k, i)).toFixed(decimals) + ' ' + sizes[i];
+        }
+        // tab切换页面
+        document.querySelectorAll('.tab-btn').forEach(t => {
+            t.onclick = () => {
+                const tabId = t.dataset.tab;
+                document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+                t.classList.add('active');
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('show'));
+                document.getElementById('panel-' + tabId).classList.add('show');
+            }
+        })
+        // 密码显示
+        document.querySelectorAll('.btnShowPwd').forEach(inp => {
+            inp.onclick = () => {
+                const inpId = inp.id
+                const inputEl = document.getElementById(inpId + '_inp');
+                if (inputEl.type === 'text') {
+                    return
+                }
+                inputEl.type = 'text'
+                setTimeout(() => {
+                    inputEl.type = 'password'
+                }, 1500)
+            }
+        })
+
+        // 获取文件
+        function renderFileList(container, arr) {
+            container.innerHTML = '';
+            arr.forEach((f, idx) => {
+                const div = document.createElement('div');
+                div.className = 'file-item';
+                div.innerHTML = `<span>${f.name} (${formatFileSize(f.size)})</span>
+                    <button class="rm" id="file_${idx}" data-i="${idx}">移除</button>`;
+                container.appendChild(div);
+            })
+            container.querySelectorAll('.rm').forEach(b => {
+                b.onclick = e => {
+                    const i = Number(e.target.dataset.i);
+                    arr.splice(i, 1);
+                    renderFileList(container, arr);
+                }
+            })
+        }
+        // 上传的文件列表处理
+        function bindUpload(dropEl, inputEl, listEl, fileArr, folderBtnId, clearBtnId) {
+            dropEl.onclick = () => inputEl.click();
+            const btnInpEl = document.getElementById(folderBtnId + '_input')
+
+            document.getElementById(folderBtnId).onclick = () => btnInpEl.click();
+            dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.style.background = '#f0f4ff'; })
+            dropEl.addEventListener('dragleave', () => dropEl.style.background = '#f8fafc');
+            dropEl.addEventListener('drop', e => {
+                e.preventDefault();
+                dropEl.style.background = '#f8fafc';
+                for (let f of e.dataTransfer.files) fileArr.push(f);
+                renderFileList(listEl, fileArr);
+            })
+            inputEl.onchange = () => {
+                for (let f of inputEl.files) fileArr.push(f);
+                renderFileList(listEl, fileArr);
+            }
+            btnInpEl.onchange = () => {
+                for (let f of btnInpEl.files) fileArr.push(f);
+                renderFileList(listEl, fileArr);
+            }
+            document.getElementById(clearBtnId).onclick = () => {
+                fileArr.length = 0;
+                renderFileList(listEl, fileArr);
+            }
+        }
+
+        bindUpload(document.getElementById('dropEnc'), document.getElementById('fileEnc'), document.getElementById('listEnc'), encFiles, 'btnFolderEnc', 'btnClearEnc');
+        bindUpload(document.getElementById('dropDec'), document.getElementById('fileDec'), document.getElementById('listDec'), decFiles, 'btnFolderDec', 'btnClearDec');
+        bindUpload(document.getElementById('dropZip'), document.getElementById('fileZip'), document.getElementById('listZip'), zipFiles, 'btnFolderZip', 'btnClearZip');
+
+        // 保存文件，适合小文件。
+        function saveBlob(blob, name) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        /**
+         * AES‑CTR 流式分块处理
+         * 加密文件格式：[16字节IV][密文...]
+         */
+        async function processFileAesCtr(file, deriveKey, blockSize, fileHandle, onProgress) {
+            // 计算iv,
+            const nonce = md5Utils(file.size + '')
+            // 创建加密程序 console.log(bufferToHex(md5Utils(40393 + '')))
+            console.log('@@@encrypt nonce 40393', bufferToHex(nonce))
+            const encryptChunk = encryptAesChunk(deriveKey, nonce)
+            const readStream = await createReadableStream(encryptChunk, file, blockSize, onProgress)
+            // 获取写入流
+            const writable = await fileHandle.createWritable();
+            await readStream.pipeTo(writable);
+            // await writable.close();
+        }
+
+        //加密按钮
+        document.getElementById('btnStartEnc').onclick = async () => {
+            const pwd = document.getElementById('pwdEnc_inp').value.trim();
+            const blockSize = Number(document.getElementById('blockEnc').value)
+            if (!pwd || encFiles.length === 0) {
+                showToast("请输入密码并且选择文件", 'error');
+                return;
+            }
+            if (!window.showDirectoryPicker) {
+                showToast("请使用谷歌内核浏览器进行解密", 'error');
+                // return;
+            }
+            if (!window.showDirectoryPicker) {
+                showToast("非谷歌内核浏览器只能加密1G以内的文件，否则浏览器会崩溃", 'error');
+                return;
+            }
+            // showDirectoryPicker , showSaveFilePicker
+            const dirHandle = await window.showDirectoryPicker({
+                mode: "readwrite"
+            });
+            const txtDom = document.getElementById('encProgText');
+            const barDom = document.getElementById('encProgBar');
+            txtDom.textContent = "处理中...";
+            let fileInd = 0
+            for (const f of encFiles) {
+                // 创建文件
+                const aesKey = await deriveAesKey(pwd, f.size);
+                const fileHandle = await dirHandle.getFileHandle(f.name + '.enc', { create: true });
+                await processFileAesCtr(f, aesKey, blockSize, fileHandle, (p) => {
+                    barDom.style.width = (p * 100).toFixed(1) + "%";
+                    txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
+                    document.getElementById('file_'+fileInd).innerHTML = '完成'
+                })
+                fileInd++;
+            }
+            txtDom.textContent = "✅加密完成";
+            barDom.style.width = "100%";
+            showToast('加密完成！', 'success');
+            setTimeout(() => barDom.style.width = "0%", 1800);
+            alert('所有文件处理完成！')
+        }
+
+        //解密按钮
+        document.getElementById('btnStartDec').onclick = async () => {
+            const pwd = document.getElementById('pwdDec_inp').value.trim();
+            const blockSize = Number(document.getElementById('blockDec').value)
+            if (!pwd || decFiles.length === 0) {
+                showToast("请输入密码并且选择文件", 'error');
+                return;
+            }
+            if (!window.showDirectoryPicker) {
+                showToast("非谷歌内核浏览器只能解密1G以内的文件，否则浏览器会崩溃", 'error');
+                return;
+            }
+            // showDirectoryPicker , showSaveFilePicker
+            const dirHandle = await window.showDirectoryPicker({
+                mode: "readwrite"
+            });
+            const txtDom = document.getElementById('encProgText');
+            const barDom = document.getElementById('encProgBar');
+            txtDom.textContent = "处理中...";
+            let fileInd = 0
+            for (const f of encFiles) {
+                // 创建文件
+                const aesKey = await deriveAesKey(pwd, f.size);
+                const fileHandle = await dirHandle.getFileHandle(f.name + '.enc', { create: true });
+                await processFileAesCtr(f, aesKey, blockSize, fileHandle, (p) => {
+                    barDom.style.width = (p * 100).toFixed(1) + "%";
+                    txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
+                    document.getElementById('file_'+fileInd).innerHTML = '完成'
+                })
+                fileInd++;
+            }
+            txtDom.textContent = "✅解密完成";
+            barDom.style.width = "100%";
+            showToast('解密完成！', 'success');
+            setTimeout(() => barDom.style.width = "0%", 1800);
+            alert('所有文件处理完成！')
+        }
+
+        //zip分卷
+        document.getElementById('btnStartZip').onclick = async () => {
+            const splitBytes = Number(document.getElementById('zipSize').value) * MB;
+            if (zipFiles.length === 0) {
+                showToast('请选择文件', 'error');
+                return;
+            }
+            const zip = new JSZip();
+            zipFiles.forEach(f => zip.file(f.name, f));
+            const txtDom = document.getElementById('zipProgText');
+            const barDom = document.getElementById('zipProgBar');
+            txtDom.textContent = '打包中…';
+            const buf = await zip.generateAsync({ type: 'uint8array' }, meta => {
+                barDom.style.width = meta.percent + '%';
+                txtDom.textContent = `打包 ${meta.percent.toFixed(1)}%`;
+            });
+            let part = 1;
+            for (let off = 0; off < buf.byteLength; off += splitBytes) {
+                const piece = buf.slice(off, off + splitBytes);
+                const ext = off + splitBytes >= buf.byteLength ? '.zip' : `.z${String(part).padStart(2, '0')}`;
+                saveBlob(new Blob([piece]), `archive${ext}`);
+                part++;
+            }
+            txtDom.textContent = '分卷包已下载';
+            barDom.style.width = '100%';
+            showToast('分卷压缩包下载完成', 'success');
+            setTimeout(() => barDom.style.width = '0%', 1800);
+        }
+
+        // ========================= 上面大部分AI代码生成的，上面的加密算法被替换了下面的实际加密代码 =========================
+
+        // ---------------- 核心算法实现逻辑 -----------------
+        // 辅助函数：ArrayBuffer 转 Hex 字符串
+        function bufferToHex(buffer) {
+            return Array.from(new Uint8Array(buffer))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+        // 1. 转换函数
+        function hexToUint8Array(hex) {
+            const bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+            }
+            return bytes;
+        }
+        // 用于测试下载，观察数据行为
+        async function sleep(time) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve()
+                }, time || 2000)
+            })
+        }
+        // 2. 转换函数
+        function md5Utils(str) {
+            return hexToUint8Array(md5(str + ''))
+        }
+
+        // 2. 读取 Blob 为 ArrayBuffer
+        async function readFileAsArrayBuffer(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(blob);
+            });
+        }
+        // 派生新密码passwdOutward
+        async function derivePwdKey(password) {
+            const enc = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw",
+                enc.encode(password),
+                { name: "PBKDF2" },
+                false,
+                ["deriveBits", "deriveKey"]
+            );
+            // 生成16字节数据。
+            const keyLength = 16
+            const passwdBit = await window.crypto.subtle.deriveBits(
+                {
+                    name: "PBKDF2",
+                    salt: enc.encode('AES-CTR'),
+                    iterations: 1000,
+                    hash: "SHA-256"
+                },
+                keyMaterial,
+                keyLength * 8
+            );
+            const passwdOutward = bufferToHex(passwdBit)
+            // passwdOutward: a833e459f4e0e47b4b0215c11c518ab2
+            console.log('@@passwdOutward-md5', passwdOutward)
+            return passwdOutward
+        }
+
+        // getAesKey
+        async function deriveAesKey(password, sizeSalt) {
+            const passwdOutward = await derivePwdKey(password)
+            const passkey = md5Utils(passwdOutward + sizeSalt)
+            console.log('@@passkey', passwdOutward, sizeSalt, bufferToHex(passkey))
+            const aesctr = await crypto.subtle.importKey(
+                "raw",                      // 格式：原始字节流
+                passkey,                    // 数据：密码的字节数组
+                { name: "AES-CTR", length: 128 },       // 算法：声明这个材料将用于 AES-CTR 算法
+                false,                    // 不可导出：安全起见，不允许把这个中间材料再变回字节数组
+                ["encrypt", "decrypt"]
+            );
+            return aesctr
+        }
+        // AI推荐的代码
+        function incrementIV1(counter, blocks) {
+            const c = new Uint8Array(counter);
+            let carry = blocks;
+            for (let i = 15; i >= 8 && carry > 0; i--) {
+                const sum = c[i] + carry;
+                c[i] = sum & 0xff;
+                carry = sum >>> 8;
+            }
+            return c;
+        }
+
+        // aesctr 分片加密需要用到，输入Uint8Array，输出Uint8Array
+        function incrementIV(nonce, increment) {
+            const iv = new DataView(nonce.buffer)
+            const MAX_UINT32 = 0xffffffff
+            const incrementBig = ~~(increment / MAX_UINT32)
+            const incrementLittle = (increment % MAX_UINT32) - incrementBig
+            // split the 128bits IV in 4 numbers, 32bits each
+            let overflow = 0
+            for (let idx = 0; idx < 4; ++idx) {
+                let num = iv.getUint32(12 - idx * 4)
+                let inc = overflow
+                if (idx === 0) inc += incrementLittle
+                if (idx === 1) inc += incrementBig
+                num += inc
+                const numBig = ~~(num / MAX_UINT32)
+                const numLittle = (num % MAX_UINT32) - numBig
+                overflow = numBig
+                iv.setUint32(12 - idx * 4, numLittle)
+            }
+            console.log('@@new-increment', bufferToHex(iv.buffer), iv)
+            return iv
+        }
+
+        // 返回aes加密函数，确保startChunk是16倍数，这里加密或者解密都通一个函数
+        function encryptAesChunk(passkey, iv) {
+            // 用于闭包，当对象用
+            let nonce = iv
+            return async (startChunk, fileData) => {
+                console.log('@@nonce11', nonce)
+                if (startChunk > 0) {
+                    // Math.ceil防止精度问题
+                    const increment = Math.ceil(startChunk / 16)
+                    nonce = incrementIV(nonce, increment)
+                }
+                console.log('@@nonce22', nonce)
+                // 执行AES-CTR,其实加密或者解密都一样，计数器长度通常为 64 或 128
+                const encryptedContent = await crypto.subtle.encrypt(
+                    { name: "AES-CTR", counter: nonce, length: 64 },
+                    passkey,
+                    fileData
+                );
+                console.log('@@@encrypt Chunk', bufferToHex(nonce), startChunk, encryptedContent.byteLength)
+                return new Uint8Array(encryptedContent)
+            }
+        }
+
+        // 创建可读流的实现方法，生成一个可读流用于输出文件
+        function createReadableStream(encryptChunk, file, chunkSize, onProgress) {
+            // 
+            const CHUNK_SIZE = MB * chunkSize; // 1MB 分片，字节必须要是16的倍数，因为处理position需要除以16
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            // 状态变量
+            let chunkIndex = 0;
+            const stream = new ReadableStream({
+                async start(controller) {
+                    try {
+                        // 3.2 分片读取并加密文件
+                        console.log("准备开始加密分片...");
+                    } catch (err) {
+                        controller.error(err);
+                        console.error(err);
+                    }
+                },
+                async pull(controller) {
+                    try {
+                        if (chunkIndex >= totalChunks) {
+                            controller.close();
+                            onProgress(1);
+                            console.log("流已关闭，所有数据发送完毕。");
+                            return;
+                        }
+                        // 模拟测试下载
+                        await sleep(234)
+                        const start = chunkIndex * CHUNK_SIZE;
+                        // 读取最后一片数据
+                        const end = Math.min(start + CHUNK_SIZE, file.size);
+                        const chunkBlob = file.slice(start, end);
+                        console.log('@@@chunkBlob', start, end, chunkBlob)
+                        // 读取分片为 ArrayBuffer
+                        const chunkBuffer = await readFileAsArrayBuffer(chunkBlob);
+                        // 加密当前分片
+                        const encryptedChunk = await encryptChunk(start, chunkBuffer)
+                        // 将加密后的数据推入流
+                        controller.enqueue(encryptedChunk);
+                        chunkIndex++
+                        // 反馈进度
+                        onProgress(Math.min(start / file.size, 1));
+                    } catch (err) {
+                        controller.error(err);
+                        console.error(err);
+                    }
+                }
+            });
+            return stream
+        }
+
+
+    </script>
+</body>
+
+</html>
