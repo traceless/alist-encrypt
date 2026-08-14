@@ -363,7 +363,7 @@
             </div>
             <label class="label">加密算法</label>
             <select id="algoEnc">
-                <option value="aes-ctr">AES-CTR</option>
+                <option value="aesctr">AES-CTR</option>
                 <option value="chacha20">CHACHA20</option>
             </select>
             <div style="display:flex;align-items:center;gap:10px;margin-top:5px;">
@@ -373,7 +373,7 @@
 
             <label class="label">处理块大小</label>
             <select id="blockEnc">
-                <option value="50">50 MB</option>
+                <option value="10">10 MB</option>
                 <option value="100" selected>100 MB</option>
                 <option value="500">500 MB</option>
             </select>
@@ -414,7 +414,7 @@
 
             <label class="label">解密算法</label>
             <select id="algoDec">
-                <option value="aes-ctr">AES‑CTR</option>
+                <option value="aesctr">AES‑CTR</option>
                 <option value="chacha20">CHACHA20</option>
             </select>
 
@@ -425,7 +425,7 @@
 
             <label class="label">处理块大小</label>
             <select id="blockDec">
-                <option value="50">50 MB</option>
+                <option value="10">10 MB</option>
                 <option value="100" selected>100 MB</option>
                 <option value="500">500 MB</option>
             </select>
@@ -442,7 +442,7 @@
         </div>
 
         <!-- 转压缩包面板 -->
-        <div class="panel" id="panel-zipsplit" >
+        <div class="panel" id="panel-zipsplit">
             <label class="label">选择待打包文件（加密解密都一样）</label>
             <div class="drop-zone" id="dropZip">
                 <p>点击选择文件（支持多选）</p>
@@ -604,13 +604,16 @@
          * AES‑CTR 流式分块处理
          * 加密文件格式：[16字节IV][密文...]
          */
-        async function processFileAesCtr(file, deriveKey, blockSize, fileHandle, onProgress) {
-            // 计算iv,
-            const nonce = md5Utils(file.size + '')
-            // 创建加密程序 console.log(bufferToHex(md5Utils(40393 + '')))
-            console.log('@@@encrypt nonce 40393', bufferToHex(nonce))
-            const encryptChunk = encryptAesChunk(deriveKey, nonce)
-            const readStream = await createReadableStream(encryptChunk, file, blockSize, onProgress)
+        async function processFileAesCtr(file, pwd, blockSize, selectedAlgo, fileHandle, onProgress) {
+            let encryptChunk = null
+            if (selectedAlgo === 'chacha20') {
+                const passwdOutward = await derivePwdKey(pwd, 'CHA20')
+                encryptChunk = await encryptCha20Chunk(passwdOutward, file.size)
+            } else {
+                const passwdOutward = await derivePwdKey(pwd, 'AES-CTR')
+                encryptChunk = await encryptAesChunk(passwdOutward, file.size)
+            }
+            const readStream = createReadableStream(encryptChunk, file, blockSize, onProgress)
             // 获取写入流
             const writable = await fileHandle.createWritable();
             await readStream.pipeTo(writable);
@@ -621,13 +624,12 @@
         document.getElementById('btnStartEnc').onclick = async () => {
             const pwd = document.getElementById('pwdEnc_inp').value.trim();
             const blockSize = Number(document.getElementById('blockEnc').value)
+            const selectEl = document.getElementById('algoEnc');
+            const selectedAlgo = selectEl.value;
+            console.log('选中加密算法：', selectedAlgo);
             if (!pwd || encFiles.length === 0) {
                 showToast("请输入密码并且选择文件", 'error');
                 return;
-            }
-            if (!window.showDirectoryPicker) {
-                showToast("请使用谷歌内核浏览器进行解密", 'error');
-                // return;
             }
             if (!window.showDirectoryPicker) {
                 showToast("非谷歌内核浏览器只能加密1G以内的文件，否则浏览器会崩溃", 'error');
@@ -643,12 +645,12 @@
             let fileInd = 0
             for (const f of encFiles) {
                 // 创建文件
-                const aesKey = await deriveAesKey(pwd, f.size);
                 const fileHandle = await dirHandle.getFileHandle(f.name + '.enc', { create: true });
-                await processFileAesCtr(f, aesKey, blockSize, fileHandle, (p) => {
+
+                await processFileAesCtr(f, pwd, blockSize, selectedAlgo, fileHandle, (p) => {
                     barDom.style.width = (p * 100).toFixed(1) + "%";
                     txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
-                    document.getElementById('file_'+fileInd).innerHTML = '完成'
+                    document.getElementById('file_' + fileInd).innerHTML = '完成'
                 })
                 fileInd++;
             }
@@ -686,7 +688,7 @@
                 await processFileAesCtr(f, aesKey, blockSize, fileHandle, (p) => {
                     barDom.style.width = (p * 100).toFixed(1) + "%";
                     txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
-                    document.getElementById('file_'+fileInd).innerHTML = '完成'
+                    document.getElementById('file_' + fileInd).innerHTML = '完成'
                 })
                 fileInd++;
             }
@@ -766,7 +768,7 @@
             });
         }
         // 派生新密码passwdOutward
-        async function derivePwdKey(password) {
+        async function derivePwdKey(password, saltCode = 'AES-CTR') {
             const enc = new TextEncoder();
             const keyMaterial = await window.crypto.subtle.importKey(
                 "raw",
@@ -780,24 +782,20 @@
             const passwdBit = await window.crypto.subtle.deriveBits(
                 {
                     name: "PBKDF2",
-                    salt: enc.encode('AES-CTR'),
+                    salt: enc.encode(saltCode),
                     iterations: 1000,
                     hash: "SHA-256"
                 },
                 keyMaterial,
                 keyLength * 8
             );
-            const passwdOutward = bufferToHex(passwdBit)
-            // passwdOutward: a833e459f4e0e47b4b0215c11c518ab2
-            console.log('@@passwdOutward-md5', passwdOutward)
-            return passwdOutward
+            return bufferToHex(passwdBit)
         }
 
         // getAesKey
-        async function deriveAesKey(password, sizeSalt) {
-            const passwdOutward = await derivePwdKey(password)
+        async function deriveAesKey(passwdOutward, sizeSalt) {
             const passkey = md5Utils(passwdOutward + sizeSalt)
-            console.log('@@passkey', passwdOutward, sizeSalt, bufferToHex(passkey))
+            console.log('@@passkey', bufferToHex(passkey))
             const aesctr = await crypto.subtle.importKey(
                 "raw",                      // 格式：原始字节流
                 passkey,                    // 数据：密码的字节数组
@@ -807,20 +805,21 @@
             );
             return aesctr
         }
-        // AI推荐的代码
-        function incrementIV1(counter, blocks) {
+        // AI推荐的代码，blocks < 2^53-1 即正常
+        function incrementIV(counter, blocks) {
             const c = new Uint8Array(counter);
             let carry = blocks;
             for (let i = 15; i >= 8 && carry > 0; i--) {
                 const sum = c[i] + carry;
                 c[i] = sum & 0xff;
-                carry = sum >>> 8;
+                carry = Math.floor(sum / 256)
             }
+            if (carry > 0) throw new Error('CTR counter uint64 overflow')
             return c;
         }
 
         // aesctr 分片加密需要用到，输入Uint8Array，输出Uint8Array
-        function incrementIV(nonce, increment) {
+        function incrementIV2(nonce, increment) {
             const iv = new DataView(nonce.buffer)
             const MAX_UINT32 = 0xffffffff
             const incrementBig = ~~(increment / MAX_UINT32)
@@ -843,31 +842,46 @@
         }
 
         // 返回aes加密函数，确保startChunk是16倍数，这里加密或者解密都通一个函数
-        function encryptAesChunk(passkey, iv) {
-            // 用于闭包，当对象用
-            let nonce = iv
+        async function encryptAesChunk(passwdOutward, fileSize) {
+            const passkey = await deriveAesKey(passwdOutward, fileSize);
+            const iv = md5Utils(fileSize + '')
+            console.log('@nonce-ase', fileSize, bufferToHex(iv.buffer))
             return async (startChunk, fileData) => {
-                console.log('@@nonce11', nonce)
+                // 返回新的Uint8Array
+                let nonce = new Uint8Array(iv)
                 if (startChunk > 0) {
-                    // Math.ceil防止精度问题
-                    const increment = Math.ceil(startChunk / 16)
+                    // floor 防止精度问题，避免startChunk=32，出现increment=2.00000001或者1.99999999
+                    const increment = Math.floor((startChunk + 15) / 16)
                     nonce = incrementIV(nonce, increment)
                 }
-                console.log('@@nonce22', nonce)
                 // 执行AES-CTR,其实加密或者解密都一样，计数器长度通常为 64 或 128
                 const encryptedContent = await crypto.subtle.encrypt(
                     { name: "AES-CTR", counter: nonce, length: 64 },
                     passkey,
                     fileData
                 );
-                console.log('@@@encrypt Chunk', bufferToHex(nonce), startChunk, encryptedContent.byteLength)
                 return new Uint8Array(encryptedContent)
+            }
+        }
+
+        async function encryptCha20Chunk(passwdOutward, fileSize) {
+            // 用于闭包，当对象用
+            const passwdSalt = passwdOutward + fileSize
+            const buf = new TextEncoder().encode(passwdSalt);
+            const key = await crypto.subtle.digest("SHA-256", buf);
+            const nonce = md5Utils(fileSize + '').slice(0, 12)
+            console.log('@nonce-cha20', bufferToHex(key), fileSize, bufferToHex(nonce))
+            // 创建对象
+            const chacha = new ChaCha20(new Uint8Array(key), nonce)
+            return async (startChunk, fileData) => {
+                chacha.setPosition(startChunk)
+                return chacha.update(new Uint8Array(fileData))
             }
         }
 
         // 创建可读流的实现方法，生成一个可读流用于输出文件
         function createReadableStream(encryptChunk, file, chunkSize, onProgress) {
-            // 
+            // 分块
             const CHUNK_SIZE = MB * chunkSize; // 1MB 分片，字节必须要是16的倍数，因为处理position需要除以16
             const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
             // 状态变量
@@ -896,12 +910,12 @@
                         // 读取最后一片数据
                         const end = Math.min(start + CHUNK_SIZE, file.size);
                         const chunkBlob = file.slice(start, end);
-                        console.log('@@@chunkBlob', start, end, chunkBlob)
                         // 读取分片为 ArrayBuffer
                         const chunkBuffer = await readFileAsArrayBuffer(chunkBlob);
                         // 加密当前分片
                         const encryptedChunk = await encryptChunk(start, chunkBuffer)
                         // 将加密后的数据推入流
+                        console.log('@@encBlob', start, end)
                         controller.enqueue(encryptedChunk);
                         chunkIndex++
                         // 反馈进度
@@ -913,6 +927,392 @@
                 }
             });
             return stream
+        }
+        //  ===========文件名字加密和chacha20算法代码实现===========
+        class ChaCha20 {
+            constructor(key, nonce, counter) {
+                this.key = key
+                this._constructor(this.key, nonce)
+            }
+            // counter = 0，this.counter 代表加密的块
+            _constructor(key, nonce, counter = 1) {
+                if (!(key instanceof Uint8Array) || key.length !== 32) {
+                    throw new Error('Key should be 32 byte array!')
+                }
+
+                if (!(nonce instanceof Uint8Array) || nonce.length !== 12) {
+                    throw new Error('Nonce should be 12 byte array!')
+                }
+                // key: 32字节 Uint8Array
+                // nonce: 12字节 Uint8Array (RFC8439标准)
+                this.skey = [...key]
+                this.nonce = [...nonce]
+                this.counter = counter
+                this._bufPos = 0
+                this._keystream = new Uint8Array(64)
+            }
+
+            _rotl(v, n) {
+                return (v << n) | (v >>> (32 - n))
+            }
+            // 四分之一轮运算（核心）
+            _qr(st, a, b, c, d) {
+                st[a] = (st[a] + st[b]) >>> 0; st[d] = this._rotl(st[d] ^ st[a], 16)
+                st[c] = (st[c] + st[d]) >>> 0; st[b] = this._rotl(st[b] ^ st[c], 12)
+                st[a] = (st[a] + st[b]) >>> 0; st[d] = this._rotl(st[d] ^ st[a], 8)
+                st[c] = (st[c] + st[d]) >>> 0; st[b] = this._rotl(st[b] ^ st[c], 7)
+            }
+
+            // 生成密钥流块
+            _block() {
+                // 先++ 方便计数
+                const st = [
+                    0x61707865,
+                    0x3320646e,
+                    0x79622d32,
+                    0x6b206574, // 常量 "expand 32-byte k"
+                    ...this._bytesToUint32(this.skey), // 32字节key → 8个u32
+                    this.counter, // 计数器
+                    ...this._bytesToUint32(this.nonce), // 12字节nonce → 3个u32
+                ]
+                // 注意不能this.counter = this.counter++ >>> 0, error
+                this.counter = (this.counter + 1) >>> 0
+                if (this.counter == 0) {
+                    // 达到256G，调整once
+                    const bt = this._bytesToUint32(this.nonce)
+                    bt[2] = (bt[2] + 1) >>> 0
+                    this._uint32ToBytes(bt, this.nonce)
+                }
+                const x = [...st]
+                // 20轮 = 10次双轮
+                for (let i = 0; i < 10; i++) {
+                    this._qr(x, 0, 4, 8, 12)
+                    this._qr(x, 1, 5, 9, 13)
+                    this._qr(x, 2, 6, 10, 14)
+                    this._qr(x, 3, 7, 11, 15)
+                    this._qr(x, 0, 5, 10, 15)
+                    this._qr(x, 1, 6, 11, 12)
+                    this._qr(x, 2, 7, 8, 13)
+                    this._qr(x, 3, 4, 9, 14)
+                }
+                for (let i = 0; i < 16; i++) x[i] = (x[i] + st[i]) >>> 0
+                this._uint32ToBytes(x, this._keystream)
+                // 重置0
+                this._bufPos = 0
+                return this._keystream
+            }
+
+            // 加密/解密（异或运算，两者通用）
+            update(data) {
+                const out = new Uint8Array(data.length)
+                let pos = 0
+                while (pos < data.length) {
+                    const len = Math.min(64, data.length - pos)
+                    for (let i = 0; i < len; i++) {
+                        if (this._bufPos % 64 === 0) {
+                            this._block()
+                        }
+                        out[pos + i] = data[pos + i] ^ this._keystream[this._bufPos++]
+                    }
+                    pos += len
+                }
+                return out
+            }
+
+            encrypt(messageBytes) {
+                return this.update(messageBytes)
+            }
+
+            decrypt(messageBytes) {
+                return this.update(messageBytes)
+            }
+
+            encryptTransform() {
+                return new Transform({
+                    // use anonymous func make sure `this` point to rc4
+                    transform: (chunk, encoding, next) => {
+                        next(null, this.encrypt(chunk))
+                    },
+                })
+            }
+
+            decryptTransform() {
+                return new Transform({
+                    transform: (chunk, encoding, next) => {
+                        next(null, this.decrypt(chunk))
+                    },
+                })
+            }
+
+            // 保持跟接口类型一致，异步执行
+            async setPositionAsync(position) {
+                this.setPosition(position)
+            }
+
+            setPosition(position) {
+                // 重置counter和_bufPos
+                this.counter = Math.floor(position / 64) + 1
+                // 空跑偏移量也可以
+                this._bufPos = 0
+                this.update(new Uint8Array(position % 64))
+                // 下面的也可以
+                // this._block()
+                // this._bufPos = position % 64
+            }
+
+            /**
+             * 将 Uint8Array 转换为 Uint32Array (小端序) ，地位靠前
+             * @param {buf} bytes
+             * @returns {Uint32Array}
+             */
+            _bytesToUint32(buf) {
+                const arr = new Uint32Array(buf.length / 4)
+                for (let i = 0; i < arr.length; i++) {
+                    arr[i] = buf[i * 4] | (buf[i * 4 + 1] << 8) | (buf[i * 4 + 2] << 16) | (buf[i * 4 + 3] << 24)
+                }
+                return arr
+            }
+
+            _uint32ToBytes(u32, buf) {
+                let pos
+                for (let i = 0; i < u32.length; i++) {
+                    pos = i * 4
+                    buf[pos] = u32[i] & 0xff
+                    buf[pos + 1] = (u32[i] >>> 8) & 0xff
+                    buf[pos + 2] = (u32[i] >>> 16) & 0xff
+                    buf[pos + 3] = (u32[i] >>> 24) & 0xff
+                }
+            }
+        }
+
+        function toBase64URL(uint8Array) {
+            // 先转为标准 Base64
+            let base64 = btoa(String.fromCharCode(...uint8Array));
+            // 转为 URL 安全: + -> -, / -> _, 移除 =
+            return base64
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+        }
+
+        function fromBase64URL(base64URL) {
+            // 还原为标准 Base64
+            let base64 = base64URL
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+            // 补充 padding
+            while (base64.length % 4) {
+                base64 += '=';
+            }
+            // 解析为 Uint8Array
+            const binaryString = atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        function crc32(buf, init = 0xffffffff) {
+            // 预生成表（全局只初始化一次）
+            if (!crc32.table) {
+                const table = new Uint32Array(256)
+                for (let i = 0; i < 256; i++) {
+                    let crc = i
+                    for (let j = 0; j < 8; j++) {
+                        crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
+                    }
+                    table[i] = crc >>> 0
+                }
+                crc32.table = table
+            }
+            let crc = init >>> 0
+            const tbl = crc32.table
+            for (const byte of buf) {
+                crc = (crc >>> 8) ^ tbl[(crc ^ byte) & 0xff]
+            }
+            // 最终异或输出
+            return (crc ^ 0xffffffff) >>> 0
+        }
+
+        async function encodeName(password, encType, plainName, codeType = 1) {
+            if (/[ÃÂ�¤§½]/.test(plainName)) {
+                console.log('@isBad plainName', plainName)
+                return plainName
+            }
+            const nameBuf = new TextEncoder().encode(plainName)
+            let encryptChunk = null
+            let key = null
+            if (encType === 'chacha20') {
+                const passwdOutward = await derivePwdKey(password, 'CHA20')
+                encryptChunk = await encryptCha20Chunk(passwdOutward, nameBuf.length)
+                const passwdSalt = passwdOutward + nameBuf.length
+                key = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(passwdSalt));
+            } else {
+                const passwdOutward = await derivePwdKey(password, 'AES-CTR')
+                encryptChunk = await encryptAesChunk(passwdOutward, nameBuf.length)
+                key = md5Utils(passwdOutward + nameBuf.length)
+            }
+            const encNameBytes = await encryptChunk(0, nameBuf)
+            // encNameBytes = 2f4c519712a21c9ecfe615d79238a1e68502
+            const keyArr = new Uint8Array(key)
+            // 转base64url或者是转cjk，加上MD5避免文件名产生可校验特征
+            const crc32Val = crc32(new Uint8Array([...encNameBytes, ...keyArr]))
+            // 3. 把crc32写入4字节Buffer【小端】
+            const crcBuf = numToUint8Array(crc32Val)
+            // 合并原始字节+crc16Bit，输出baes64Url或者cjk编码
+            const combined = new Uint8Array([...encNameBytes, ...crcBuf])
+            return toBase64URL(combined)
+        }
+
+        // 解密名字
+        const isBase64Code = /^[A-Za-z0-9\-_+~]+$/
+        const isCjkCode = /^[\u4e00-\u9fff]+$/
+        async function decodeName(password, encType, encodeName) {
+            // 判断字符是否正确
+            let codeType = 0
+            if (isBase64Code.test(encodeName)) {
+                codeType = 1
+            } else if (isCjkCode.test(encodeName)) {
+                // 判断是否cjk的编码，则进行cjk解码
+                codeType = 2
+            } else {
+                return 'orig_' + encodeName
+            }
+            // 选择base64url或者cjk进行解码
+            const fullBuf = codeType === 2 ? cjkToBin(encodeName) : fromBase64URL(encodeName)
+            // 开始解码，后4字节是CRC32校验码
+            const encNameBytes = fullBuf.subarray(0, fullBuf.length - 4)
+            const crc32Bytes = fullBuf.subarray(fullBuf.length - 4)
+
+            let encryptChunk = null
+            let key = null
+            if (encType === 'chacha20') {
+                const passwdOutward = await derivePwdKey(password, 'CHA20')
+                encryptChunk = await encryptCha20Chunk(passwdOutward, encNameBytes.length)
+                const passwdSalt = passwdOutward + encNameBytes.length
+                key = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(passwdSalt));
+            } else {
+                const passwdOutward = await derivePwdKey(password, 'AES-CTR')
+                encryptChunk = await encryptAesChunk(passwdOutward, encNameBytes.length)
+                key = md5Utils(passwdOutward + encNameBytes.length)
+            }
+            const keyArr = new Uint8Array(key)
+            // 校验crc32，添加key混淆避免有特征
+            const crc32Val = crc32(new Uint8Array([...encNameBytes, ...keyArr]))
+            // Buffer.compare(crc32Bytes, crcBuf) !== 0
+            if (toUInt32LE(crc32Bytes) !== crc32Val) {
+                // 校验失败，可能是原文件凑巧是base64url的字符串，或者是用户自己改乱了
+                return 'orig_' + encodeName
+            }
+            // 校验通过开始解密
+            const decNameByte = await encryptChunk(0, encNameBytes)
+            // 如果用户在云盘手动创建文件例如：abcd123acb.txt, 依然有一定概率碰撞通过了crc32的校验通过，但如果不是乱码也允许显示
+            const decodeStr = new TextDecoder().decode(decNameByte)
+            if (/[ÃÂ�¤§½]/.test(decodeStr)) {
+                return 'orig_' + encodeName
+            }
+            return decodeStr
+        }
+
+        // 32位数字转array
+        function numToUint8Array(num, littleEndian = true) {
+            const buffer = new ArrayBuffer(4);
+            const view = new DataView(buffer);
+            view.setUint32(0, num, littleEndian);
+            return new Uint8Array(buffer);
+        }
+        function toUInt32LE(bytes) {
+            // 避免负数
+            return (bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) >>> 0;
+        }
+
+        // -------------- CJK 代码--------------------
+        const CJK_BASE = 0x4e00
+        const CJK_MAX_OFFSET = 0x9fff - 0x4e00 // 20991
+        const BITS_PER_CHAR = 14
+        const MAX_VALUE = (1 << BITS_PER_CHAR) - 1 // 16383
+        /**
+         * Buffer 转 CJK汉字字符串（14bit/字，无溢出）
+         * @param {Buffer} buf
+         * @returns {string}
+         */
+        function binToCjk(buf) {
+            const bits = []
+            // 把所有字节展开为bit数组，高位在前
+            for (const byte of buf) {
+                for (let i = 7; i >= 0; i--) {
+                    bits.push((byte >> i) & 1)
+                }
+            }
+
+            const chars = []
+            let ptr = 0
+            // 完整14bit组
+            while (ptr + BITS_PER_CHAR <= bits.length) {
+                let val = 0
+                for (let i = 0; i < BITS_PER_CHAR; i++) {
+                    val = (val << 1) | bits[ptr++]
+                }
+                chars.push(String.fromCodePoint(CJK_BASE + val))
+            }
+
+            const remainBits = bits.length - ptr
+            if (remainBits > 0) {
+                let val = 0
+                for (let i = 0; i < remainBits; i++) {
+                    val = (val << 1) | bits[ptr++]
+                }
+                // 添加最后剩余的几位bit
+                chars.push(String.fromCodePoint(CJK_BASE + val))
+            }
+            // 标记剩余bit数量：0~13，有可能刚好0
+            chars.push(String.fromCodePoint(CJK_BASE + remainBits))
+            return chars.join('')
+        }
+
+        /**
+         * CJK字符串还原Buffer
+         * @param {string} cjkStr
+         * @returns {Buffer}
+         */
+        function cjkToBin(cjkStr) {
+            const codePoints = [...cjkStr].map((c) => c.codePointAt(0))
+            const bits = []
+            let tailBits = 0
+            // 判断尾部标记
+            if (codePoints.length >= 2) {
+                const marker = codePoints.at(-1) - CJK_BASE
+                // marker 一定小于14，不然则说明非法的字符集
+                tailBits = marker
+                codePoints.pop()
+                if (marker > 13) {
+                    throw new Error('非法cjk字符集！')
+                }
+            }
+
+            for (let i = 0; i < codePoints.length; i++) {
+                const offset = codePoints[i] - CJK_BASE
+                let take = BITS_PER_CHAR
+                // 如果大于0则说明最后一个字符是溢出的
+                if (tailBits > 0 && i === codePoints.length - 1) {
+                    take = tailBits
+                }
+                for (let b = take - 1; b >= 0; b--) {
+                    bits.push((offset >> b) & 1)
+                }
+            }
+            // 高位转回低位
+            const out = []
+            for (let i = 0; i < bits.length; i += 8) {
+                let byte = 0
+                for (let j = 0; j < 8; j++) {
+                    if (i + j >= bits.length) break
+                    byte = (byte << 1) | bits[i + j]
+                }
+                out.push(byte)
+            }
+            return new Uint8Array(out)
         }
 
 

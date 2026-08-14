@@ -141,23 +141,24 @@ export function encodeName(password, encType, plainName, codeType = 1) {
     return plainName
   }
   const nameBuf = Buffer.from(plainName, 'utf8')
-  const cha20 = new FlowEnc(password, encType, nameBuf.length)
-  const encNameBytes = cha20.encryptFlow.encrypt(nameBuf)
+  const flowEnc = new FlowEnc(password, encType, nameBuf.length)
+  const encNameBytes = flowEnc.encryptFlow.encrypt(nameBuf)
   // 转base64url或者是转cjk，加上MD5避免文件名产生可校验特征
-  const crc32Val = crc32(Buffer.concat([encNameBytes, cha20.key]))
+  const crc32Val = crc32(Buffer.concat([encNameBytes, flowEnc.key]))
   // 3. 把crc32写入4字节Buffer【小端】
   const crcBuf = Buffer.alloc(4)
   crcBuf.writeUInt32LE(crc32Val, 0)
   // 合并原始字节+crc16Bit，输出baes64Url或者cjk编码
   const combined = Buffer.concat([encNameBytes, crcBuf])
-  // base64Util.encode4Url(combined)
-  return binToCjk(combined)
+  const base64Buf = base64Util.encode4Url(combined)
+  return base64Buf
+  // 2f4c519712a21c9ecfe615d79238a1e68502276bfeb5
+  // return binToCjk(combined)
 }
 
 // 字符判断
 // const unsafePattern = /[^a-zA-Z0-9\-_+~]/
-const isBase64Code = /^[A-Za-z0-9\-_+~]+$/
-const isCjkCode = /^[\u4e00-\u9fff]+$/
+
 export function decodeOldName(password, encType, encodeName) {
   const crc6Check = encodeName.substring(encodeName.length - 1)
   const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
@@ -182,6 +183,8 @@ export function decodeOldName(password, encType, encodeName) {
   return decodeStr
 }
 // 兼容原来的加密
+const isBase64Code = /^[A-Za-z0-9\-_+~]+$/
+const isCjkCode = /^[\u4e00-\u9fff]+$/
 export function decodeName(password, encType, encodeName) {
   // 判断字符是否正确
   let codeType = 0
@@ -193,9 +196,6 @@ export function decodeName(password, encType, encodeName) {
   } else {
     return null
   }
-  // 
-  console.log('@@@cjk test',0x4E00 - 0xCFFF,  String.fromCodePoint(0xCFFF + 1))
-
   // 由于新算法采用base64url，取模一定是等于0,2,3，所以可以进行区分
   const crcMod = encodeName.length % 4
   if (crcMod === 1 && codeType === 1) {
@@ -206,9 +206,9 @@ export function decodeName(password, encType, encodeName) {
   // 开始解码，后4字节是CRC32校验码
   const encNameBytes = fullBuf.subarray(0, fullBuf.length - 4)
   const crc32Bytes = fullBuf.subarray(fullBuf.length - 4)
-  const cha20 = new FlowEnc(password, encType, encNameBytes.length)
+  const flowEnc = new FlowEnc(password, encType, encNameBytes.length)
   // 校验crc32，添加key混淆避免有特征
-  const crc32Val = crc32(Buffer.concat([encNameBytes, cha20.key]))
+  const crc32Val = crc32(Buffer.concat([encNameBytes, flowEnc.key]))
   // Buffer.compare(crc32Bytes, crcBuf) !== 0
   // 之前写入的小端序
   if (crc32Bytes.readUInt32LE(0) !== crc32Val) {
@@ -217,7 +217,7 @@ export function decodeName(password, encType, encodeName) {
     return null
   }
   // 校验通过开始解密
-  const decNameByte = cha20.encryptFlow.decrypt(encNameBytes)
+  const decNameByte = flowEnc.encryptFlow.decrypt(encNameBytes)
   // 如果用户在云盘手动创建文件例如：abcd123acb.txt, 依然有一定概率碰撞通过了crc32的校验通过，但如果不是乱码也允许显示
   const decodeStr = Buffer.from(decNameByte).toString('utf8')
   if (isBadText(decodeStr)) {

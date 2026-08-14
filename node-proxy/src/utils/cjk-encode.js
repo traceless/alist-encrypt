@@ -40,10 +40,11 @@ function binToCjk(buf) {
     for (let i = 0; i < remainBits; i++) {
       val = (val << 1) | bits[ptr++]
     }
+    // 添加最后剩余的几位bit
     chars.push(String.fromCodePoint(CJK_BASE + val))
-    // 标记剩余bit数量：1~13
-    chars.push(String.fromCodePoint(CJK_BASE + remainBits))
   }
+  // 标记剩余bit数量：0~13，有可能刚好0
+  chars.push(String.fromCodePoint(CJK_BASE + remainBits))
   return chars.join('')
 }
 
@@ -56,19 +57,21 @@ function cjkToBin(cjkStr) {
   const codePoints = [...cjkStr].map((c) => c.codePointAt(0))
   const bits = []
   let tailBits = 0
-
   // 判断尾部标记
   if (codePoints.length >= 2) {
     const marker = codePoints.at(-1) - CJK_BASE
-    if (marker >= 1 && marker <= 13) {
-      tailBits = marker
-      codePoints.pop()
+    // marker 一定小于14，不然则说明非法的字符集
+    tailBits = marker
+    codePoints.pop()
+    if (marker > 13) {
+      throw new Error('非法cjk字符集！')
     }
   }
 
   for (let i = 0; i < codePoints.length; i++) {
     const offset = codePoints[i] - CJK_BASE
     let take = BITS_PER_CHAR
+    // 如果大于0则说明最后一个字符是溢出的
     if (tailBits > 0 && i === codePoints.length - 1) {
       take = tailBits
     }
@@ -76,6 +79,7 @@ function cjkToBin(cjkStr) {
       bits.push((offset >> b) & 1)
     }
   }
+  // 高位转回低位
   const out = []
   for (let i = 0; i < bits.length; i += 8) {
     let byte = 0

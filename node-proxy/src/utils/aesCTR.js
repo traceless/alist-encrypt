@@ -78,6 +78,48 @@ class AesCTR {
       this.iv.writeUInt32BE(numLittle, 12 - idx * 4)
     }
   }
+
+  // 安全整数 2⁵³‑1（9007199254740991），否则出问题
+  incrementIV2(counter, blocks) {
+    const result = new Uint8Array(counter)
+    let carry = blocks
+    // i从最低字节(15)到高字节(8)
+    for (let i = 15; i >= 8 && carry > 0; i--) {
+      const sum = result[i] + carry
+      result[i] = sum & 0xff
+      carry = Math.floor(sum / 256)
+    }
+    // carry>0代表uint64溢出，CTR不安全
+    if (carry > 0) throw new Error('CTR counter uint64 overflow')
+    return result
+  }
+
+  // 这个算法也是正确的，限制blocks < 2^53，实测比较大都正确
+  incrementIV3(counter, blocks) {
+    const result = new Uint8Array(counter)
+    let carry = blocks
+    // 只迭代 counter域：索引15 ~ 8，不碰nonce(0‑7)
+    for (let index = 15; index >= 8 && carry > 0; index--) {
+      const sum = result[index] + (carry % 256)
+      result[index] = sum & 0xff
+      carry = Math.floor(carry / 256) + Math.floor(sum / 256)
+    }
+    // carry > 0 → uint64 counter溢出，CTR不允许，抛异常
+    if (carry > 0) {
+      throw new Error('AES‑CTR uint64 counter overflow, insecure')
+    }
+    return result
+  }
+
+  // 这个算法正确，支持超大大数
+  incrementIV64(counter, blocks) {
+    const res = new Uint8Array(counter)
+    const dv = new DataView(res.buffer)
+    let val = dv.getBigUint64(8, false)
+    val += BigInt(blocks)
+    dv.setBigUint64(8, val, false)
+    return res
+  }
 }
 
 export default AesCTR

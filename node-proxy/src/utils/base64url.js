@@ -49,6 +49,9 @@ function encode(bufData, charTabel = BASE64_TABLE) {
 function decode(str, charTabel = BASE64_TABLE) {
   // 自动补齐填充（兼容不带=的Base64URL）
   // const padNeeded = (4 - (str.length % 4)) % 4
+  // while (str.length % 4) {
+  //   str += '='
+  // }
   // 统计末尾填充符
   while (str.endsWith(PAD_CHAR)) {
     // padCount++
