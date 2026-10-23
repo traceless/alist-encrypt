@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>404 · alist-encrypt</title>
+  <link rel="icon" href="/public/favicon.ico">
+  <link rel="stylesheet" href="/public/assets/css/tabler.min.css">
+  <script>
+    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
+  </script>
+</head>
+<body class="d-flex flex-column">
+  <div class="page page-center">
+    <div class="container container-tight py-4">
+      <div class="empty">
+        <div class="empty-header">404</div>
+        <p class="empty-title">页面不存在</p>
+        <p class="empty-subtitle text-muted">
+          你访问的页面不存在或已被移动。
+        </p>
+        <div class="empty-action">
+          <a href="/public/index.html" class="btn btn-primary">
+            <i class="ti ti-arrow-left icon me-1"></i> 返回概览
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+<script type="module">
+  import { enhanceIcons } from '/public/shared/icons.js'
+  enhanceIcons()
+</script>
+</html>

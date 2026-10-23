@@ -1,0 +1,219 @@
+/* alist-encrypt 管理控制台自定义样式（主题层设计参考 tablerdemo/IPTV 面板） */
+.toast-wrap.alert { position: fixed; }
+[data-user-avatar] { font-weight: 600; }
+.navbar-vertical .navbar-brand a { display: flex; align-items: center; color: inherit; text-decoration: none; }
+
+/* ================= 全局（两种主题共用） ================= */
+
+/* ── 字体：SF Pro 优先 ── */
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+}
+
+/* ── 胶囊按钮 ── */
+.btn {
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.btn:active { transform: scale(0.96); }
+.btn-sm { padding: 4px 14px; }
+.btn-primary {
+  background: var(--enc-accent, #0a84ff);
+  border-color: var(--enc-accent, #0a84ff);
+  box-shadow: 0 1px 3px rgba(10, 132, 255, 0.3);
+}
+.btn-primary:hover { background: #006ce0; border-color: #006ce0; }
+
+/* ── 胶囊徽章 ── */
+.badge { border-radius: 999px; font-weight: 500; }
+
+/* ── 概览页统计图标磁贴（渐变方块） ── */
+.enc-tile {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  border: 0;
+}
+.enc-tile-blue { background: linear-gradient(135deg, #0a84ff, #5ac8fa); }
+.enc-tile-green { background: linear-gradient(135deg, #30d158, #34c759); }
+.enc-tile-purple { background: linear-gradient(135deg, #bf5af2, #af52de); }
+.enc-tile-orange { background: linear-gradient(135deg, #ff9500, #ff7800); }
+.enc-tile-red { background: linear-gradient(135deg, #ff453a, #ff6961); }
+
+/* ================= 侧边栏 ================= */
+
+/* 手机端抽屉宽度保障，避免被 navbar-vertical 挤窄 */
+@media (max-width: 991.98px) {
+  .offcanvas-start {
+    width: 280px;
+    max-width: 85vw;
+  }
+}
+/* 菜单项：圆角块 + hover 过渡 */
+.navbar-vertical .nav-link {
+  border-radius: 10px;
+  margin: 2px 8px;
+  padding: 10px 14px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.navbar-vertical .nav-link-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* ================= 深色主题（毛玻璃强化，浅色回落 Tabler 原生） ================= */
+
+html[data-bs-theme="dark"] {
+  --enc-bg: radial-gradient(ellipse at top left, #1d2845 0%, #15192e 40%, #0f1219 100%);
+  --enc-card: rgba(28, 32, 48, 0.72);
+  --enc-card-border: rgba(255, 255, 255, 0.08);
+  --enc-divider: rgba(255, 255, 255, 0.06);
+  --enc-text: #e8eaf0;
+  --enc-text-muted: rgba(232, 234, 240, 0.55);
+  --enc-accent: #0a84ff;
+  --enc-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* 深色渐变背景：让半透明卡片有内容可折射 */
+html[data-bs-theme="dark"] body {
+  background: var(--enc-bg);
+  background-attachment: fixed;
+  color: var(--enc-text);
+}
+
+/* ── 毛玻璃卡片：大圆角 + 半透明 + backdrop-filter ── */
+html[data-bs-theme="dark"] .card {
+  background: var(--enc-card);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid var(--enc-card-border);
+  border-radius: 18px;
+  box-shadow: var(--enc-shadow);
+  color: var(--enc-text);
+}
+html[data-bs-theme="dark"] .card-header {
+  background: transparent;
+  border-bottom: 1px solid var(--enc-divider);
+  padding: 14px 18px;
+}
+html[data-bs-theme="dark"] .card-title {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+html[data-bs-theme="dark"] .card-body { color: var(--enc-text); }
+
+/* ── iOS Settings 风格分组列表（hairline 分隔） ── */
+html[data-bs-theme="dark"] .table-borderless > tbody > tr > td,
+html[data-bs-theme="dark"] .table-borderless > tbody > tr > th {
+  border-color: var(--enc-divider);
+}
+
+/* ── 侧栏：毛玻璃 + 菜单项配色（桌面端常驻侧栏才上毛玻璃） ── */
+@media (min-width: 992px) {
+  html[data-bs-theme="dark"] .navbar-vertical {
+    background: rgba(15, 18, 25, 0.6);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-right: 1px solid var(--enc-divider);
+  }
+}
+html[data-bs-theme="dark"] .navbar-vertical .nav-link {
+  color: var(--enc-text-muted);
+}
+html[data-bs-theme="dark"] .navbar-vertical .nav-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--enc-text);
+}
+html[data-bs-theme="dark"] .navbar-vertical .nav-link.active {
+  background: rgba(10, 132, 255, 0.16);
+  color: var(--enc-accent);
+}
+
+/* ── offcanvas 抽屉（手机端）：毛玻璃 ── */
+html[data-bs-theme="dark"] .offcanvas {
+  background: rgba(15, 18, 25, 0.92);
+  backdrop-filter: saturate(180%) blur(30px);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+}
+html[data-bs-theme="dark"] .offcanvas-header { border-bottom: 1px solid var(--enc-divider); }
+html[data-bs-theme="dark"] .offcanvas-title { color: var(--enc-text); }
+
+/* ── 深色下的次要按钮（浅色回落 Tabler 原生） ── */
+html[data-bs-theme="dark"] .btn-outline-secondary {
+  color: var(--enc-text);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+html[data-bs-theme="dark"] .btn-outline-secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: var(--enc-text);
+}
+
+/* ── 胶囊状态徽章：深色配色 ── */
+html[data-bs-theme="dark"] .badge.bg-success-lt { background: rgba(48, 209, 88, 0.18); color: #30d158; }
+html[data-bs-theme="dark"] .badge.bg-warning-lt { background: rgba(255, 159, 10, 0.2); color: #ffbf47; }
+html[data-bs-theme="dark"] .badge.bg-danger-lt { background: rgba(255, 69, 58, 0.18); color: #ff6961; }
+html[data-bs-theme="dark"] .badge.bg-secondary-lt { background: rgba(255, 255, 255, 0.08); color: var(--enc-text-muted); }
+html[data-bs-theme="dark"] .badge.bg-blue-lt { background: rgba(10, 132, 255, 0.18); color: #5ac8fa; }
+
+/* ── 表格文字色 ── */
+html[data-bs-theme="dark"] .table { color: var(--enc-text); }
+html[data-bs-theme="dark"] .table > :not(caption) > * > * { color: var(--enc-text); }
+html[data-bs-theme="dark"] .table thead th { color: var(--enc-text-muted); font-weight: 500; }
+
+/* ── 表单控件深色适配 ── */
+html[data-bs-theme="dark"] .form-control,
+html[data-bs-theme="dark"] .form-select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--enc-text);
+  border-radius: 10px;
+}
+html[data-bs-theme="dark"] .form-control:focus,
+html[data-bs-theme="dark"] .form-select:focus {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--enc-accent);
+  color: var(--enc-text);
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.18);
+}
+html[data-bs-theme="dark"] .form-label { color: var(--enc-text-muted); }
+
+/* ── modal 弹窗：毛玻璃 ── */
+html[data-bs-theme="dark"] .modal-content {
+  background: rgba(28, 32, 48, 0.92);
+  backdrop-filter: saturate(180%) blur(30px);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+  border: 1px solid var(--enc-card-border);
+  border-radius: 18px;
+  color: var(--enc-text);
+}
+html[data-bs-theme="dark"] .modal-header,
+html[data-bs-theme="dark"] .modal-footer { border-color: var(--enc-divider); }
+html[data-bs-theme="dark"] .modal-title { color: var(--enc-text); font-weight: 600; }
+
+/* ── toast（本项目用 Tabler alert 实现） ── */
+html[data-bs-theme="dark"] .toast-wrap.alert {
+  background: rgba(28, 32, 48, 0.92);
+  backdrop-filter: saturate(180%) blur(30px);
+  -webkit-backdrop-filter: saturate(180%) blur(30px);
+  border: 1px solid var(--enc-card-border);
+  border-radius: 14px;
+  color: var(--enc-text);
+}
+
+/* ── 页面标题 ── */
+html[data-bs-theme="dark"] .navbar-title {
+  color: var(--enc-text);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+html[data-bs-theme="dark"] .text-secondary { color: var(--enc-text-muted) !important; }

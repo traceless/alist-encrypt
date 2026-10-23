@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="/public/favicon.ico">
+  <link rel="stylesheet" href="/public/assets/css/tabler.min.css">
+  <link rel="stylesheet" href="/public/assets/app.css">
+  <script>
+    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
+  </script>
+</head>
+<body data-page="alist" data-page-title="Alist 配置">
+  <template id="page-content">
+    <div class="container-xl">
+      <div class="card mb-3">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-cloud icon me-1"></i> Alist 服务配置</h3>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-sm-6 col-md-4">
+              <label class="form-label">服务器地址</label>
+              <input class="form-control" id="al-host" placeholder="192.168.1.100">
+              <span class="form-hint">alist 的 ip 或域名地址</span>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <label class="form-label">端口</label>
+              <input class="form-control" id="al-port" placeholder="5244">
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <label class="form-label">协议</label>
+              <label class="form-check form-switch mt-1">
+                <input class="form-check-input" type="checkbox" id="al-https">
+                <span class="form-check-label" id="al-https-label">http</span>
+              </label>
+              <span class="form-hint">默认 http</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-key icon me-1"></i> 加密密码组</h3>
+          <div class="card-actions">
+            <button class="btn btn-primary" id="add-passwd"><i class="ti ti-plus icon me-1"></i> 添加密码组</button>
+          </div>
+        </div>
+        <div class="card-body" id="passwd-list"></div>
+        <div class="card-footer text-end">
+          <button class="btn btn-primary btn-loading d-none" id="save-btn-loading" disabled></button>
+          <button class="btn btn-primary" id="save-btn"><i class="ti ti-device-floppy icon me-1"></i> 保存全部配置</button>
+          <span class="text-muted small ms-2">保存后立即生效并写入 conf/config.json</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 文件夹名加解密弹窗 -->
+    <div class="modal modal-blur fade" id="folder-modal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">子密码 / 文件夹名加解密</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              根据子文件夹密文名动态切换解密密码。基础密码：
+              <strong data-base-pwd></strong> · 算法：<strong data-base-enc></strong>
+            </div>
+            <ul class="nav nav-tabs mb-3" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-encode" type="button" role="tab">加密名字</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-decode" type="button" role="tab">解密名字</button>
+              </li>
+            </ul>
+            <div class="tab-content">
+              <div class="tab-pane show active" id="tab-encode" role="tabpanel">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">文件夹备注</label>
+                    <input class="form-control" id="fm-name" placeholder="my_video（不能有特殊符号）">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">子目录算法</label>
+                    <select class="form-select" id="fm-enc-type">
+                      <option value="aesctr">AES-CTR</option>
+                      <option value="chacha20">CHACHA20</option>
+                      <option value="rc4">RC4（已废弃）</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">子目录密码</label>
+                    <input class="form-control" id="fm-passwd" placeholder="123456">
+                  </div>
+                </div>
+                <div class="mt-3 d-flex align-items-center gap-2">
+                  <button class="btn btn-outline-primary" id="fm-encode-btn"><i class="ti ti-wand icon me-1"></i> 生成密文名</button>
+                  <button class="btn d-none" id="fm-copy-btn"><i class="ti ti-copy icon me-1"></i> 复制</button>
+                </div>
+                <div class="mt-3 d-none" id="fm-result-wrap">
+                  <label class="form-label">生成的文件夹密文名（用此密文名命名文件夹，则按此密码解密）</label>
+                  <div class="input-group">
+                    <input class="form-control font-monospace" id="fm-result" readonly>
+                  </div>
+                </div>
+              </div>
+              <div class="tab-pane" id="tab-decode" role="tabpanel">
+                <div class="mb-3">
+                  <label class="form-label">文件夹密文名</label>
+                  <input class="form-control font-monospace" id="fm-dec-input" placeholder="粘贴文件夹密文名">
+                </div>
+                <button class="btn btn-outline-primary" id="fm-decode-btn"><i class="ti ti-lock-open icon me-1"></i> 解密</button>
+                <div class="mt-3 d-none" id="fm-dec-result">
+                  <div class="datagrid">
+                    <div class="datagrid-item">
+                      <div class="datagrid-title">文件夹密码</div>
+                      <div class="datagrid-content" data-dec-pwd></div>
+                    </div>
+                    <div class="datagrid-item">
+                      <div class="datagrid-title">算法</div>
+                      <div class="datagrid-content" data-dec-enc></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="/public/assets/js/tabler.min.js"></script>
+  <script type="module" src="/public/shared/layout.js"></script>
+  <script type="module">
+    import { api } from '/public/shared/api.js'
+    import { toast, confirmDialog, bsModal } from '/public/shared/ui.js'
+    import { renderPasswdList, collectPasswdList } from '/public/shared/passwd-editor.js'
+
+    const $ = (id) => document.getElementById(id)
+    const httpsSwitch = $('al-https')
+
+    let config = null
+    let folderModal = null
+    let currentItem = null
+
+    httpsSwitch.addEventListener('change', () => {
+      $('al-https-label').textContent = httpsSwitch.checked ? 'https' : 'http'
+    })
+
+    // ---------- 加载配置 ----------
+    const res = await api('/getAlistConfig')
+    config = res.data || {}
+    $('al-host').value = config.serverHost ?? ''
+    $('al-port').value = config.serverPort ?? ''
+    httpsSwitch.checked = !!config.https
+    $('al-https-label').textContent = config.https ? 'https' : 'http'
+    // encPath 后端存的是数组，表单统一用逗号字符串
+    config.passwdList = (config.passwdList || []).map((p) => ({
+      ...p,
+      encPath: Array.isArray(p.encPath) ? p.encPath.join(',') : (p.encPath ?? '')
+    }))
+    renderPasswd()
+
+    function renderPasswd() {
+      renderPasswdList($('passwd-list'), config.passwdList, {
+        withSubBtn: true,
+        onSubPasswd: openFolderModal,
+        onDel: async (item, idx, done) => {
+          const ok = await confirmDialog({ title: '删除密码组', text: `确定删除「${item.describe || '配置 ' + (idx + 1)}」吗？`, okText: '删除', danger: true })
+          if (ok) done()
+        }
+      })
+    }
+
+    $('add-passwd').addEventListener('click', () => {
+      collectPasswdList($('passwd-list'), config.passwdList)
+      config.passwdList.push({
+        id: crypto.randomUUID(),
+        enable: true,
+        encType: 'aesctr',
+        password: '',
+        encName: false,
+        encFolder: false,
+        describe: '',
+        encPath: ''
+      })
+      renderPasswd()
+    })
+
+    // ---------- 保存 ----------
+    $('save-btn').addEventListener('click', async () => {
+      collectPasswdList($('passwd-list'), config.passwdList)
+      const payload = {
+        ...config,
+        serverHost: $('al-host').value.trim(),
+        serverPort: $('al-port').value.trim(),
+        https: httpsSwitch.checked
+      }
+      const btn = $('save-btn')
+      btn.disabled = true
+      try {
+        const saveRes = await api('/saveAlistConfig', payload)
+        toast(saveRes.msg || '保存成功')
+      } catch (e) {
+        toast(e.message || '保存失败', 'danger')
+      } finally {
+        btn.disabled = false
+      }
+    })
+
+    // ---------- 文件夹名加解密 ----------
+    function openFolderModal(item) {
+      currentItem = item
+      document.querySelector('[data-base-pwd]').textContent = item.password || '(未设置)'
+      document.querySelector('[data-base-enc]').textContent = item.encType || 'aesctr'
+      $('fm-result-wrap').classList.add('d-none')
+      $('fm-copy-btn').classList.add('d-none')
+      $('fm-dec-result').classList.add('d-none')
+      folderModal = folderModal || bsModal($('folder-modal'))
+      folderModal.show()
+    }
+
+    $('fm-encode-btn').addEventListener('click', async () => {
+      if (!currentItem) return
+      const folderName = $('fm-name').value.trim()
+      const folderPasswd = $('fm-passwd').value.trim()
+      if (!folderName || !folderPasswd) {
+        toast('请填写文件夹备注和子目录密码', 'warning')
+        return
+      }
+      try {
+        const encodeRes = await api('/encodeFoldName', {
+          password: currentItem.password,
+          encType: currentItem.encType,
+          folderPasswd,
+          folderEncType: $('fm-enc-type').value
+        })
+        const full = `${folderName}&${encodeRes.data.folderNameEnc}`
+        $('fm-result').value = full
+        $('fm-result-wrap').classList.remove('d-none')
+        $('fm-copy-btn').classList.remove('d-none')
+        $('fm-copy-btn').className = 'btn btn-outline-secondary'
+      } catch (e) {
+        toast(e.message || '生成失败', 'danger')
+      }
+    })
+
+    $('fm-copy-btn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText($('fm-result').value)
+        toast('已复制到剪贴板')
+      } catch (e) {
+        toast('复制失败，请手动复制', 'danger')
+      }
+    })
+
+    $('fm-decode-btn').addEventListener('click', async () => {
+      if (!currentItem) return
+      const folderNameEnc = $('fm-dec-input').value.trim()
+      if (!folderNameEnc) {
+        toast('请粘贴文件夹密文名', 'warning')
+        return
+      }
+      try {
+        const decodeRes = await api('/decodeFoldName', {
+          password: currentItem.password,
+          encType: currentItem.encType,
+          folderNameEnc
+        })
+        document.querySelector('[data-dec-pwd]').textContent = decodeRes.data.folderPasswd
+        document.querySelector('[data-dec-enc]').textContent = decodeRes.data.folderEncType
+        $('fm-dec-result').classList.remove('d-none')
+      } catch (e) {
+        toast(e.message || '解密失败', 'danger')
+      }
+    })
+  </script>
+</body>
+</html>

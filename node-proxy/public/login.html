@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>登录 · alist-encrypt</title>
+  <link rel="icon" href="/public/favicon.ico">
+  <link rel="stylesheet" href="/public/assets/css/tabler.min.css">
+  <link rel="stylesheet" href="/public/assets/app.css">
+  <script>
+    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
+  </script>
+</head>
+<body class="d-flex flex-column">
+  <div class="page page-center">
+    <div class="container container-tight py-4">
+      <div class="text-center mb-4">
+        <img src="/public/logo.png" height="48" alt="alist-encrypt">
+      </div>
+      <div class="card card-md">
+        <div class="card-body">
+          <h2 class="h2 text-center mb-4">alist-encrypt 管理控制台</h2>
+          <div class="alert alert-danger d-none" id="login-error" role="alert"></div>
+          <form id="login-form" autocomplete="off">
+            <div class="mb-3">
+              <label class="form-label">用户名</label>
+              <input type="text" class="form-control" id="username" name="username" placeholder="用户名" value="admin" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">密码</label>
+              <div class="input-group input-group-flat">
+                <input type="password" class="form-control" id="password" name="password" placeholder="密码" autocomplete="current-password" required>
+                <span class="input-group-text">
+                  <a href="#" class="link-secondary" id="toggle-pwd" title="显示密码" aria-label="显示密码">
+                    <i class="ti ti-eye icon"></i>
+                  </a>
+                </span>
+              </div>
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100" id="login-btn">
+                <i class="ti ti-login icon me-1"></i> 登 录
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="text-center text-muted mt-3">alist 网盘加密代理 · <span id="page-version"></span></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { api, setToken, getToken } from '/public/shared/api.js'
+    import { toast } from '/public/shared/ui.js'
+    import { icon, enhanceIcons } from '/public/shared/icons.js'
+
+    // 已登录直接进入
+    if (getToken()) {
+      try {
+        await api('/getUserInfo', { plateFormId: 2 })
+        location.replace(getRedirect() || '/public/index.html')
+      } catch (e) { /* token 失效则留在登录页 */ }
+    }
+
+    // <i class="ti ti-*"> 标记替换为内联 svg
+    enhanceIcons()
+
+    function getRedirect() {
+      const r = new URLSearchParams(location.search).get('redirect')
+      return r && r.startsWith('/public/') ? r : ''
+    }
+
+    const errBox = document.getElementById('login-error')
+    const btn = document.getElementById('login-btn')
+
+    function showError(msg) {
+      errBox.textContent = msg
+      errBox.classList.remove('d-none')
+    }
+
+    const togglePwd = document.getElementById('toggle-pwd')
+    togglePwd.addEventListener('click', (e) => {
+      e.preventDefault()
+      const input = document.getElementById('password')
+      const show = input.type === 'password'
+      input.type = show ? 'text' : 'password'
+      togglePwd.innerHTML = icon(show ? 'eye-off' : 'eye')
+      togglePwd.title = show ? '隐藏密码' : '显示密码'
+    })
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      errBox.classList.add('d-none')
+      const username = document.getElementById('username').value.trim()
+      const password = document.getElementById('password').value
+      if (!username || !password) {
+        showError('请输入用户名和密码')
+        return
+      }
+      btn.disabled = true
+      btn.setAttribute('aria-busy', 'true')
+      try {
+        const res = await api('/login', { username, password })
+        const { userInfo, jwtToken } = res.data
+        setToken(jwtToken)
+        toast('登录成功，欢迎 ' + (userInfo?.username || ''), 'success')
+        setTimeout(() => location.replace(getRedirect() || '/public/index.html'), 300)
+      } catch (err) {
+        showError(err.message || '登录失败')
+      } finally {
+        btn.disabled = false
+        btn.removeAttribute('aria-busy')
+      }
+    })
+  </script>
+</body>
+</html>

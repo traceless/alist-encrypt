@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="/public/favicon.ico">
+  <link rel="stylesheet" href="/public/assets/css/tabler.min.css">
+  <link rel="stylesheet" href="/public/assets/app.css">
+  <script>
+    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
+  </script>
+</head>
+<body data-page="webdav" data-page-title="WebDAV 配置">
+  <template id="page-content">
+    <div class="container-xl">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-folders icon me-1"></i> WebDAV 服务配置</h3>
+          <div class="card-actions">
+            <button class="btn btn-primary" id="add-btn"><i class="ti ti-plus icon me-1"></i> 新增配置</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table card-table table-vcenter">
+            <thead>
+              <tr>
+                <th>服务名称</th>
+                <th>服务器</th>
+                <th>主目录</th>
+                <th>密码组</th>
+                <th>状态</th>
+                <th class="w-1 text-end">操作</th>
+              </tr>
+            </thead>
+            <tbody id="config-tbody"></tbody>
+          </table>
+        </div>
+        <div class="card-footer text-muted small">主目录为正则表达式（如 ^/onedrive-folder/.*），修改后需重启服务生效；不能是 /enc-api/*（系统已占用）</div>
+      </div>
+    </div>
+
+    <!-- 新增/编辑配置弹窗 -->
+    <div class="modal modal-blur fade" id="config-modal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="cm-title">新增配置</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">服务名称</label>
+                <input class="form-control" id="cm-name" placeholder="127.0.0.1">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">服务器</label>
+                <input class="form-control" id="cm-host" placeholder="127.0.0.1">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">端口</label>
+                <input class="form-control" id="cm-port" placeholder="5244">
+              </div>
+              <div class="col-md-2 d-flex align-items-end pb-1">
+                <label class="form-check form-switch mb-2">
+                  <input class="form-check-input" type="checkbox" id="cm-enable">
+                  <span class="form-check-label">启用</span>
+                </label>
+              </div>
+              <div class="col-12">
+                <label class="form-label">主目录</label>
+                <input class="form-control" id="cm-path" placeholder="^/onedrive-folder/.*">
+                <span class="form-hint">正则表达式，修改后重启生效</span>
+              </div>
+            </div>
+            <div class="d-flex align-items-center mt-4 mb-2">
+              <h4 class="m-0">加密密码组</h4>
+              <button class="btn btn-sm btn-outline-primary ms-auto" id="cm-add-passwd"><i class="ti ti-plus icon-sm me-1"></i> 添加密码组</button>
+            </div>
+            <div id="cm-passwd-list"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="button" class="btn btn-primary" id="cm-save"><i class="ti ti-device-floppy icon me-1"></i> 保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="/public/assets/js/tabler.min.js"></script>
+  <script type="module" src="/public/shared/layout.js"></script>
+  <script type="module">
+    import { api } from '/public/shared/api.js'
+    import { toast, confirmDialog, bsModal } from '/public/shared/ui.js'
+    import { renderPasswdList, collectPasswdList } from '/public/shared/passwd-editor.js'
+
+    const $ = (id) => document.getElementById(id)
+
+    let configs = []
+    let configModal = null
+    let editingIdx = -1 // -1 = 新增
+
+    const res = await api('/getWebdavonfig')
+    configs = res.data || []
+    renderTable()
+
+    function emptyConfig() {
+      return {
+        id: '',
+        name: '',
+        serverHost: '',
+        serverPort: '5244',
+        path: '',
+        enable: true,
+        passwdList: []
+      }
+    }
+
+    function renderTable() {
+      const tbody = $('config-tbody')
+      if (!configs.length) {
+        tbody.innerHTML = `
+          <tr><td colspan="6">
+            <div class="empty"><p class="empty-title">暂无 WebDAV 配置</p>
+            <p class="empty-subtitle text-muted">点击右上角「新增配置」创建第一条配置</p></div>
+          </td></tr>`
+        return
+      }
+      tbody.innerHTML = configs.map((c, i) => `
+        <tr>
+          <td><strong>${esc(c.name)}</strong></td>
+          <td class="text-muted">${esc(c.serverHost)}:${esc(c.serverPort)}</td>
+          <td class="font-monospace small">${esc(c.path)}</td>
+          <td>${(c.passwdList || []).length}</td>
+          <td>${c.enable ? '<span class="badge bg-success-lt">启用</span>' : '<span class="badge bg-secondary-lt">停用</span>'}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-ghost-primary" data-edit="${i}" title="编辑"><i class="ti ti-pencil icon"></i></button>
+            <button class="btn btn-sm btn-ghost-danger" data-del="${i}" title="删除"><i class="ti ti-trash icon"></i></button>
+          </td>
+        </tr>`).join('')
+      tbody.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => openModal(Number(b.dataset.edit))))
+      tbody.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => del(Number(b.dataset.del))))
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
+    }
+
+    function normalize(c) {
+      // passwdList 的 encPath 后端存数组，编辑器统一用逗号字符串
+      return {
+        ...c,
+        passwdList: (c.passwdList || []).map((p) => ({
+          ...p,
+          encPath: Array.isArray(p.encPath) ? p.encPath.join(',') : (p.encPath ?? '')
+        }))
+      }
+    }
+
+    // ---------- 弹窗 ----------
+    let modalList = []
+
+    const delPasswdHandler = async (item, i, done) => {
+      const ok = await confirmDialog({ title: '删除密码组', text: `确定删除「${item.describe || '配置 ' + (i + 1)}」吗？`, okText: '删除', danger: true })
+      if (ok) done()
+    }
+
+    function openModal(idx) {
+      editingIdx = idx
+      const isEdit = idx >= 0
+      const src = isEdit ? normalize(configs[idx]) : emptyConfig()
+      modalList = src.passwdList
+      $('cm-title').textContent = isEdit ? `编辑配置 · ${src.name || ''}` : '新增配置'
+      $('cm-name').value = src.name
+      $('cm-host').value = src.serverHost
+      $('cm-port').value = src.serverPort
+      $('cm-path').value = src.path
+      $('cm-enable').checked = !!src.enable
+      renderPasswdList($('cm-passwd-list'), modalList, { withSubBtn: false, onDel: delPasswdHandler })
+      configModal = configModal || bsModal($('config-modal'))
+      configModal.show()
+    }
+
+    $('add-btn').addEventListener('click', () => openModal(-1))
+
+    $('cm-add-passwd').addEventListener('click', () => {
+      collectPasswdList($('cm-passwd-list'), modalList)
+      modalList.push({ id: crypto.randomUUID(), enable: true, encType: 'aesctr', password: '', encName: false, encFolder: false, describe: '', encPath: '' })
+      renderPasswdList($('cm-passwd-list'), modalList, { withSubBtn: false, onDel: delPasswdHandler })
+    })
+
+    $('cm-save').addEventListener('click', async () => {
+      collectPasswdList($('cm-passwd-list'), modalList)
+      const payload = {
+        ...(editingIdx >= 0 ? configs[editingIdx] : {}),
+        name: $('cm-name').value.trim(),
+        serverHost: $('cm-host').value.trim(),
+        serverPort: $('cm-port').value.trim(),
+        path: $('cm-path').value.trim(),
+        enable: $('cm-enable').checked,
+        passwdList: modalList
+      }
+      if (!payload.name || !payload.serverHost) {
+        toast('服务名称和服务器地址必填', 'warning')
+        return
+      }
+      try {
+        const saveRes = editingIdx >= 0
+          ? await api('/updateWebdavConfig', payload)
+          : await api('/saveWebdavConfig', payload)
+        configs = saveRes.data || []
+        configModal.hide()
+        renderTable()
+        toast(editingIdx >= 0 ? '更新成功' : '新增成功')
+      } catch (e) {
+        toast(e.message || '保存失败', 'danger')
+      }
+    })
+
+    // ---------- 删除 ----------
+    async function del(idx) {
+      const c = configs[idx]
+      const ok = await confirmDialog({
+        title: '删除配置',
+        text: `确定删除 WebDAV 配置「${c.name || c.serverHost}」吗？删除后需重启服务。`,
+        okText: '删除',
+        danger: true
+      })
+      if (!ok) return
+      try {
+        const delRes = await api('/delWebdavConfig', { id: c.id })
+        configs = delRes.data || []
+        renderTable()
+        toast('删除成功')
+      } catch (e) {
+        toast(e.message || '删除失败', 'danger')
+      }
+    }
+  </script>
+</body>
+</html>

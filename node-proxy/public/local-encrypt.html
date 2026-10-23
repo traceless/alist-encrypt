@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="/public/favicon.ico">
+  <link rel="stylesheet" href="/public/assets/css/tabler.min.css">
+  <link rel="stylesheet" href="/public/assets/app.css">
+  <script>
+    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
+  </script>
+</head>
+<body data-page="local" data-page-title="本地加密">
+  <template id="page-content">
+    <div class="container-xl">
+      <div class="alert alert-info mb-3">
+        <i class="ti ti-info-circle icon me-1"></i>
+        对 encrypt 所在系统中的文件夹进行加解密。Windows 场景：打开 encrypt.exe 启动服务后，即可对本机文件夹加密。
+        任务为异步执行，提交后请留意输出目录。
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="ti ti-lock icon me-1"></i> 本地文件夹加解密</h3>
+            </div>
+            <div class="card-body">
+              <form id="enc-form" autocomplete="off">
+                <div class="mb-3">
+                  <label class="form-label">操作类型</label>
+                  <div class="d-flex gap-3">
+                    <label class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="operation" value="enc" checked>
+                      <span class="form-check-label">加密</span>
+                    </label>
+                    <label class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="operation" value="dec">
+                      <span class="form-check-label">解密</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">加密算法</label>
+                  <select class="form-select" id="ef-enc-type">
+                    <option value="aesctr">AES-CTR（推荐）</option>
+                    <option value="chacha20">CHACHA20</option>
+                    <option value="rc4">RC4（已废弃）</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">密码</label>
+                  <input class="form-control" id="ef-password" placeholder="加密/解密密码" required>
+                </div>
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="ef-enc-folder">
+                      <span class="form-check-label">目录名加密</span>
+                    </label>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" id="ef-enc-name">
+                      <span class="form-check-label">文件名加密</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">本地路径</label>
+                  <input class="form-control" id="ef-folder-path" placeholder="/home/my-video">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">输出路径</label>
+                  <input class="form-control" id="ef-out-path" placeholder="/home/outPath">
+                </div>
+                <button type="submit" class="btn btn-primary" id="ef-submit">
+                  <i class="ti ti-lock icon me-1"></i> 执行加密
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="ti ti-bulb icon me-1"></i> 使用提示</h3>
+            </div>
+            <div class="card-body">
+              <ul class="list-unstyled mb-0">
+                <li class="mb-2"><i class="ti ti-point icon text-muted"></i> 切换「加密/解密」时，执行按钮文案随之变化</li>
+                <li class="mb-2"><i class="ti ti-point icon text-muted"></i> 后端为异步批处理，文件数上限 10000</li>
+                <li class="mb-2"><i class="ti ti-point icon text-muted"></i> 大文件推荐本地加密后，用云盘客户端上传，比网页转存可靠</li>
+                <li class="mb-2"><i class="ti ti-point icon text-muted"></i> AES-CTR 支持定位播放，适合视频类文件</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="/public/assets/js/tabler.min.js"></script>
+  <script type="module" src="/public/shared/layout.js"></script>
+  <script type="module">
+    import { api } from '/public/shared/api.js'
+    import { toast } from '/public/shared/ui.js'
+
+    const $ = (id) => document.getElementById(id)
+
+    function currentOperation() {
+      return document.querySelector('input[name="operation"]:checked').value
+    }
+
+    function refreshSubmitBtn() {
+      const isEnc = currentOperation() === 'enc'
+      $('ef-submit').innerHTML = isEnc
+        ? '<i class="ti ti-lock icon me-1"></i> 执行加密'
+        : '<i class="ti ti-lock-open icon me-1"></i> 执行解密'
+      $('ef-submit').className = isEnc ? 'btn btn-primary' : 'btn btn-success'
+    }
+
+    document.querySelectorAll('input[name="operation"]').forEach((r) => r.addEventListener('change', refreshSubmitBtn))
+    refreshSubmitBtn()
+
+    $('enc-form').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const payload = {
+        operation: currentOperation(),
+        encType: $('ef-enc-type').value,
+        password: $('ef-password').value,
+        encFolder: $('ef-enc-folder').checked,
+        encName: $('ef-enc-name').checked,
+        folderPath: $('ef-folder-path').value.trim(),
+        outPath: $('ef-out-path').value.trim()
+      }
+      if (!payload.password || !payload.folderPath) {
+        toast('请填写密码和本地路径', 'warning')
+        return
+      }
+      const btn = $('ef-submit')
+      btn.disabled = true
+      try {
+        const res = await api('/encryptFile', payload)
+        toast(res.msg === 'waiting operation' ? '任务已提交，后台处理中' : (res.msg || '已提交'), 'success', 4000)
+      } catch (err) {
+        toast(err.message || '提交失败', 'danger')
+      } finally {
+        btn.disabled = false
+      }
+    })
+  </script>
+</body>
+</html>

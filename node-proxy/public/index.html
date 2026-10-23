@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="/public/favicon.ico">
+  <link rel="stylesheet" href="/public/assets/css/tabler.min.css">
+  <link rel="stylesheet" href="/public/assets/app.css">
+  <script>
+    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
+  </script>
+</head>
+<body data-page="index" data-page-title="概览">
+  <template id="page-content">
+    <div class="container-xl">
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6 col-lg-4">
+          <div class="card card-sm">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-auto"><span class="avatar enc-tile enc-tile-blue"><i class="ti ti-info-circle icon"></i></span></div>
+                <div class="col">
+                  <div class="subheader">服务版本</div>
+                  <div class="h1 mb-0 me-2" id="stat-version">-</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="card card-sm">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-auto"><span class="avatar enc-tile enc-tile-green"><i class="ti ti-cloud icon"></i></span></div>
+                <div class="col">
+                  <div class="subheader">Alist 服务</div>
+                  <div class="h3 mb-0" id="stat-alist">-</div>
+                  <div class="text-muted small" id="stat-alist-sub"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="card card-sm">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-auto"><span class="avatar enc-tile enc-tile-purple"><i class="ti ti-folders icon"></i></span></div>
+                <div class="col">
+                  <div class="subheader">WebDAV 配置</div>
+                  <div class="h3 mb-0" id="stat-webdav">-</div>
+                  <div class="text-muted small" id="stat-webdav-sub"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="ti ti-key icon me-1"></i> 修改密码</h3>
+            </div>
+            <div class="card-body">
+              <form id="passwd-form" autocomplete="off">
+                <div class="mb-3">
+                  <label class="form-label">用户名</label>
+                  <input type="text" class="form-control" id="pf-username" disabled>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">原密码</label>
+                  <input type="password" class="form-control" id="pf-old" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">新密码</label>
+                  <input type="password" class="form-control" id="pf-new" required>
+                  <span class="form-hint">至少 7 位字符</span>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">确认新密码</label>
+                  <input type="password" class="form-control" id="pf-new2" required>
+                </div>
+                <button type="submit" class="btn btn-primary" id="pf-submit">保存新密码</button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="ti ti-rocket icon me-1"></i> 功能规划</h3>
+            </div>
+            <div class="card-body">
+              <div class="list-group list-group-flush">
+                <div class="list-group-item d-flex align-items-center ps-0 pe-0">
+                  <i class="ti ti-cloud-lock icon me-2 text-muted"></i>
+                  <div class="flex-fill"><strong>在线加密</strong><div class="text-muted small">文件在线加密解密</div></div>
+                  <span class="badge bg-secondary-lt">规划中</span>
+                </div>
+                <div class="list-group-item d-flex align-items-center ps-0 pe-0">
+                  <i class="ti ti-cloud-upload icon me-2 text-muted"></i>
+                  <div class="flex-fill"><strong>文件转存</strong><div class="text-muted small">把网盘文件转存到加密文件夹，建议 1G 内；大文件推荐先本地加密再上传</div></div>
+                  <span class="badge bg-secondary-lt">规划中</span>
+                </div>
+                <div class="list-group-item d-flex align-items-center ps-0 pe-0 border-0">
+                  <i class="ti ti-lock icon me-2 text-success"></i>
+                  <div class="flex-fill"><strong>本地加密</strong><div class="text-muted small">已上线，前往「本地加密」页面使用</div></div>
+                  <span class="badge bg-success-lt">已上线</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="/public/assets/js/tabler.min.js"></script>
+  <script type="module" src="/public/shared/layout.js"></script>
+  <script type="module">
+    import { api } from '/public/shared/api.js'
+    import { toast } from '/public/shared/ui.js'
+    import { setUser } from '/public/shared/layout.js'
+
+    const $ = (id) => document.getElementById(id)
+
+    const [userInfoRes, alistRes, webdavRes] = await Promise.allSettled([
+      api('/getUserInfo', { plateFormId: 2 }),
+      api('/getAlistConfig'),
+      api('/getWebdavonfig')
+    ])
+
+    if (userInfoRes.status === 'fulfilled') {
+      const d = userInfoRes.value.data
+      setUser(d.userInfo, d.version)
+      $('stat-version').textContent = d.version || '-'
+      $('pf-username').value = d.userInfo?.username || ''
+    } else {
+      console.error(userInfoRes.reason)
+    }
+
+    if (alistRes.status === 'fulfilled') {
+      const c = alistRes.value.data || {}
+      const list = c.passwdList || []
+      $('stat-alist').textContent = `${c.serverHost || '-'}:${c.serverPort || '-'}`
+      const enabled = list.filter((x) => x.enable).length
+      $('stat-alist-sub').textContent = `密码组 ${enabled}/${list.length} 启用 · ${c.https ? 'https' : 'http'}`
+    } else {
+      $('stat-alist').textContent = '加载失败'
+    }
+
+    if (webdavRes.status === 'fulfilled') {
+      const list = webdavRes.value.data || []
+      $('stat-webdav').textContent = `${list.length} 个配置`
+      const enabled = list.filter((x) => x.enable).length
+      $('stat-webdav-sub').textContent = `${enabled} 个启用中`
+    } else {
+      $('stat-webdav').textContent = '加载失败'
+    }
+
+    $('passwd-form').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const oldPwd = $('pf-old').value
+      const newPwd = $('pf-new').value
+      const newPwd2 = $('pf-new2').value
+      if (newPwd.length < 7) {
+        toast('新密码至少 7 位字符', 'warning')
+        return
+      }
+      if (newPwd !== newPwd2) {
+        toast('两次输入的新密码不一致', 'warning')
+        return
+      }
+      try {
+        const res = await api('/updatePasswd', { username: $('pf-username').value, password: oldPwd, newpassword: newPwd })
+        toast(res.msg || '密码修改成功')
+        $('passwd-form').reset()
+      } catch (err) {
+        toast(err.message || '密码修改失败', 'danger')
+      }
+    })
+  </script>
+</body>
+</html>
