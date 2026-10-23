@@ -78,6 +78,7 @@
 </template>
 <script setup lang="ts" name="error-collection">
 //import { Delete, FolderAdd } from '@element-plus/icons-vue'
+import { reactive, ref } from 'vue'
 import { useTable } from '@/hooks/use-table'
 import { copyValueToClipboard } from '@/hooks/use-common'
 const searchForm = reactive({
@@ -96,9 +97,9 @@ const selectPageReq = () => {
   })
 }
 //重置
-const refSearchForm = $ref()
+const refSearchForm = ref()
 const resetForm = () => {
-  refSearchForm.resetFields()
+  refSearchForm.value.resetFields()
   dateRangePacking(['', ''])
   resetPageReq()
 }

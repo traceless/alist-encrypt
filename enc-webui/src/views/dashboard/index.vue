@@ -55,7 +55,7 @@ const userForm = reactive({
   password: '',
   newpassword: ''
 })
-const refSearchForm = $ref()
+const refSearchForm = ref()
 userForm.username = userInfo.username
 
 const updatePasswd = () =>{

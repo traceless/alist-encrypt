@@ -170,7 +170,7 @@ const alistConfigForm = reactive({
     }
   ]
 })
-const refSearchForm = $ref()
+const refSearchForm = ref()
 // 添加密码配置
 const addPasswd = () => {
   alistConfigForm.passwdList.push({

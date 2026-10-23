@@ -86,14 +86,14 @@ watch(
 /*
  *  login relative
  * */
-let subLoading = $ref(false)
+let subLoading = ref(false)
 //tip message
-let tipMessage = $ref('')
+let tipMessage = ref('')
 //sub form
-const refLoginForm = $ref(null)
+const refLoginForm = ref(null)
 const handleLogin = () => {
-  refLoginForm.validate((valid) => {
-    subLoading = true
+  refLoginForm.value.validate((valid) => {
+    subLoading.value = true
     if (valid) loginFunc()
   })
 }
@@ -108,10 +108,10 @@ const loginFunc = () => {
       router.push('/')
     })
     .catch((err) => {
-      tipMessage = err?.msg
+      tipMessage.value = err?.msg
     })
     .finally(() => {
-      subLoading = false
+      subLoading.value = false
     })
 }
 /*

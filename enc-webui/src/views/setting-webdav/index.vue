@@ -143,7 +143,7 @@ const configTemp = {
 }
 Object.assign(configFormTemp, configTemp)
 
-const refSearchForm = $ref()
+const refSearchForm = ref()
 // 添加密码配置
 const addPasswd = () => {
   configFormTemp.passwdList.push({

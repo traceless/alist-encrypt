@@ -94,7 +94,7 @@ const folderForm = reactive({
 })
 
 const alistConfigForm = reactive({})
-const refSearchForm = $ref()
+const refSearchForm = ref()
 
 const delPasswd = (index) => {
   alistConfigForm.passwdList.splice(index, 1)
