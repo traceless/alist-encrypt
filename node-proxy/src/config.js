@@ -1,6 +1,6 @@
 import fs from 'fs'
-import { addUserInfo, getUserInfo } from './dao/userDao'
-import nedb from './utils/levelDB'
+import { addUserInfo, getUserInfo } from './dao/userDao.js'
+import nedb from './utils/levelDB.js'
 
 // inti config, fix ncc get local conf
 function getConfPath() {

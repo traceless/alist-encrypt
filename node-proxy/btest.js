@@ -2,16 +2,16 @@ import crypto from 'crypto'
 import { pathToRegexp } from 'path-to-regexp'
 import path from 'path'
 import { chownSync, copyFileSync } from 'fs'
-import aesCTR from '@/utils/aesCTR'
-import { crc32, crc8, crc16 } from '@/utils/crcn'
+import aesCTR from './src/utils/aesCTR.js'
+import { crc32, crc8, crc16 } from './src/utils/crcn.js'
 
-import base64url from '@/utils/base64url'
-import { binToCjk, cjkToBin } from '@/utils/cjk-encode'
+import base64url from './src/utils/base64url.js'
+import { binToCjk, cjkToBin } from './src/utils/cjk-encode.js'
 
 import fs from 'fs'
-import { encodeName, decodeName, encodeName2, base64Decode } from '@/utils/commonUtil'
-import { getWebdavFileInfo } from '@/utils/webdavClient'
-import ChaCha20 from '@/utils/chacha20'
+import { encodeName, decodeName, encodeName2, base64Decode } from './src/utils/commonUtil.js'
+import { getWebdavFileInfo } from './src/utils/webdavClient.js'
+import ChaCha20 from './src/utils/chacha20.js'
 
 getWebdavFileInfo(
   'http://192.168.8.240:5244/dav/aliyun%E4%BA%91%E7%9B%98/atest/d%E5%AF%B9%E6%96%B9%E6%88%91testrclone/kline_d%2Bata12342%E6%AD%A3%E6%96%87%E7%9A%84%E7%9A%84%E5%89%AF%E6%9C%AC.txt',

@@ -2,14 +2,14 @@
 
 import Router from 'koa-router'
 import bodyparser from 'koa-bodyparser'
-import { encodeName, pathFindPasswd, convertShowName, convertRealName, convertRealPath } from './utils/commonUtil'
+import { encodeName, pathFindPasswd, convertShowName, convertRealName, convertRealPath } from './utils/commonUtil.js'
 import path from 'path'
-import { httpClient, httpProxy } from './utils/httpClient'
-import FlowEnc from './utils/flowEnc'
-import { logger } from './common/logger'
-import levelDB from './utils/levelDB'
+import { httpClient, httpProxy } from './utils/httpClient.js'
+import FlowEnc from './utils/flowEnc.js'
+import { logger } from './common/logger.js'
+import levelDB from './utils/levelDB.js'
 import crypto from 'crypto'
-import { cacheFileInfo, getFileInfo } from './dao/fileDao'
+import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
 
 async function sleep(time) {
   return new Promise((resolve) => {

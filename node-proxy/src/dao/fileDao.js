@@ -1,4 +1,4 @@
-import levelDB from '../utils/levelDB'
+import levelDB from '../utils/levelDB.js'
 
 export const fileInfoTable = 'fileInfoTable_'
 

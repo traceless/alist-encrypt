@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
+  "type": "module",
   "scripts": {
-    "dev": "ts-node-dev -r tsconfig-paths/register app.js",
-    "serve": "ts-node -r tsconfig-paths/register app.js",
-    "test": "ts-node-dev -r tsconfig-paths/register btest.js",
+    "dev": "node --watch app.js",
+    "serve": "node app.js",
+    "test": "node --watch btest.js",
     "webpack": "npx webpack",
     "build": "npm run webpack && pkg --compress GZip dist",
     "docker": "npm run webpack && sudo docker build -t prophet310/alist-encrypt:beta . ",
@@ -25,14 +26,9 @@
     "koa-static": "^5.0.0",
     "log4js": "^6.9.1",
     "mkdirp": "^2.1.6",
-    "nedb-promises": "^6.2.1",
-    "ts-node": "^10.9.1",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.1.6"
+    "nedb-promises": "^6.2.1"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.55.0",
-    "@typescript-eslint/parser": "^5.55.0",
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.36.0",
     "eslint-config-prettier": "^9.0.0",
@@ -40,8 +36,6 @@
     "pkg": "^5.8.1",
     "prettier": "^3.0.2",
     "terser-webpack-plugin": "^5.3.9",
-    "ts-loader": "^9.4.4",
-    "ts-node-dev": "^2.0.0",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4"
   }

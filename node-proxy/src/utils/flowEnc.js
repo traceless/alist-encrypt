@@ -1,8 +1,8 @@
 'use strict'
 
-import Rc4Md5 from './rc4Md5'
-import AesCTR from './aesCTR'
-import ChaCha20 from './chacha20'
+import Rc4Md5 from './rc4Md5.js'
+import AesCTR from './aesCTR.js'
+import ChaCha20 from './chacha20.js'
 import crypto from 'crypto'
 
 const cachePasswdOutward = {}

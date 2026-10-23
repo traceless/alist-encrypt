@@ -3,8 +3,8 @@ import fs from 'fs'
 import path from 'path'
 
 import mkdirp from 'mkdirp'
-import FlowEnc from './flowEnc'
-import { encodeName, decodeName } from './commonUtil'
+import FlowEnc from './flowEnc.js'
+import { encodeName, decodeName } from './commonUtil.js'
 
 export function searchFile(filePath) {
   const fileArray = []

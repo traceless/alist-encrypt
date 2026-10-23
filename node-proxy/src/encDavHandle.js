@@ -1,14 +1,13 @@
 'use strict'
 
-import { pathFindPasswd, convertRealName, convertShowName, convertRealPath, convertShowPath } from './utils/commonUtil'
-import { cacheFileInfo, getFileInfo } from './dao/fileDao'
-import { logger } from './common/logger'
+import { pathFindPasswd, convertRealName, convertShowName, convertRealPath, convertShowPath } from './utils/commonUtil.js'
+import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
+import { logger } from './common/logger.js'
 import path from 'path'
-import { httpClient, httpProxy } from './utils/httpClient'
+import { httpClient, httpProxy } from './utils/httpClient.js'
 import { XMLParser } from 'fast-xml-parser'
-import FlowEnc from '@/utils/flowEnc'
-import { getWebdavFileInfo } from '@/utils/webdavClient'
-import { ids } from 'webpack'
+import FlowEnc from './utils/flowEnc.js'
+import { getWebdavFileInfo } from './utils/webdavClient.js'
 
 async function sleep(time) {
   return new Promise((resolve) => {

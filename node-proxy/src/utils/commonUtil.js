@@ -1,13 +1,13 @@
 import { pathToRegexp } from 'path-to-regexp'
-import FlowEnc from './flowEnc'
+import FlowEnc from './flowEnc.js'
 import path from 'path'
 
-import MixBase64 from './mixBase64'
-import Crcn from './crc6-8'
-import { cjkToBin, binToCjk } from './cjk-encode'
-import { crc32 } from './crcn'
-import base64Util from './base64url'
-import { logger } from '@/common/logger'
+import MixBase64 from './mixBase64.js'
+import Crcn from './crc6-8.js'
+import { cjkToBin, binToCjk } from './cjk-encode.js'
+import { crc32 } from './crcn.js'
+import base64Util from './base64url.js'
+import { logger } from './../common/logger.js'
 
 const crc6 = new Crcn(6)
 const origPrefix = 'orig_'

@@ -1,4 +1,4 @@
-const { isMainThread, parentPort, workerData } = require('worker_threads')
+import { isMainThread, parentPort, workerData } from 'worker_threads'
 
 // is not MainThread
 if (!isMainThread) {

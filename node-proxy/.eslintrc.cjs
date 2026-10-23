@@ -7,27 +7,25 @@ module.exports = {
     es6: true,
     es2021: true,
   },
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
-  parser: '@typescript-eslint/parser',
+  extends: ['eslint:recommended', 'plugin:prettier/recommended'],
   parserOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module',
   },
-  plugins: ['@typescript-eslint'],
   rules: {
-    '@typescript-eslint/no-var-requires': 0, // 允许require语句
+    'no-unused-vars': ['warn', { args: 'none' }], // 保持原有warn级别，koa的(ctx, next)签名参数不检查
     'prettier/prettier': [1, prettierrc()],
     'no-empty': [2, { allowEmptyCatch: true }], //允许空catch子句
   },
 }
 
 function prettierrc() {
-  const prettierrc_id = require.resolve('./.prettierrc')
+  const prettierrc_id = require.resolve('./.prettierrc.cjs')
   var stat = fs.statSync(prettierrc_id)
   if (stat.mtimeMs > (process.prettierrc_file_mtimeMs || 0)) {
     process.prettierrc_file_mtimeMs = stat.mtimeMs
     require.cache[prettierrc_id] = undefined
   }
-  const conf = require('./.prettierrc')
+  const conf = require('./.prettierrc.cjs')
   return conf
 }

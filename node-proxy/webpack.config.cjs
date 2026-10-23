@@ -1,35 +1,18 @@
-import fs from 'fs'
-import CopyPlugin from 'copy-webpack-plugin'
-import path from 'path'
-import TerserPlugin from 'terser-webpack-plugin'
-import webpack from 'webpack'
+const fs = require('fs')
+const CopyPlugin = require('copy-webpack-plugin')
+const path = require('path')
+const TerserPlugin = require('terser-webpack-plugin')
 
 const output = {
   filename: '[name].js',
   path: path.resolve('./dist'),
 }
-export default () => {
-  return <webpack.Configuration>{
+module.exports = () => {
+  return {
     entry: { index: path.resolve('./app.js'), PRGAThreadCom: path.resolve('./src/utils/PRGAThreadCom.js') },
     output,
-    module: {
-      rules: [
-        {
-          test: /\.[tj]s$/i,
-          use: [
-            {
-              loader: 'ts-loader',
-              options: {
-                transpileOnly: true, // 只做语言转换，而不做类型检查
-              },
-            },
-          ],
-          exclude: /node_modules/,
-        },
-      ],
-    },
     resolve: {
-      extensions: ['.ts', '.js'],
+      extensions: ['.js'],
       alias: {
         '@': path.resolve('./src'),
       },
@@ -64,12 +47,6 @@ export default () => {
             keep_fnames: true,
             // 是否保留类名
             keep_classnames: true,
-            // format: {
-            //   // 输出格式化
-            //   beautify: true,
-            //   // 保留注释
-            //   comments: true,
-            // },
           },
         }),
       ],
@@ -78,7 +55,7 @@ export default () => {
 }
 
 class PkgConfig {
-  apply(compiler: webpack.Compiler) {
+  apply(compiler) {
     compiler.hooks.afterEmit.tap('PkgConfig', () => {
       const conf = JSON.parse(fs.readFileSync(path.resolve('./package.json'), 'utf-8'))
       const pkg_conf = JSON.parse(fs.readFileSync(path.resolve('./pkgconfig.dist.json'), 'utf-8'))
