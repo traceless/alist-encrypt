@@ -3,7 +3,7 @@
   "version": "2.0.5",
   "license": "MIT",
   "author": "kuanghua",
-  "packageManager": "pnpm@7.9.0",
+  "packageManager": "pnpm@8.15.9",
   "scripts": {
     "dev": "vite --mode serve-dev",
     "test": "vite --mode serve-test",
@@ -114,7 +114,7 @@
     "not op_mini all"
   ],
   "engines": {
-    "node": ">= 16 <18",
-    "pnpm": ">= 6 <8"
+    "node": ">= 16",
+    "pnpm": ">= 6"
   }
 }
