@@ -1,12 +1,12 @@
 {
-  "bin": "index.js",
-  "pkg": {
-    "scripts": [
-      "PRGAThreadCom.js"
-    ],
-    "assets": [
-      "public/**/*"
-    ],
-    "outputPath": "build"
-  }
+	"bin": "index.js",
+	"pkg": {
+		"scripts": [
+			"PRGAThreadCom.js"
+		],
+		"assets": [
+			"public/**/*"
+		],
+		"outputPath": "build"
+	}
 }
