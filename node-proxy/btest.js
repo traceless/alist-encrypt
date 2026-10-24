@@ -1,5 +1,4 @@
 import crypto from 'crypto'
-import { pathToRegexp } from 'path-to-regexp'
 import path from 'path'
 import { chownSync, copyFileSync } from 'fs'
 import aesCTR from './src/utils/aesCTR.js'

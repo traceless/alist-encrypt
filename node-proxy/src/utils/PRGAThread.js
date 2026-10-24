@@ -1,12 +1,12 @@
 import { Worker, isMainThread, parentPort, workerData } from 'worker_threads'
 import os from 'os'
 import path from 'path'
-import dotenv from 'dotenv'
+import { loadEnv } from '../common/env.js'
 import { randomUUID } from 'crypto'
 import { fileURLToPath } from 'url'
 
 const pkgDirPath = path.dirname(process.argv[1])
-dotenv.config({ path: pkgDirPath + '/.env' })
+loadEnv(pkgDirPath + '/.env')
 
 const pkgThreadPath = pkgDirPath + '/PRGAThreadCom.js'
 // dev threadPath

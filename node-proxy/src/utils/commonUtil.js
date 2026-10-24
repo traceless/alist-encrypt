@@ -1,4 +1,3 @@
-import { pathToRegexp } from 'path-to-regexp'
 import FlowEnc from './flowEnc.js'
 import path from 'path'
 
@@ -61,7 +60,7 @@ export function convertFilePath(passwdInfoOrList = {}, fpath, encOrDec = true) {
   } else if (passwdInfo?.encFolder) {
     // 重新计算
     for (const expPath of passwdInfo.encPath) {
-      regExpRes = pathToRegexp(new RegExp(expPath)).exec(folderPath)
+      regExpRes = new RegExp(expPath).exec(folderPath)
       if (regExpRes) {
         break
       }
@@ -110,7 +109,7 @@ export function convertRealPath(passwdInfoOrList = {}, fpath, encodeUri = false)
 // 判断是否为匹配的路径encPath:[]
 export function pathExec(encPath, url) {
   for (const filePath of encPath) {
-    const result = pathToRegexp(new RegExp(filePath)).exec(url)
+    const result = new RegExp(filePath).exec(url)
     if (result) {
       return result
     }
@@ -253,7 +252,7 @@ export function decodeFromFolder(password, encType, encodeName) {
 export function pathFindPasswd(passwdList, url) {
   for (const passwdInfo of passwdList) {
     for (const filePath of passwdInfo.encPath) {
-      const regExpRes = passwdInfo.enable ? pathToRegexp(new RegExp(filePath)).exec(url) : null
+      const regExpRes = passwdInfo.enable ? new RegExp(filePath).exec(url) : null
       if (regExpRes) {
         // check folder name is can decode
         // getPassInfo()

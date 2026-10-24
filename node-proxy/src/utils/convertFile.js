@@ -2,7 +2,6 @@
 import fs from 'fs'
 import path from 'path'
 
-import mkdirp from 'mkdirp'
 import FlowEnc from './flowEnc.js'
 import { encodeName, decodeName } from './commonUtil.js'
 
@@ -40,13 +39,13 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
   }
   // init outpath dir
   if (!fs.existsSync(outPath)) {
-    mkdirp.sync(outPath)
+    fs.mkdirSync(outPath, { recursive: true })
   }
   // input file path
   const allFilePath = searchFile(encPath)
   const tempDir = path.join(outPath, '.temp')
   if (!fs.existsSync(tempDir)) {
-    mkdirp.sync(tempDir)
+    fs.mkdirSync(tempDir, { recursive: true })
   }
   let promiseArr = []
   for (const fileInfo of allFilePath) {
@@ -67,8 +66,8 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
     }
     const outFilePath = path.join(outPath, relativePath)
     const outFilePathTemp = path.join(tempDir, relativePath)
-    mkdirp.sync(path.dirname(outFilePathTemp))
-    mkdirp.sync(path.dirname(outFilePath))
+    fs.mkdirSync(path.dirname(outFilePathTemp), { recursive: true })
+    fs.mkdirSync(path.dirname(outFilePath), { recursive: true })
     // 开始加密
     if (size === 0) {
       continue
