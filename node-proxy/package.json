@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node --watch app.js",
     "serve": "node app.js",
+    "ui": "vite --config vite.config.ui.js",
     "test": "node --watch btest.js",
     "webpack": "npx webpack",
     "build": "npm run webpack && pkg --compress GZip dist",
@@ -29,6 +30,7 @@
     "eslint-plugin-prettier": "^5.0.0",
     "prettier": "^3.0.2",
     "terser-webpack-plugin": "^5.3.9",
+    "vite": "^4.5.14",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4"
   }
