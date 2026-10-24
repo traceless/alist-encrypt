@@ -626,7 +626,6 @@
             const blockSize = Number(document.getElementById('blockEnc').value)
             const selectEl = document.getElementById('algoEnc');
             const selectedAlgo = selectEl.value;
-            console.log('选中加密算法：', selectedAlgo);
             if (!pwd || encFiles.length === 0) {
                 showToast("请输入密码并且选择文件", 'error');
                 return;
@@ -665,6 +664,7 @@
         document.getElementById('btnStartDec').onclick = async () => {
             const pwd = document.getElementById('pwdDec_inp').value.trim();
             const blockSize = Number(document.getElementById('blockDec').value)
+            const selectedAlgo = document.getElementById('algoDec').value
             if (!pwd || decFiles.length === 0) {
                 showToast("请输入密码并且选择文件", 'error');
                 return;
@@ -677,15 +677,17 @@
             const dirHandle = await window.showDirectoryPicker({
                 mode: "readwrite"
             });
-            const txtDom = document.getElementById('encProgText');
-            const barDom = document.getElementById('encProgBar');
+            const txtDom = document.getElementById('decProgText');
+            const barDom = document.getElementById('decProgBar');
             txtDom.textContent = "处理中...";
             let fileInd = 0
-            for (const f of encFiles) {
-                // 创建文件
-                const aesKey = await deriveAesKey(pwd, f.size);
-                const fileHandle = await dirHandle.getFileHandle(f.name + '.enc', { create: true });
-                await processFileAesCtr(f, aesKey, blockSize, fileHandle, (p) => {
+            for (const f of decFiles) {
+                // 输出文件名：去掉 .enc 后缀（无后缀则保持原名）
+                const outName = f.name.endsWith('.enc') ? f.name.slice(0, -4) : f.name;
+                const fileHandle = await dirHandle.getFileHandle(outName, { create: true });
+                // 密钥链必须与加密完全一致：传原始密码，由 processFileAesCtr 内部统一派生
+                // （密码→PBKDF2→passwdOutward→md5(+fileSize)→key）。AES-CTR 加解密同函数，ChaCha20 异或对称
+                await processFileAesCtr(f, pwd, blockSize, selectedAlgo, fileHandle, (p) => {
                     barDom.style.width = (p * 100).toFixed(1) + "%";
                     txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
                     document.getElementById('file_' + fileInd).innerHTML = '完成'
@@ -745,14 +747,6 @@
             }
             return bytes;
         }
-        // 用于测试下载，观察数据行为
-        async function sleep(time) {
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve()
-                }, time || 2000)
-            })
-        }
         // 2. 转换函数
         function md5Utils(str) {
             return hexToUint8Array(md5(str + ''))
@@ -795,7 +789,6 @@
         // getAesKey
         async function deriveAesKey(passwdOutward, sizeSalt) {
             const passkey = md5Utils(passwdOutward + sizeSalt)
-            console.log('@@passkey', bufferToHex(passkey))
             const aesctr = await crypto.subtle.importKey(
                 "raw",                      // 格式：原始字节流
                 passkey,                    // 数据：密码的字节数组
@@ -837,7 +830,6 @@
                 overflow = numBig
                 iv.setUint32(12 - idx * 4, numLittle)
             }
-            console.log('@@new-increment', bufferToHex(iv.buffer), iv)
             return iv
         }
 
@@ -845,7 +837,6 @@
         async function encryptAesChunk(passwdOutward, fileSize) {
             const passkey = await deriveAesKey(passwdOutward, fileSize);
             const iv = md5Utils(fileSize + '')
-            console.log('@nonce-ase', fileSize, bufferToHex(iv.buffer))
             return async (startChunk, fileData) => {
                 // 返回新的Uint8Array
                 let nonce = new Uint8Array(iv)
@@ -870,7 +861,6 @@
             const buf = new TextEncoder().encode(passwdSalt);
             const key = await crypto.subtle.digest("SHA-256", buf);
             const nonce = md5Utils(fileSize + '').slice(0, 12)
-            console.log('@nonce-cha20', bufferToHex(key), fileSize, bufferToHex(nonce))
             // 创建对象
             const chacha = new ChaCha20(new Uint8Array(key), nonce)
             return async (startChunk, fileData) => {
@@ -887,25 +877,13 @@
             // 状态变量
             let chunkIndex = 0;
             const stream = new ReadableStream({
-                async start(controller) {
-                    try {
-                        // 3.2 分片读取并加密文件
-                        console.log("准备开始加密分片...");
-                    } catch (err) {
-                        controller.error(err);
-                        console.error(err);
-                    }
-                },
                 async pull(controller) {
                     try {
                         if (chunkIndex >= totalChunks) {
                             controller.close();
                             onProgress(1);
-                            console.log("流已关闭，所有数据发送完毕。");
                             return;
                         }
-                        // 模拟测试下载
-                        await sleep(234)
                         const start = chunkIndex * CHUNK_SIZE;
                         // 读取最后一片数据
                         const end = Math.min(start + CHUNK_SIZE, file.size);
@@ -915,7 +893,6 @@
                         // 加密当前分片
                         const encryptedChunk = await encryptChunk(start, chunkBuffer)
                         // 将加密后的数据推入流
-                        console.log('@@encBlob', start, end)
                         controller.enqueue(encryptedChunk);
                         chunkIndex++
                         // 反馈进度
@@ -1137,7 +1114,6 @@
 
         async function encodeName(password, encType, plainName, codeType = 1) {
             if (/[ÃÂ�¤§½]/.test(plainName)) {
-                console.log('@isBad plainName', plainName)
                 return plainName
             }
             const nameBuf = new TextEncoder().encode(plainName)

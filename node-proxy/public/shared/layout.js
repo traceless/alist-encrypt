@@ -8,7 +8,7 @@ const MENUS = [
   { id: 'index', title: '概览', icon: 'dashboard', href: '/public/index.html' },
   { id: 'alist', title: 'Alist 配置', icon: 'cloud', href: '/public/alist.html' },
   { id: 'webdav', title: 'WebDAV 配置', icon: 'folders', href: '/public/webdav.html' },
-  { id: 'local', title: '本地加密', icon: 'lock', href: '/public/local-encrypt.html' }
+  { id: 'local', title: '云端加密', icon: 'lock', href: '/public/local-encrypt.html' }
 ]
 
 const THEME_KEY = 'enc_theme'
