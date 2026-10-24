@@ -349,7 +349,7 @@
             </div>
             <div class="row-two">
                 <button id="btnFolderEnc">选择文件夹</button>
-                <input type="file" id="btnFolderEnc_input" display="none" multiple webkitdirectory>
+                <input type="file" id="btnFolderEnc_input" multiple webkitdirectory hidden>
                 <button id="btnClearEnc">清空列表</button>
             </div>
             <div class="file-list" id="listEnc"></div>
@@ -399,7 +399,7 @@
             </div>
             <div class="row-two">
                 <button id="btnFolderDec">选择文件夹</button>
-                <input type="file" id="btnFolderDec_input" display="none" multiple webkitdirectory>
+                <input type="file" id="btnFolderDec_input" multiple webkitdirectory hidden>
                 <button id="btnClearDec">清空列表</button>
             </div>
             <div class="file-list" id="listDec"></div>
@@ -451,7 +451,7 @@
             </div>
             <div class="row-two">
                 <button id="btnFolderZip">选择文件夹</button>
-                <input type="file" id="btnFolderZip_input" display="none" multiple webkitdirectory>
+                <input type="file" id="btnFolderZip_input" multiple webkitdirectory hidden>
                 <button id="btnClearZip">清空列表</button>
             </div>
             <div class="file-list" id="listZip"></div>
@@ -479,10 +479,10 @@
 
             <label class="label">单卷大小</label>
             <select id="zipSize">
+                <option value="10">10 MB</option>
                 <option value="100">100 MB</option>
                 <option value="500" selected>500 MB</option>
                 <option value="1000">1 GB</option>
-                <option value="2000">2 GB</option>
             </select>
 
             <div class="progress-wrap">
@@ -600,6 +600,34 @@
         bindUpload(document.getElementById('dropDec'), document.getElementById('fileDec'), document.getElementById('listDec'), decFiles, 'btnFolderDec', 'btnClearDec');
         bindUpload(document.getElementById('dropZip'), document.getElementById('fileZip'), document.getElementById('listZip'), zipFiles, 'btnFolderZip', 'btnClearZip');
 
+        // 非谷歌内核回退路径：整文件读入内存分块加解密（密文与流式路径逐块算法完全一致，长度不变）
+        async function processFileInMemory(file, pwd, blockSize, selectedAlgo, onProgress) {
+            let encryptChunk;
+            if (selectedAlgo === 'chacha20') {
+                encryptChunk = await encryptCha20Chunk(await derivePwdKey(pwd, 'CHA20'), file.size)
+            } else {
+                encryptChunk = await encryptAesChunk(await derivePwdKey(pwd, 'AES-CTR'), file.size)
+            }
+            const buf = new Uint8Array(await file.arrayBuffer());
+            const out = new Uint8Array(file.size);
+            const CHUNK = MB * blockSize;
+            for (let off = 0; off < buf.length; off += CHUNK) {
+                const end = Math.min(off + CHUNK, buf.length);
+                // startChunk 必须为 16 倍数，CHUNK 是 MB 倍数满足条件；块边界与流式路径一致
+                out.set(await encryptChunk(off, buf.subarray(off, end)), off);
+                if (onProgress) onProgress(end / file.size);
+            }
+            return out;
+        }
+
+        function downloadBlob(blob, name) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+        }
+
         /**
          * AES‑CTR 流式分块处理
          * 加密文件格式：[16字节IV][密文...]
@@ -622,83 +650,143 @@
 
         //加密按钮
         document.getElementById('btnStartEnc').onclick = async () => {
+            const btn = document.getElementById('btnStartEnc');
             const pwd = document.getElementById('pwdEnc_inp').value.trim();
             const blockSize = Number(document.getElementById('blockEnc').value)
-            const selectEl = document.getElementById('algoEnc');
-            const selectedAlgo = selectEl.value;
+            const selectedAlgo = document.getElementById('algoEnc').value;
+            const encNameChecked = document.getElementById('toggleAppendEnc').checked;
             if (!pwd || encFiles.length === 0) {
                 showToast("请输入密码并且选择文件", 'error');
                 return;
             }
-            if (!window.showDirectoryPicker) {
-                showToast("非谷歌内核浏览器只能加密1G以内的文件，否则浏览器会崩溃", 'error');
-                return;
+            // 非谷歌内核（无 File System Access API）：走内存加密+浏览器下载路径，限制总大小 1G
+            let dirHandle = null;
+            if (window.showDirectoryPicker) {
+                // showDirectoryPicker , showSaveFilePicker
+                dirHandle = await window.showDirectoryPicker({
+                    mode: "readwrite"
+                });
+            } else {
+                const totalSize = encFiles.reduce((s, f) => s + f.size, 0);
+                if (totalSize > MB * 1024) {
+                    showToast(`非谷歌内核浏览器无法流式写盘，当前文件总大小 ${(totalSize / (MB * 1024)).toFixed(2)} GB 超过 1G 限制，请使用 Chrome / Edge 内核浏览器`, 'error');
+                    return;
+                }
             }
-            // showDirectoryPicker , showSaveFilePicker
-            const dirHandle = await window.showDirectoryPicker({
-                mode: "readwrite"
-            });
             const txtDom = document.getElementById('encProgText');
             const barDom = document.getElementById('encProgBar');
+            btn.disabled = true;
             txtDom.textContent = "处理中...";
-            let fileInd = 0
-            for (const f of encFiles) {
-                // 创建文件
-                const fileHandle = await dirHandle.getFileHandle(f.name + '.enc', { create: true });
-
-                await processFileAesCtr(f, pwd, blockSize, selectedAlgo, fileHandle, (p) => {
-                    barDom.style.width = (p * 100).toFixed(1) + "%";
-                    txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
-                    document.getElementById('file_' + fileInd).innerHTML = '完成'
-                })
-                fileInd++;
+            try {
+                // 成功一个移除一个：失败时剩余文件保留在列表里，修正后可直接重试
+                while (encFiles.length > 0) {
+                    const f = encFiles[0];
+                    // 加密名字：整个文件名（含扩展名）加密为 base64url 密文，再带 .enc 后缀
+                    let outName = f.name + '.enc';
+                    if (encNameChecked) {
+                        outName = await encodeName(pwd, selectedAlgo, f.name) + '.enc';
+                    }
+                    if (dirHandle) {
+                        const fileHandle = await dirHandle.getFileHandle(outName, { create: true });
+                        await processFileAesCtr(f, pwd, blockSize, selectedAlgo, fileHandle, (p) => {
+                            barDom.style.width = (p * 100).toFixed(1) + "%";
+                            txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
+                        })
+                    } else {
+                        // 回退路径：内存分块加密 → 浏览器下载（多文件会触发多次下载，请允许）
+                        const out = await processFileInMemory(f, pwd, blockSize, selectedAlgo, (p) => {
+                            barDom.style.width = (p * 100).toFixed(1) + "%";
+                            txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
+                        });
+                        downloadBlob(new Blob([out]), outName);
+                    }
+                    encFiles.shift();
+                    renderFileList(document.getElementById('listEnc'), encFiles);
+                }
+                txtDom.textContent = "✅加密完成";
+                barDom.style.width = "100%";
+                showToast('加密完成！', 'success');
+                setTimeout(() => barDom.style.width = "0%", 1800);
+            } catch (err) {
+                console.error(err);
+                txtDom.textContent = "加密失败";
+                showToast('加密失败：' + ((err && err.message) || err), 'error');
+            } finally {
+                btn.disabled = false;
             }
-            txtDom.textContent = "✅加密完成";
-            barDom.style.width = "100%";
-            showToast('加密完成！', 'success');
-            setTimeout(() => barDom.style.width = "0%", 1800);
-            alert('所有文件处理完成！')
         }
 
         //解密按钮
         document.getElementById('btnStartDec').onclick = async () => {
+            const btn = document.getElementById('btnStartDec');
             const pwd = document.getElementById('pwdDec_inp').value.trim();
             const blockSize = Number(document.getElementById('blockDec').value)
             const selectedAlgo = document.getElementById('algoDec').value
+            const decNameChecked = document.getElementById('toggleAppendDec').checked;
             if (!pwd || decFiles.length === 0) {
                 showToast("请输入密码并且选择文件", 'error');
                 return;
             }
-            if (!window.showDirectoryPicker) {
-                showToast("非谷歌内核浏览器只能解密1G以内的文件，否则浏览器会崩溃", 'error');
-                return;
+            // 非谷歌内核（无 File System Access API）：走内存解密+浏览器下载路径，限制总大小 1G
+            let dirHandle = null;
+            if (window.showDirectoryPicker) {
+                // showDirectoryPicker , showSaveFilePicker
+                dirHandle = await window.showDirectoryPicker({
+                    mode: "readwrite"
+                });
+            } else {
+                const totalSize = decFiles.reduce((s, f) => s + f.size, 0);
+                if (totalSize > MB * 1024) {
+                    showToast(`非谷歌内核浏览器无法流式写盘，当前文件总大小 ${(totalSize / (MB * 1024)).toFixed(2)} GB 超过 1G 限制，请使用 Chrome / Edge 内核浏览器`, 'error');
+                    return;
+                }
             }
-            // showDirectoryPicker , showSaveFilePicker
-            const dirHandle = await window.showDirectoryPicker({
-                mode: "readwrite"
-            });
             const txtDom = document.getElementById('decProgText');
             const barDom = document.getElementById('decProgBar');
+            btn.disabled = true;
             txtDom.textContent = "处理中...";
-            let fileInd = 0
-            for (const f of decFiles) {
-                // 输出文件名：去掉 .enc 后缀（无后缀则保持原名）
-                const outName = f.name.endsWith('.enc') ? f.name.slice(0, -4) : f.name;
-                const fileHandle = await dirHandle.getFileHandle(outName, { create: true });
-                // 密钥链必须与加密完全一致：传原始密码，由 processFileAesCtr 内部统一派生
-                // （密码→PBKDF2→passwdOutward→md5(+fileSize)→key）。AES-CTR 加解密同函数，ChaCha20 异或对称
-                await processFileAesCtr(f, pwd, blockSize, selectedAlgo, fileHandle, (p) => {
-                    barDom.style.width = (p * 100).toFixed(1) + "%";
-                    txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
-                    document.getElementById('file_' + fileInd).innerHTML = '完成'
-                })
-                fileInd++;
+            try {
+                // 成功一个移除一个：失败时剩余文件保留在列表里，修正后可直接重试
+                while (decFiles.length > 0) {
+                    const f = decFiles[0];
+                    // 密钥链必须与加密完全一致：传原始密码，由 processFileAesCtr 内部统一派生
+                    // （密码→PBKDF2→passwdOutward→md5(+fileSize)→key）。AES-CTR 加解密同函数，ChaCha20 异或对称
+                    let outName;
+                    const stem = f.name.replace(/\.enc$/i, '');
+                    if (decNameChecked) {
+                        // 解密名字：密文名还原原名；非密文名（普通名/crc校验不过）返回 orig_ 前缀原名（与后端约定一致）
+                        outName = await decodeName(pwd, selectedAlgo, stem);
+                    } else {
+                        outName = stem;
+                    }
+                    if (dirHandle) {
+                        const fileHandle = await dirHandle.getFileHandle(outName, { create: true });
+                        await processFileAesCtr(f, pwd, blockSize, selectedAlgo, fileHandle, (p) => {
+                            barDom.style.width = (p * 100).toFixed(1) + "%";
+                            txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
+                        })
+                    } else {
+                        // 回退路径：内存分块解密 → 浏览器下载（多文件会触发多次下载，请允许）
+                        const out = await processFileInMemory(f, pwd, blockSize, selectedAlgo, (p) => {
+                            barDom.style.width = (p * 100).toFixed(1) + "%";
+                            txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`;
+                        });
+                        downloadBlob(new Blob([out]), outName);
+                    }
+                    decFiles.shift();
+                    renderFileList(document.getElementById('listDec'), decFiles);
+                }
+                txtDom.textContent = "✅解密完成";
+                barDom.style.width = "100%";
+                showToast('解密完成！', 'success');
+                setTimeout(() => barDom.style.width = "0%", 1800);
+            } catch (err) {
+                console.error(err);
+                txtDom.textContent = "解密失败";
+                showToast('解密失败：' + ((err && err.message) || err), 'error');
+            } finally {
+                btn.disabled = false;
             }
-            txtDom.textContent = "✅解密完成";
-            barDom.style.width = "100%";
-            showToast('解密完成！', 'success');
-            setTimeout(() => barDom.style.width = "0%", 1800);
-            alert('所有文件处理完成！')
         }
 
         //zip分卷（解密+打包二合一：密文→逐块解密→zip.js 标准分卷，内存峰值≈处理块大小）
@@ -875,28 +963,6 @@
             }
             if (carry > 0) throw new Error('CTR counter uint64 overflow')
             return c;
-        }
-
-        // aesctr 分片加密需要用到，输入Uint8Array，输出Uint8Array
-        function incrementIV2(nonce, increment) {
-            const iv = new DataView(nonce.buffer)
-            const MAX_UINT32 = 0xffffffff
-            const incrementBig = ~~(increment / MAX_UINT32)
-            const incrementLittle = (increment % MAX_UINT32) - incrementBig
-            // split the 128bits IV in 4 numbers, 32bits each
-            let overflow = 0
-            for (let idx = 0; idx < 4; ++idx) {
-                let num = iv.getUint32(12 - idx * 4)
-                let inc = overflow
-                if (idx === 0) inc += incrementLittle
-                if (idx === 1) inc += incrementBig
-                num += inc
-                const numBig = ~~(num / MAX_UINT32)
-                const numLittle = (num % MAX_UINT32) - numBig
-                overflow = numBig
-                iv.setUint32(12 - idx * 4, numLittle)
-            }
-            return iv
         }
 
         // 返回aes加密函数，确保startChunk是16倍数，这里加密或者解密都通一个函数
