@@ -1,7 +1,7 @@
 'use strict'
 
 import { httpClient } from './httpClient.js'
-import { XMLParser } from 'fast-xml-parser'
+import { parseXml } from './propfindParser.js'
 
 // get file info from webdav
 export async function getWebdavFileInfo(urlAddr, authorization) {
@@ -13,10 +13,9 @@ export async function getWebdavFileInfo(urlAddr, authorization) {
     },
     urlAddr,
   }
-  const parser = new XMLParser({ removeNSPrefix: true })
   try {
     const XMLdata = await httpClient(request)
-    const respBody = parser.parse(XMLdata)
+    const respBody = parseXml(XMLdata)
     const res = respBody.multistatus.response
     let propstat = res.propstat
     if (res.propstat instanceof Array) {

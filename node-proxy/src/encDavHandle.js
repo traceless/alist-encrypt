@@ -5,7 +5,7 @@ import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
 import { logger } from './common/logger.js'
 import path from 'path'
 import { httpClient, httpProxy } from './utils/httpClient.js'
-import { XMLParser } from 'fast-xml-parser'
+import { parseXml } from './utils/propfindParser.js'
 import FlowEnc from './utils/flowEnc.js'
 import { getWebdavFileInfo } from './utils/webdavClient.js'
 import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response'
@@ -18,8 +18,6 @@ async function sleep(time) {
   })
 }
 const origPrefix = 'orig_'
-// bodyparser解析body
-const parser = new XMLParser({ removeNSPrefix: true })
 
 /**
  * 获取文件信息
@@ -206,7 +204,7 @@ const preHandle = async (c, next) => {
     logger.info('@@request_webdav', baseUrl, request.url, request.urlAddr)
     // decrypt file name
     let respBody = await httpClient(request, response)
-    const respData = parser.parse(respBody)
+    const respData = parseXml(respBody)
     // convert file name for show
     if (respData.multistatus) {
       const respJson = respData.multistatus.response
