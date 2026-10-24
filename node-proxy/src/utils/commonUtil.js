@@ -24,7 +24,7 @@ export function convertRealName(password, encType, pathText, encSuffix) {
   // try encode name, fileName don't need decodeURI，encodeUrl func can't encode that like '(' '!'  in nodejs
   const ext = encSuffix || path.extname(fileName)
   const encName = encodeName(password, encType, fileName)
-  console.log('@@decodeURI(fileName)', fileName, encName)
+  logger.debug('@@convertRealName', fileName, encName)
   return encName + ext
 }
 
@@ -35,7 +35,7 @@ export function convertRealFolderName(password, encType, pathText) {
   }
   // try encode name, fileName don't need decodeURI，encodeUrl func can't encode that like '(' '!'  in nodejs
   const encName = encodeName(password, encType, pathText)
-  console.log('@@decodeURI(folderName)', encName)
+  logger.debug('@@convertRealFolderName', encName)
   return encName
 }
 
@@ -116,22 +116,6 @@ export function pathExec(encPath, url) {
   }
   return null
 }
-// 不允许加密乱码名字
-export function encodeName2(password, encType, plainName) {
-  const isBad = isBadText(plainName)
-  if (isBad) {
-    console.log('@isBadText', plainName)
-  }
-  const passwdOutward = FlowEnc.getPassWdOutward(password, encType)
-  //  randomStr
-  const mix64 = new MixBase64(passwdOutward)
-  let encodeName = mix64.encode(plainName)
-  const crc6Bit = crc6.checksum(Buffer.from(encodeName + passwdOutward))
-  const crc6Check = MixBase64.getSourceChar(crc6Bit)
-  encodeName += crc6Check
-  return encodeName
-}
-
 export function encodeName(password, encType, plainName, codeType = 1) {
   const isBad = isBadText(plainName)
   // 加密的时候就不允许加密乱码的文件名，对于之前加密过的名字可能会显示密文

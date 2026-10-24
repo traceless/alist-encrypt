@@ -57,7 +57,7 @@ const webdavServerTemp = [
     passwdList: [
       {
         password: '123456',
-        encType: 'aesctr', // 密码类型，mix：速度更快适合电视盒子之类，rc4: 更安全，速度比mix慢一点，几乎无感知。
+        encType: 'aesctr', // 算法类型: aesctr（默认）、rc4、chacha20
         describe: 'my video',
         enable: false,
         encName: false, // encrypt file name
@@ -109,8 +109,10 @@ async function init() {
       admin = { username: 'admin', headImgUrl: '/public/logo.svg', password: '123456', roleId: '[13]' }
       await addUserInfo(admin)
     }
-    console.log('@@init', admin)
-  } catch (e) {}
+    console.log('@@init', admin.username)
+  } catch (e) {
+    console.error('@@init error: KV初始化失败，缓存与302解密将不可用', e)
+  }
 }
 init()
 
@@ -142,5 +144,3 @@ export const version = '0.3.0'
 export const alistServer = configData.alistServer || alistServerTemp
 
 export const webdavServer = configData.webdavServer || webdavServerTemp
-
-console.log('configData ', configData)

@@ -5,10 +5,6 @@ export const fileInfoTable = 'fileInfoTable_'
 // 缓存多少小时
 const hoursTime = 60 * 60
 
-export async function initFileTable() {
-  console.log('init db')
-}
-
 // 缓存文件信息，存储文件的云盘真实路径，去掉decodeURIComponent，兼容带%符号的路径
 // fileInfo:{name, is_dir, size, path, showPath}
 export async function cacheFileInfo(fileInfo, decodeExc = false) {
@@ -28,11 +24,5 @@ export async function getFileInfo(path, decodeExc = false) {
   let pathKey = fileInfoTable + path
   if (decodeExc) pathKey = decodeURI(pathKey)
   const value = await levelDB.getValue(pathKey)
-  return value
-}
-
-// 获取文件信息
-export async function getAllFileInfo() {
-  const value = await levelDB.getValue({ table: fileInfoTable })
   return value
 }

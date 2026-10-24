@@ -316,17 +316,6 @@ const preHandle = async (c, next) => {
     return respondRaw(response, body)
   }
 
-  // GET file
-  if ('GET,HEAD,DELETE,POST'.includes(request.method.toLocaleUpperCase()) && passwdInfo?.encName) {
-    const url = request.url
-    // maybe from aliyundrive, check this req url while get file list from enc folder
-    // 这里的代码应该是过时了，无法验证，因为GET和endsWith('/')不可能同时出现，会报错405，之前是为了兼容网页版webdav
-    if (url.endsWith('/') && 'GET,DELETE'.includes(request.method.toLocaleUpperCase())) {
-      let respBody = await httpClient(request, response)
-      logger.info('@@GET_DELETE', respBody)
-      return respondRaw(response, respBody)
-    }
-  }
   // 如果是下载文件，那么就进行判断是否解密
   if ('GET,HEAD,POST'.includes(request.method.toLocaleUpperCase()) && passwdInfo) {
     // 要定位请求文件的位置 bytes=98304-

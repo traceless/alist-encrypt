@@ -9,22 +9,22 @@ import responseHandle from './middleware/responseHandle.js'
 import bodyParser from './middleware/bodyParser.js'
 import { encodeFromFolder, decodeFromFolder } from './utils/commonUtil.js'
 import { encryptFile, searchFile } from './utils/convertFile.js'
+import { logger } from './common/logger.js'
 
 // 总路径，添加所有的子路由
 const allRouter = new Hono()
 
 // 拦截全部，解析body并统一包装响应
 allRouter.use('/enc-api/*', bodyParser, responseHandle, async (c, next) => {
-  console.log('@@log request-url: ', c.env.incoming.url)
+  logger.debug('@@log request-url: ', c.env.incoming.url)
   await next()
 })
 
 // 白名单路由
 allRouter.all('/enc-api/login', async (c) => {
   const { username, password } = c.get('requestBody')
-  console.log(username, password)
   const userInfo = await getUserInfo(username)
-  console.log(userInfo)
+  logger.debug('@@login', username)
   if (userInfo && password === userInfo.password) {
     // 创建token
     const token = crypto.randomUUID()
@@ -55,7 +55,7 @@ allRouter.get('/index', (c) => c.redirect('/public/index.html', 302))
 // 用户信息
 allRouter.all('/enc-api/getUserInfo', async (c) => {
   const userInfo = c.get('userInfo')
-  console.log('@@getUserInfo', userInfo)
+  logger.debug('@@getUserInfo', userInfo.username)
   userInfo.password = null
   const data = {
     codes: [16, 9, 10, 11, 12, 13, 15],
@@ -70,8 +70,8 @@ allRouter.all('/enc-api/getUserInfo', async (c) => {
 // 更新用户信息
 allRouter.all('/enc-api/updatePasswd', async (c) => {
   const { password, newpassword, username } = c.get('requestBody')
-  if (newpassword.length < 7) {
-    return c.json({ msg: 'password too short, at less 8 digits', code: 500 })
+  if (newpassword.length < 8) {
+    return c.json({ msg: 'password too short, at least 8 digits', code: 500 })
   }
   const userInfo = await getUserInfo(username)
   if (password !== userInfo.password) {

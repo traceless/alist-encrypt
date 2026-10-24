@@ -15,19 +15,16 @@ class FlowEnc {
     const passwdOutward = cachePasswdOutward[password + encryptType]
     password = passwdOutward ? passwdOutward : password
     if (encryptType === 'chacha20') {
-      console.log('@@chacha20', encryptType)
       encryptFlow = new ChaCha20(password, fileSize)
     }
     if (encryptType === 'rc4') {
-      console.log('@@rc4', encryptType, fileSize)
       encryptFlow = new Rc4Md5(password, fileSize)
     }
     if (encryptType === 'aesctr') {
-      console.log('@@AesCTR', encryptType, fileSize)
       encryptFlow = new AesCTR(password, fileSize)
     }
-    if (encryptType === null) {
-      throw new Error('FlowEnc error')
+    if (!encryptFlow) {
+      throw new Error('FlowEnc error: 未知的encType ' + encryptType)
     }
     this.encryptFlow = encryptFlow
     this.passwdOutward = encryptFlow.passwdOutward

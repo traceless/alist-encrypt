@@ -150,25 +150,6 @@ function startupServer() {
   // 拦截alist的http接口，处理加密文件名等
   app.route('/', encNameRouter)
 
-  // that is not work when upload txt file if enable encName
-  app.put('/api/fs/put-back', async (c) => {
-    const request = c.env.incoming
-    const response = c.env.outgoing
-    const { headers, webdavConfig } = request
-    const contentLength = headers['content-length'] || 0
-    request.fileSize = contentLength * 1
-
-    const uploadPath = headers['file-path'] ? decodeURI(headers['file-path']) : '/-'
-    const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, uploadPath)
-    if (passwdInfo) {
-      const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
-      await httpProxy(request, response, flowEnc.encryptTransform())
-      return RESPONSE_ALREADY_SENT
-    }
-    await httpProxy(request, response)
-    return RESPONSE_ALREADY_SENT
-  })
-
   // 修复alist 图标不显示的问题
   app.all('/images/*', async (c) => {
     delete c.env.incoming.headers.host

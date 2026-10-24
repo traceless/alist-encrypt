@@ -8,7 +8,7 @@ const MENUS = [
   { id: 'index', title: '概览', icon: 'ti-dashboard', href: '/public/index.html' },
   { id: 'alist', title: 'Alist 配置', icon: 'ti-cloud', href: '/public/alist.html' },
   { id: 'webdav', title: 'WebDAV 配置', icon: 'ti-folders', href: '/public/webdav.html' },
-  { id: 'local', title: '云端加密', icon: 'ti-lock', href: '/public/local-encrypt.html' },
+  { id: 'cloud', title: '云端加密', icon: 'ti-lock', href: '/public/cloud-encrypt.html' },
   { id: 'decrypt', title: '在线解密', icon: 'ti-lock-open', href: '/public/online-decrypt.html' }
 ]
 
