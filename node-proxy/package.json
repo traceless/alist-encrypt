@@ -8,12 +8,11 @@
     "dev": "node --watch app.js",
     "serve": "node app.js",
     "ui": "vite --config vite.config.ui.js",
-    "test": "node --watch btest.js",
-    "webpack": "npx webpack",
-    "build": "npm run webpack && pkg --compress GZip dist",
-    "docker": "npm run webpack && sudo docker build -t prophet310/alist-encrypt:beta . ",
-    "docker-arm": "npm run webpack && sudo docker build -t prophet310/alist-encrypt:beta-arm . ",
-    "docker-all": "npm run webpack && sudo docker buildx build -t prophet310/alist-encrypt:beta-1.0 --platform=linux/arm64,linux/amd64 . --push "
+    "bundle": "node build.mjs",
+    "build": "npm run bundle && pkg --compress GZip dist",
+    "docker": "npm run bundle && sudo docker build -t prophet310/alist-encrypt:beta . ",
+    "docker-arm": "npm run bundle && sudo docker build -t prophet310/alist-encrypt:beta-arm . ",
+    "docker-all": "npm run bundle && sudo docker buildx build -t prophet310/alist-encrypt:beta-1.0 --platform=linux/arm64,linux/amd64 . --push "
   },
   "keywords": [],
   "author": "",
@@ -24,14 +23,11 @@
   },
   "devDependencies": {
     "@yao-pkg/pkg": "^6.24.0",
-    "copy-webpack-plugin": "^11.0.0",
+    "esbuild": "^0.28.2",
     "eslint": "^8.36.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
     "prettier": "^3.0.2",
-    "terser-webpack-plugin": "^5.3.9",
-    "vite": "^4.5.14",
-    "webpack": "^5.88.2",
-    "webpack-cli": "^5.1.4"
+    "vite": "^4.5.14"
   }
 }
