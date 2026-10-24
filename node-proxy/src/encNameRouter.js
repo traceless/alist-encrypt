@@ -1,7 +1,7 @@
 'use strict'
 
-import Router from 'koa-router'
-import bodyparser from 'koa-bodyparser'
+import { Hono } from 'hono'
+import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response'
 import { encodeName, pathFindPasswd, convertShowName, convertRealName, convertRealPath } from './utils/commonUtil.js'
 import path from 'path'
 import { httpClient, httpProxy } from './utils/httpClient.js'
@@ -10,6 +10,7 @@ import { logger } from './common/logger.js'
 import levelDB from './utils/levelDB.js'
 import crypto from 'crypto'
 import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
+import bodyParser from './middleware/bodyParser.js'
 
 async function sleep(time) {
   return new Promise((resolve) => {
@@ -19,38 +20,37 @@ async function sleep(time) {
   })
 }
 
-// bodyparser解析body
-const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
-
-const encNameRouter = new Router()
+const encName = new Hono()
 
 // 缓存alist的文件信息
-const cacheFileInfoList = async (ctx, next) => {
-  const { path: foldPath } = ctx.request.body
+const cacheFileInfoList = async (c, next) => {
+  const body = c.get('requestBody')
+  const { path: foldPath } = body
   // 添加 '/‘
-  const { passwdInfo } = pathFindPasswd(ctx.req.webdavConfig.passwdList, foldPath + '/')
+  const { passwdInfo } = pathFindPasswd(c.env.incoming.webdavConfig.passwdList, foldPath + '/')
   const folderInfo = await getFileInfo(foldPath)
   // 全面使用缓存来代替’加密替换‘，因为路径可能使用多种加密方式处理过。
   // const realfoldPath = convertRealPath(passwdInfo, foldPath)
   const realfoldPath = folderInfo?.is_dir ? folderInfo.path : foldPath
-  ctx.request.body.path = realfoldPath
+  body.path = realfoldPath
 
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
-  ctx.req.reqBody = JSON.stringify(ctx.request.body)
-  logger.info('@@fs/reqBody', foldPath, realfoldPath, ctx.req.reqBody)
-  delete ctx.req.headers['content-length']
-  const respBody = await httpClient(ctx.req)
+  c.env.incoming.reqBody = JSON.stringify(body)
+  logger.info('@@fs/reqBody', foldPath, realfoldPath, c.env.incoming.reqBody)
+  delete c.env.incoming.headers['content-length']
+  const respBody = await httpClient(c.env.incoming)
   // logger.info('@@@respBody', respBody)
   const result = JSON.parse(respBody)
-  ctx.body = result
+  // 传递给 decryptFileList 修改后统一响应，等价 koa 的 ctx.body 共享引用
+  c.set('fsResult', result)
   if (!result.data) {
     await next()
-    return
+    return c.json(result)
   }
   const content = result.data.content
   if (!content) {
     await next()
-    return
+    return c.json(result)
   }
   for (let i = 0; i < content.length; i++) {
     const fileInfo = content[i]
@@ -70,11 +70,12 @@ const cacheFileInfoList = async (ctx, next) => {
   }
   logger.info('@@fs/list', content.length)
   await next()
+  return c.json(result)
 }
 
-const decryptFileList = async (ctx, next) => {
-  const result = ctx.body
-  const { passwdList } = ctx.req.webdavConfig
+const decryptFileList = async (c) => {
+  const result = c.get('fsResult')
+  const { passwdList } = c.env.incoming.webdavConfig
   if (result.code === 200 && result.data) {
     const content = result.data.content
     if (!content) {
@@ -96,7 +97,7 @@ const decryptFileList = async (ctx, next) => {
     }
     const coverNameMap = {} //根据不含后缀的视频文件名找到对应的含后缀的封面文件名
     const omitNames = [] //用于隐藏封面文件
-    const { path } = JSON.parse(ctx.req.reqBody)
+    const { path } = JSON.parse(c.env.incoming.reqBody)
     result.data.content.forEach((fileInfo) => {
       if (fileInfo.is_dir) {
         return
@@ -121,11 +122,12 @@ const decryptFileList = async (ctx, next) => {
 }
 
 // 拦截/api/fs/list
-encNameRouter.all('/api/fs/list', bodyparserMw, cacheFileInfoList, decryptFileList)
+encName.all('/api/fs/list', bodyParser, cacheFileInfoList, decryptFileList)
 
 // 处理网页上传文件
-encNameRouter.put('/api/fs/put', async (ctx, next) => {
-  const request = ctx.req
+encName.put('/api/fs/put', async (c) => {
+  const request = c.env.incoming
+  const response = c.env.outgoing
   const { headers, webdavConfig } = request
   const contentLength = headers['content-length'] || 0
   request.fileSize = contentLength * 1
@@ -150,18 +152,20 @@ encNameRouter.put('/api/fs/put', async (ctx, next) => {
       headers['file-path'] = encodeURIComponent(filePath)
     }
     const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
-    return await httpProxy(ctx.req, ctx.res, flowEnc.encryptTransform())
+    await httpProxy(request, response, flowEnc.encryptTransform())
+    return RESPONSE_ALREADY_SENT
   }
   // 上传完之后，应该把这个文件缓存起来，不然页面上无法立刻获取到，TODO
-  return await httpProxy(ctx.req, ctx.res)
+  await httpProxy(request, response)
+  return RESPONSE_ALREADY_SENT
 })
 
 // remove删除文件
-encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
-  const { dir: folderPath, names } = ctx.request.body
+encName.all('/api/fs/remove', bodyParser, async (c) => {
+  const { dir: folderPath, names } = c.get('requestBody')
   const folderInfo = await getFileInfo(folderPath)
   const dir = folderInfo?.path ?? folderPath
-  const { webdavConfig } = ctx.req
+  const { webdavConfig } = c.env.incoming
   // 遇到跟目录会识别不了，必须是/aliyun/encfold/
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, dir + '/')
   // maybe a folder，remove anyway the name
@@ -177,31 +181,31 @@ encNameRouter.all('/api/fs/remove', bodyparserMw, async (ctx, next) => {
   }
   const reqBody = { dir, names: fileNames }
   logger.info('@@reqBody remove', reqBody)
-  ctx.req.reqBody = JSON.stringify(reqBody)
+  c.env.incoming.reqBody = JSON.stringify(reqBody)
   // reset content-length length
-  delete ctx.req.headers['content-length']
-  const respBody = await httpClient(ctx.req)
-  ctx.body = respBody
+  delete c.env.incoming.headers['content-length']
+  const respBody = await httpClient(c.env.incoming)
+  return c.body(respBody)
 })
 
 // 处理目录加密，这里把目录的路径缓存起来，后续可以做映射查询
-encNameRouter.all('/api/fs/dirs', bodyparserMw, async (ctx, next) => {
-  const { path: foldPath } = ctx.request.body
-  const { passwdInfo } = pathFindPasswd(ctx.req.webdavConfig.passwdList, foldPath + '/')
+encName.all('/api/fs/dirs', bodyParser, async (c) => {
+  const body = c.get('requestBody')
+  const { path: foldPath } = body
+  const { passwdInfo } = pathFindPasswd(c.env.incoming.webdavConfig.passwdList, foldPath + '/')
   // 尝试从缓存读取真实路径，
   const folderInfo = await getFileInfo(foldPath)
   // 如果不存在，则说明是刚进来的跟目录
   const realfoldPath = folderInfo?.is_dir ? folderInfo.path : foldPath
-  ctx.request.body.path = realfoldPath
+  body.path = realfoldPath
 
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
-  ctx.req.reqBody = JSON.stringify(ctx.request.body)
-  logger.info('@@fs/dirs', ctx.req.reqBody)
-  delete ctx.req.headers['content-length']
-  const respBody = await httpClient(ctx.req)
+  c.env.incoming.reqBody = JSON.stringify(body)
+  logger.info('@@fs/dirs', c.env.incoming.reqBody)
+  delete c.env.incoming.headers['content-length']
+  const respBody = await httpClient(c.env.incoming)
   // logger.info('@@@respBody', respBody)
   const result = JSON.parse(respBody)
-  ctx.body = result
   // /aliyun/encfold 应该返回 encName，但是正则表达识别不了，必须是/aliyun/encfold/，添加foldPath + '/'
 
   if (passwdInfo?.encFolder) {
@@ -228,11 +232,13 @@ encNameRouter.all('/api/fs/dirs', bodyparserMw, async (ctx, next) => {
     }
   }
   logger.info('@@fs/dirs', realfoldPath)
+  return c.json(result)
 })
 // 因为文件目录可以是适配多个算法，所以尽可能从缓存读取路径映射
-encNameRouter.all('/api/fs/mkdir', bodyparserMw, async (ctx, next) => {
-  const { path: foldPath } = ctx.request.body
-  const { webdavConfig } = ctx.req
+encName.all('/api/fs/mkdir', bodyParser, async (c) => {
+  const body = c.get('requestBody')
+  const { path: foldPath } = body
+  const { webdavConfig } = c.env.incoming
 
   const folder = await getFileInfo(path.dirname(foldPath))
   const subPath = folder?.path ?? path.dirname(foldPath)
@@ -242,21 +248,22 @@ encNameRouter.all('/api/fs/mkdir', bodyparserMw, async (ctx, next) => {
     name = convertRealName(passwdInfo.password, passwdInfo.encType, name)
   }
   const realfoldPath = subPath + '/' + name
-  ctx.request.body.path = realfoldPath
+  body.path = realfoldPath
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
-  ctx.req.reqBody = JSON.stringify(ctx.request.body)
-  logger.info('@@fs/mkdirs', ctx.req.reqBody)
-  delete ctx.req.headers['content-length']
-  const respBody = await httpClient(ctx.req)
+  c.env.incoming.reqBody = JSON.stringify(body)
+  logger.info('@@fs/mkdirs', c.env.incoming.reqBody)
+  delete c.env.incoming.headers['content-length']
+  const respBody = await httpClient(c.env.incoming)
   // logger.info('@@@respBody', respBody)
   const result = JSON.parse(respBody)
-  ctx.body = result
   logger.info('@@fs/mkdir', realfoldPath)
+  return c.json(result)
 })
 
-const copyOrMoveFile = async (ctx, next) => {
-  const { dst_dir, src_dir, names } = ctx.request.body
-  const { webdavConfig } = ctx.req
+const copyOrMoveFile = async (c) => {
+  const body = c.get('requestBody')
+  const { dst_dir, src_dir, names } = body
+  const { webdavConfig } = c.env.incoming
   const dstFolder = await getFileInfo(dst_dir)
   const dstDir = dstFolder?.is_dir ? dstFolder.path : dst_dir
   const srcFolder = await getFileInfo(src_dir)
@@ -273,39 +280,40 @@ const copyOrMoveFile = async (ctx, next) => {
     fileNames = Object.assign([], names)
   }
   const reqBody = { dst_dir: dstDir, src_dir: srcDir, names: fileNames }
-  ctx.req.reqBody = JSON.stringify(reqBody)
-  logger.info('@@move reqBody', ctx.req.reqBody)
+  c.env.incoming.reqBody = JSON.stringify(reqBody)
+  logger.info('@@move reqBody', c.env.incoming.reqBody)
   // reset content-length length
-  delete ctx.req.headers['content-length']
-  const respBody = await httpClient(ctx.req)
-  ctx.body = respBody
+  delete c.env.incoming.headers['content-length']
+  const respBody = await httpClient(c.env.incoming)
+  return c.body(respBody)
 }
 
-encNameRouter.all('/api/fs/move', bodyparserMw, copyOrMoveFile)
-encNameRouter.all('/api/fs/copy', bodyparserMw, copyOrMoveFile)
-encNameRouter.all('/api/fs/recursive_move', bodyparserMw, copyOrMoveFile)
+encName.all('/api/fs/move', bodyParser, copyOrMoveFile)
+encName.all('/api/fs/copy', bodyParser, copyOrMoveFile)
+encName.all('/api/fs/recursive_move', bodyParser, copyOrMoveFile)
 
-const preHandleFolderPath = async (ctx, next) => {
+const preHandleFolderPath = async (c, next) => {
   // reset content-length length
-  delete ctx.req.headers['content-length']
-  let { path: filePath } = ctx.request.body
-  const { webdavConfig } = ctx.req
+  delete c.env.incoming.headers['content-length']
+  const body = c.get('requestBody')
+  let { path: filePath } = body
+  const { webdavConfig } = c.env.incoming
   const folderInfo = await getFileInfo(filePath)
   if (folderInfo) {
-    ctx.request.body.path = folderInfo.path
+    body.path = folderInfo.path
     return await next()
   }
   // 上面的folderInfo 一定会存在，除非缓存过期，比如分享的文件给别人.
   // 下面的代码意义不大，大概率会
-  const fileRealPath = convertRealPath(ctx.req.webdavConfig.passwdList, filePath)
+  const fileRealPath = convertRealPath(c.env.incoming.webdavConfig.passwdList, filePath)
   // 判断是否请求目录，上面的缓存失效，说明这里大概率也是失效
   const fileInfo = await getFileInfo(fileRealPath)
   if (fileInfo?.is_dir) {
-    ctx.request.body.path = fileRealPath
+    body.path = fileRealPath
     return await next()
   }
   // 尝试以文件的路径进行请求，除非缓存失效，否则这里代码不会执行
-  const folderRealPath = convertRealPath(ctx.req.webdavConfig.passwdList, path.dirname(filePath))
+  const folderRealPath = convertRealPath(c.env.incoming.webdavConfig.passwdList, path.dirname(filePath))
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
   if (passwdInfo?.encName) {
     // check fileName is not enc
@@ -313,42 +321,46 @@ const preHandleFolderPath = async (ctx, next) => {
     //  Check if it is a directory
     const realName = convertRealName(passwdInfo.password, passwdInfo.encType, fileName)
     const fpath = folderRealPath + '/' + realName
-    ctx.request.body.path = fpath
+    body.path = fpath
   }
   await next()
 }
 
 // 处理在线视频播放的问题，修改它的返回播放地址 为本代理的地址。
-encNameRouter.all('/api/fs/get', bodyparserMw, preHandleFolderPath, async (ctx, next) => {
-  const { path: filePath } = ctx.request.body
+encName.all('/api/fs/get', bodyParser, preHandleFolderPath, async (c) => {
+  const body = c.get('requestBody')
+  const { path: filePath } = body
   // 判断打开的文件是否要解密，要解密则替换url，否则透传
-  ctx.req.reqBody = JSON.stringify(ctx.request.body)
-  delete ctx.req.headers['content-length']
-  const respBody = await httpClient(ctx.req)
+  c.env.incoming.reqBody = JSON.stringify(body)
+  delete c.env.incoming.headers['content-length']
+  const respBody = await httpClient(c.env.incoming)
   const result = JSON.parse(respBody)
-  const { headers, webdavConfig } = ctx.req
+  const { headers, webdavConfig } = c.env.incoming
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
   if (passwdInfo) {
     // 修改返回的响应，匹配到要解密，就302跳转到本服务上进行代理流量
-    logger.info('@@getFile ', filePath, ctx.req.reqBody, result)
+    logger.info('@@getFile ', filePath, c.env.incoming.reqBody, result)
     const key = crypto.randomUUID()
     await levelDB.setExpire(key, { redirectUrl: result.data.raw_url, passwdInfo, fileSize: result.data.size }, 60 * 60 * 72) // 缓存起来，默认3天，足够下载和观看了
     // 如果是文件则处理一下跳转
     if (!result.data.is_dir) {
-      const origin = headers.origin || (headers['x-forwarded-proto'] || ctx.protocol) + '://' + ctx.req.selfHost
+      // 等价 koa 的 ctx.protocol
+      const requestProtocol = c.env.incoming.socket.encrypted ? 'https' : 'http'
+      const origin = headers.origin || (headers['x-forwarded-proto'] || requestProtocol) + '://' + c.env.incoming.selfHost
       result.data.raw_url = `${origin}/redirect/${key}?decode=1&lastUrl=${encodeURIComponent(filePath)}`
       if (result.data.provider === 'AliyundriveOpen') result.data.provider = 'Local'
     }
     const showName = convertShowName(passwdInfo.password, passwdInfo.encType, result.data.name)
     result.data.name = showName
   }
-  ctx.body = result
+  return c.json(result)
 })
 
 // 处理参数中是目录路径还是文件路径
-const handleFolderPath = async (ctx, next) => {
-  const { path: filePath, name } = ctx.request.body
-  const { webdavConfig } = ctx.req
+const handleFolderPath = async (c, next) => {
+  const body = c.get('requestBody')
+  const { path: filePath, name } = body
+  const { webdavConfig } = c.env.incoming
   const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, filePath)
   if (!passwdInfo) {
     await next()
@@ -364,35 +376,36 @@ const handleFolderPath = async (ctx, next) => {
     if (!fileInfoData.is_dir && passwdInfo.encName) {
       realName = convertRealName(passwdInfo.password, passwdInfo.encType, name)
     }
-    ctx.request.body = { path: fileInfoData.path, name: realName }
+    c.set('requestBody', { path: fileInfoData.path, name: realName })
     return await next()
   }
   // 不加密目录，也不加密文件名
-  ctx.request.body = { path: filePath, name }
+  c.set('requestBody', { path: filePath, name })
   await next()
 }
-encNameRouter.all('/api/fs/rename', bodyparserMw, handleFolderPath, async (ctx, next) => {
-  let { path: filePath, name } = ctx.request.body
+encName.all('/api/fs/rename', bodyParser, handleFolderPath, async (c) => {
+  const { path: filePath, name } = c.get('requestBody')
   const reqBody = { path: filePath, name }
   logger.debug('@@rename_reqBody', reqBody)
-  ctx.req.reqBody = reqBody
+  c.env.incoming.reqBody = reqBody
   // reset content-length length
-  delete ctx.req.headers['content-length']
-  const respBody = await httpClient(ctx.req, ctx.res)
-  ctx.status = ctx.res.statusCode
-  ctx.body = respBody
+  delete c.env.incoming.headers['content-length']
+  const respBody = await httpClient(c.env.incoming, c.env.outgoing)
+  // 等价 koa: ctx.status = ctx.res.statusCode; ctx.body = respBody
+  c.env.outgoing.setHeader('content-length', Buffer.byteLength(respBody))
+  c.env.outgoing.end(respBody)
+  return RESPONSE_ALREADY_SENT
 })
 // 替换字符，http://alist.com/p/show电影.txt?sign=12.. 替换 http://alist.com/p/realname.txt?sign=12..
-const regexPath = /\/([^\\/]*?)(\?|$)/
-const handleDownload = async (ctx, next) => {
-  const request = ctx.req
-  const response = ctx.res
-  const { webdavConfig } = ctx.req
+const handleDownload = async (c) => {
+  const request = c.env.incoming
+  const response = c.env.outgoing
+  const { webdavConfig } = request
   // 要定位请求文件的位置 bytes=98304-
   const range = request.headers.range
   const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
 
-  let filePath = ctx.req.url.split('?')[0]
+  let filePath = request.url.split('?')[0]
   // 如果是alist的话，那么必然有这个文件的size缓存（进过list就会被缓存起来）
   request.fileSize = 0
   // 这里需要处理掉/p 路径，才能找到真实的文件信息
@@ -407,32 +420,34 @@ const handleDownload = async (ctx, next) => {
   // 全新的设计直接通过缓存找到的真实路径，不用那么折腾
   const fileInfo = await getFileInfo(decodeURIComponent(filePath))
   if (fileInfo) {
-    ctx.req.url = ctx.req.url.replace(filePath, fileInfo.path)
-    ctx.req.urlAddr = ctx.req.urlAddr.replace(filePath, fileInfo.path)
+    request.url = request.url.replace(filePath, fileInfo.path)
+    request.urlAddr = request.urlAddr.replace(filePath, fileInfo.path)
     request.fileSize = fileInfo.size * 1
   }
   if (passwdInfo) {
     // reset content-length length
-    delete ctx.req.headers['content-length']
+    delete request.headers['content-length']
     // Check whether the file name refers to an encrypted file or a directory
     request.passwdInfo = passwdInfo
-    logger.debug('@@download-fileName', filePath, ctx.req.url, fileInfo.name)
+    logger.debug('@@download-fileName', filePath, request.url, fileInfo.name)
     // 根据文件路径来获取文件的大小
     if (request.fileSize === 0) {
       // 说明不用加密
-      return await httpProxy(request, response)
+      await httpProxy(request, response)
+      return RESPONSE_ALREADY_SENT
     }
     const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
     if (start) {
       await flowEnc.setPosition(start)
     }
-    return await httpProxy(request, response, null, flowEnc.decryptTransform())
+    await httpProxy(request, response, null, flowEnc.decryptTransform())
+    return RESPONSE_ALREADY_SENT
   }
   await httpProxy(request, response)
+  return RESPONSE_ALREADY_SENT
 }
 // 直接读取txt文件会用到
-encNameRouter.get(/\/p\/*/, bodyparserMw, handleDownload)
-encNameRouter.get(/^\/d\/*/, bodyparserMw, handleDownload)
+encName.get('/p/*', handleDownload)
+encName.get('/d/*', handleDownload)
 
-// restRouter.all(/\/enc-api\/*/, router.routes(), restRouter.allowedMethods())
-export default encNameRouter
+export default encName

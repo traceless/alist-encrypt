@@ -8,6 +8,7 @@ import { httpClient, httpProxy } from './utils/httpClient.js'
 import { XMLParser } from 'fast-xml-parser'
 import FlowEnc from './utils/flowEnc.js'
 import { getWebdavFileInfo } from './utils/webdavClient.js'
+import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response'
 
 async function sleep(time) {
   return new Promise((resolve) => {
@@ -100,10 +101,26 @@ function cacheWebdavFileInfo(fileInfo, passwdInfo) {
   return fileDetail
 }
 
+/**
+ * 模拟 koa 的 ctx.status = ctx.res.statusCode; ctx.body = respBody：
+ * httpClient 已把上游的 statusCode 和 headers 写到 outgoing 上，这里重算 Content-Length 后直接写出
+ * @param {object} response nodejs原生response
+ * @param {string} respBody 响应内容
+ * @returns {Response} RESPONSE_ALREADY_SENT
+ */
+function respondRaw(response, respBody) {
+  // httpClient 透传了上游的 transfer-encoding: chunked 头，body 已被重写后长度与上游 CL/TE 不再匹配，
+  // 必须移除 TE 改用精确的 Content-Length，否则出现 TE+CL 并存的非法头（undici 会报 RES_CONTENT_LENGTH_MISMATCH）
+  response.removeHeader('transfer-encoding')
+  response.setHeader('content-length', Buffer.byteLength(respBody))
+  response.end(respBody)
+  return RESPONSE_ALREADY_SENT
+}
+
 // 拦截webdav，预处理request
-const preHandle = async (ctx, next) => {
-  const request = ctx.req
-  const response = ctx.res
+const preHandle = async (c, next) => {
+  const request = c.env.incoming
+  const response = c.env.outgoing
   const { passwdList } = request.webdavConfig
   // 先处理路径，群晖的url请求是decodeURIComponent进行处理的，而其他的webdav服务是encodeURI,这里先做兼容。
   const reqUrl = request.url
@@ -114,7 +131,7 @@ const preHandle = async (ctx, next) => {
   const baseUrl = request.url
 
   // 处理业务，创建目录
-  if (ctx.method.toLocaleUpperCase() === 'MKCOL' && passwdInfo?.encFolder) {
+  if (request.method.toLocaleUpperCase() === 'MKCOL' && passwdInfo?.encFolder) {
     // 对名字进行加密, TODO
     const url = request.url
     const realUrl = convertRealPath(passwdInfo, url, true)
@@ -125,7 +142,8 @@ const preHandle = async (ctx, next) => {
     logger.info('@@MKCOL_fileDetail', request.urlAddr, fileDetail)
     // 在页面创建文件夹，需要缓存起来，不然群晖会去查询这个文件夹是否存在，不存在就会报错，实际已经创建成功。
     await cacheFileInfo(fileDetail, true)
-    return await httpProxy(ctx.req, ctx.res)
+    await httpProxy(request, response)
+    return RESPONSE_ALREADY_SENT
   }
 
   // 处理文件上传
@@ -161,7 +179,8 @@ const preHandle = async (ctx, next) => {
     // 在页面上传文件，rclone会重复上传，所以要进行缓存文件信息,让他能找到文件信息，也不能在next() 因为rclone copy命令会出异常
     await cacheFileInfo(fileDetail, true)
     const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, contentLength * 1)
-    return await httpProxy(request, response, flowEnc.encryptTransform())
+    await httpProxy(request, response, flowEnc.encryptTransform())
+    return RESPONSE_ALREADY_SENT
   }
 
   // 判断是目录还是文件，新方案直接通过缓存来判断，而且升级新名字加密算法需要兼容
@@ -183,10 +202,10 @@ const preHandle = async (ctx, next) => {
   }
 
   // 列表查询或者文件信息查询，把返回来的名字进行加密
-  if (ctx.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo) {
-    logger.info('@@request_webdav', baseUrl, ctx.req.url, request.urlAddr)
+  if (request.method.toLocaleUpperCase() === 'PROPFIND' && passwdInfo) {
+    logger.info('@@request_webdav', baseUrl, request.url, request.urlAddr)
     // decrypt file name
-    let respBody = await httpClient(ctx.req, ctx.res)
+    let respBody = await httpClient(request, response)
     const respData = parser.parse(respBody)
     // convert file name for show
     if (respData.multistatus) {
@@ -245,21 +264,18 @@ const preHandle = async (ctx, next) => {
       }
     }
     // 检查数据兼容的问题，优先XML对比。
-    // logger.debug('@@respJsxml', respBody, ctx.headers)
+    // logger.debug('@@respJsxml', respBody, request.headers)
     // const resultBody = parser.parse(respBody)
-    // logger.debug('@@respJSONData2', ctx.res.statusCode, JSON.stringify(resultBody))
+    // logger.debug('@@respJSONData2', response.statusCode, JSON.stringify(resultBody))
 
-    // 而rclone遇到404只能使用 ctx.res.end(respBody)，这里有待验证
-    if (ctx.res.statusCode === 404) {
+    // 而rclone遇到404只能使用 response.end(respBody)，这里有待验证
+    if (response.statusCode === 404) {
       // fix rclone propfind 404 ，because rclone copy will get error 501
-      ctx.respond = false
-      ctx.res.end(respBody)
-      return
+      response.end(respBody)
+      return RESPONSE_ALREADY_SENT
     }
-    // 因为ctx.body 会重新计算响应的Content-length，此时respBody发生了变化，需要调整header的长度
-    ctx.status = ctx.res.statusCode
-    ctx.body = respBody
-    return
+    // 等价 koa 的 ctx.status = ctx.res.statusCode; ctx.body = respBody，body变化后需要调整header的长度
+    return respondRaw(response, respBody)
   }
 
   // 相同密码目录则加密平移，否则destName按原来明文名字存到新路径，orig_这个也会恢复原明文
@@ -299,9 +315,7 @@ const preHandle = async (ctx, next) => {
     }
     logger.info('@@move_dest', request.url, destination)
     const body = await httpClient(request, response)
-    ctx.status = ctx.res.statusCode
-    ctx.body = body
-    return
+    return respondRaw(response, body)
   }
 
   // GET file
@@ -310,11 +324,9 @@ const preHandle = async (ctx, next) => {
     // maybe from aliyundrive, check this req url while get file list from enc folder
     // 这里的代码应该是过时了，无法验证，因为GET和endsWith('/')不可能同时出现，会报错405，之前是为了兼容网页版webdav
     if (url.endsWith('/') && 'GET,DELETE'.includes(request.method.toLocaleUpperCase())) {
-      let respBody = await httpClient(ctx.req, ctx.res)
+      let respBody = await httpClient(request, response)
       logger.info('@@GET_DELETE', respBody)
-      ctx.status = ctx.res.statusCode
-      ctx.body = respBody
-      return
+      return respondRaw(response, respBody)
     }
   }
   // 如果是下载文件，那么就进行判断是否解密
@@ -323,7 +335,7 @@ const preHandle = async (ctx, next) => {
     const range = request.headers.range
     const start = range ? range.replace('bytes=', '').split('-')[0] * 1 : 0
     // 根据文件路径来获取文件的大小
-    const urlPath = ctx.req.url.split('?')[0]
+    const urlPath = request.url.split('?')[0]
     let filePath = urlPath
     request.fileSize = 0
     // 尝试获取文件信息，如果未找到相应的文件信息，则对文件名进行加密处理后重新尝试获取文件信息
@@ -364,16 +376,19 @@ const preHandle = async (ctx, next) => {
     logger.info('@webdav_filePath ', filePath, request.fileSize)
     if (request.fileSize === 0) {
       // 说明不用加密
-      return await httpProxy(request, response)
+      await httpProxy(request, response)
+      return RESPONSE_ALREADY_SENT
     }
     const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
     if (start) {
       await flowEnc.setPosition(start)
     }
-    return await httpProxy(request, response, null, flowEnc.decryptTransform())
+    await httpProxy(request, response, null, flowEnc.decryptTransform())
+    return RESPONSE_ALREADY_SENT
   }
   logger.info('@@webdav_preHandle', request.method, request.url)
-  await next()
+  // 透传下游(proxyHandle)的返回值，保证 Hono 收到 RESPONSE_ALREADY_SENT
+  return await next()
 }
 
 export default preHandle

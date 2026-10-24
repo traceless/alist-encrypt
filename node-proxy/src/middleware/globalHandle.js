@@ -1,32 +1,21 @@
 'use strict'
 
-export default async function (ctx, next) {
+// 全局异常兜底，等价 koa 版本的 globalHandle
+// 注意：Hono 的 compose 内建 onError（默认 500 响应），中间件 try-catch 收不到 handler 的 throw，
+// 必须通过 app.onError 注册才能接管异常（koa-compose 无 onError，异常自然冒泡，二者机制不同）
+export default function onErrorHandler(err, c) {
   const env = 'dev'
-  try {
-    await next()
-    // 兼容webdav中401的时候，body = ''
-    if (!ctx.body) {
-      return
-    }
-    // 参数转换, 转换成自己的数据格式
-  } catch (err) {
-    // 所有的异常都在 app 上触发一个 error 事件，框架会记录一条错误日志
-    // app.emit('error', err, this);
-    const status = err.status || 500
-    // 生产环境时 500 错误的详细错误内容不返回给客户端，因为可能包含敏感信息
-    const error = status === 500 && env === 'prod' ? 'Internal Server Error' : err.message
-    console.error('@@err', err)
-    // 从 error 对象上读出各个属性，设置到响应中
-    ctx.body = {
+  const status = err.status || 500
+  // 生产环境时 500 错误的详细错误内容不返回给客户端，因为可能包含敏感信息
+  const error = status === 500 && env === 'prod' ? 'Internal Server Error' : err.message
+  console.error('@@err', err)
+  return c.json(
+    {
       success: false,
       message: error,
       code: status, // 服务端自身的处理逻辑错误(包含框架错误500 及 自定义业务逻辑错误533开始 ) 客户端请求参数导致的错误(4xx开始)，设置不同的状态码
       data: null,
-    }
-    // 406 是能让用户看到的错误，参数校验失败也不能让用户看到（一般不存在参数校验失败）
-    if (status === '403' || status === '406') {
-      ctx.body.message = error
-    }
-    ctx.status = 200
-  }
+    },
+    200
+  )
 }

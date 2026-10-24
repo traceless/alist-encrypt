@@ -2,13 +2,14 @@
 // CLI模式: node app.js <password> <encType> <operation> <folder> <outPath> [encName]
 // 服务模式: node app.js
 import { convertFile } from './src/utils/convertFile.js'
-import Koa from 'koa'
-import Router from 'koa-router'
+import { Hono } from 'hono'
+import { getRequestListener } from '@hono/node-server'
+import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response'
+import { serveStatic } from '@hono/node-server/serve-static'
 import http from 'http'
 
 import path from 'path'
 import { httpProxy, httpClient } from './src/utils/httpClient.js'
-import bodyparser from 'koa-bodyparser'
 import FlowEnc from './src/utils/flowEnc.js'
 import levelDB from './src/utils/levelDB.js'
 import { webdavServer, alistServer, port, version } from './src/config.js'
@@ -18,9 +19,7 @@ import encApiRouter from './src/router.js'
 import encNameRouter from './src/encNameRouter.js'
 import encDavHandle from './src/encDavHandle.js'
 
-import staticServer from 'koa-static'
 import { logger } from './src/common/logger.js'
-import { encodeName } from './src/utils/commonUtil.js'
 
 const arg = process.argv.slice(2)
 if (arg.length > 1) {
@@ -32,40 +31,28 @@ if (arg.length > 1) {
 }
 
 function startupServer() {
-  async function sleep(time) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve()
-      }, time || 3000)
-    })
-  }
-
-  const proxyRouter = new Router()
-  const app = new Koa()
+  const app = new Hono()
   // compatible ncc and pkg
   const pkgDirPath = path.dirname(process.argv[1])
 
-  app.use(staticServer(pkgDirPath, 'public'))
-  app.use(globalHandle)
-  // bodyparser解析body
-  const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
+  // ======================静态资源与全局异常兜底==============================
+  app.use('/public/*', serveStatic({ root: pkgDirPath }))
+  // Hono 的 compose 内建 onError，异常不会冒泡到普通中间件的 try-catch，必须用 app.onError 接管
+  app.onError(globalHandle)
 
-  // ======================/proxy是实现本服务的业务==============================
-  // 短地址
-  encApiRouter.redirect('/index', '/public/index.html', 302)
-  app.use(encApiRouter.routes()).use(encApiRouter.allowedMethods())
+  // ======================/enc-api 是本服务的管理接口==============================
+  app.route('/', encApiRouter)
 
-  // ======================下面是实现webdav代理的业务==============================
+  // =======================下面是实现webdav代理的业务==============================
 
   // 可能是302跳转过来的下载的,/redirect?key=34233&decode=0
-  proxyRouter.all('/redirect/:key', async (ctx) => {
-    const request = ctx.req
-    const response = ctx.res
+  app.all('/redirect/:key', async (c) => {
+    const request = c.env.incoming
+    const response = c.env.outgoing
     // 这里还是要encodeURIComponent ，因为http服务器会自动对url进行decodeURIComponent
-    const data = await levelDB.getValue(ctx.params.key)
+    const data = await levelDB.getValue(c.req.param('key'))
     if (data === null) {
-      ctx.body = 'no found'
-      return
+      return c.text('no found')
     }
     const { passwdInfo, redirectUrl, fileSize } = data
     // 要定位请求文件的位置 bytes=98304-
@@ -76,12 +63,12 @@ function startupServer() {
       await flowEnc.setPosition(start)
     }
     // 设置请求地址和是否要解密
-    const decode = ctx.query.decode
+    const decode = c.req.query('decode')
     // 修改百度头
     if (~redirectUrl.indexOf('baidupcs.com')) {
       request.headers['User-Agent'] = 'pan.baidu.com'
     }
-    request.url = decodeURIComponent(ctx.query.lastUrl)
+    request.url = decodeURIComponent(c.req.query('lastUrl'))
     request.urlAddr = redirectUrl
     delete request.headers.host
     // aliyun不允许这个referer，不然会出现403
@@ -100,19 +87,17 @@ function startupServer() {
     // 请求实际服务资源
     await httpProxy(request, response, null, decryptTransform)
     logger.info('----finish redirect---', decode, request.urlAddr, decryptTransform === null)
+    return RESPONSE_ALREADY_SENT
   })
 
   // 预处理 request，处理地址，加密钥匙等
   function preProxy(webdavConfig, isWebdav) {
-    // 必包变量
-    // let authorization = isWebdav
-    return async (ctx, next) => {
+    return async (c, next) => {
       const { serverHost, serverPort, https } = webdavConfig
-      const request = ctx.req
+      const request = c.env.incoming
       if (isWebdav) {
         // 不能把authorization缓存起来，单线程
         request.isWebdav = isWebdav
-        // request.headers.authorization = request.headers.authorization ? (authorization = request.headers.authorization) : authorization
       }
       // 原来的host保留，以后可能会用到
       request.selfHost = request.headers.host
@@ -126,48 +111,49 @@ function startupServer() {
     }
   }
   // webdav or http handle
-  async function proxyHandle(ctx, next) {
-    const request = ctx.req
-    const response = ctx.res
+  async function proxyHandle(c) {
+    const request = c.env.incoming
+    const response = c.env.outgoing
     const { passwdList } = request.webdavConfig
     // 检查路径是否满足加密要求，要拦截的路径可能有中文
     const { pathInfo } = pathFindPasswd(passwdList, decodeURI(request.url))
     logger.info('@@webdavpasswdInfo', pathInfo)
     await httpProxy(request, response)
-  }
-  // 测试方法
-  async function proxyHandleTest(ctx, next) {
-    // req 是nodejs原生对象
-    const request = ctx.req
-    const response = ctx.res
-    logger.info('@request_data', request.url, request.headers)
-    // await httpProxy(ctx.req, ctx.res)
-    const result = await httpClient(request, response)
-    ctx.status = ctx.res.statusCode
-    ctx.body = result
-    logger.info('@@request_log', request.urlAddr, response.statusCode, result)
+    return RESPONSE_ALREADY_SENT
   }
 
-  // 初始化webdav路由，这里可以优化成动态路由，只不过没啥必要，修改配置后直接重启就好了
-  webdavServer.forEach((webdavConfig) => {
-    if (webdavConfig.enable) {
-      proxyRouter.all(new RegExp(webdavConfig.path), preProxy(webdavConfig, true), encDavHandle, proxyHandle)
+  // 组合执行webdav处理链: preProxy -> encDavHandle -> proxyHandle
+  async function davChain(c, webdavConfig) {
+    await preProxy(webdavConfig, true)(c, async () => {})
+    return await encDavHandle(c, async () => proxyHandle(c))
+  }
+
+  // webdav路由匹配，Hono不支持动态RegExp路由，这里按配置顺序手动匹配
+  // 匹配顺序与原koa-router注册顺序一致：webdav配置路径 -> /dav -> 其余路径做alist预处理
+  app.all('*', async (c, next) => {
+    const reqPath = c.req.path
+    for (const webdavConfig of webdavServer) {
+      if (webdavConfig.enable && new RegExp(webdavConfig.path).test(reqPath)) {
+        return await davChain(c, webdavConfig)
+      }
     }
+    // 单独处理alist的所有/dav
+    if (/^\/dav\/*/.test(reqPath)) {
+      return await davChain(c, alistServer)
+    }
+    // 其他的代理request预处理，处理要跳转的路径等
+    await preProxy(alistServer, false)(c, next)
   })
 
-  /* =================================== 单独处理alist的逻辑 ====================================== */
+  /* =========================== 单独处理alist的逻辑 ============================== */
 
-  // 单独处理alist的所有/dav
-  proxyRouter.all(/^\/dav\/*/, preProxy(alistServer, true), encDavHandle, proxyHandle)
-
-  // 其他的代理request预处理，处理要跳转的路径等
-  proxyRouter.all(/\/*/, preProxy(alistServer, false))
-  // check enc filename
-  proxyRouter.use(encNameRouter.routes()).use(encNameRouter.allowedMethods())
+  // 拦截alist的http接口，处理加密文件名等
+  app.route('/', encNameRouter)
 
   // that is not work when upload txt file if enable encName
-  proxyRouter.put('/api/fs/put-back', async (ctx, next) => {
-    const request = ctx.req
+  app.put('/api/fs/put-back', async (c) => {
+    const request = c.env.incoming
+    const response = c.env.outgoing
     const { headers, webdavConfig } = request
     const contentLength = headers['content-length'] || 0
     request.fileSize = contentLength * 1
@@ -176,20 +162,28 @@ function startupServer() {
     const { passwdInfo } = pathFindPasswd(webdavConfig.passwdList, uploadPath)
     if (passwdInfo) {
       const flowEnc = new FlowEnc(passwdInfo.password, passwdInfo.encType, request.fileSize)
-      return await httpProxy(ctx.req, ctx.res, flowEnc.encryptTransform())
+      await httpProxy(request, response, flowEnc.encryptTransform())
+      return RESPONSE_ALREADY_SENT
     }
-    return await httpProxy(ctx.req, ctx.res)
+    await httpProxy(request, response)
+    return RESPONSE_ALREADY_SENT
   })
 
   // 修复alist 图标不显示的问题
-  proxyRouter.all(/^\/images\/*/, async (ctx, next) => {
-    delete ctx.req.headers.host
-    return await httpProxy(ctx.req, ctx.res)
+  app.all('/images/*', async (c) => {
+    delete c.env.incoming.headers.host
+    await httpProxy(c.env.incoming, c.env.outgoing)
+    return RESPONSE_ALREADY_SENT
   })
 
-  // 初始化alist的路由
-  proxyRouter.all(new RegExp(alistServer.path), async (ctx, next) => {
-    let respBody = await httpClient(ctx.req, ctx.res)
+  // 初始化alist的路由（等价原 new RegExp(alistServer.path) 兜底路由）
+  app.all('*', async (c) => {
+    if (!new RegExp(alistServer.path).test(c.req.path)) {
+      return c.text('Not Found', 404)
+    }
+    const request = c.env.incoming
+    const response = c.env.outgoing
+    let respBody = await httpClient(request, response)
     respBody = respBody.replace(
       '<body>',
       `<body>
@@ -204,22 +198,23 @@ function startupServer() {
       </a>
     </div>`
     )
-    ctx.status = ctx.res.statusCode
-    // ctx.body = respBody 会导致 statusCode = 200，所以上面要进行主动设置
-    ctx.body = respBody
+    // 等价 koa: ctx.status = ctx.res.statusCode; ctx.body = respBody，body变化后需重算Content-Length
+    // 移除透传的 transfer-encoding（上游 chunked），避免 TE+CL 并存的非法头
+    response.removeHeader('transfer-encoding')
+    response.setHeader('content-length', Buffer.byteLength(respBody))
+    response.end(respBody)
+    return RESPONSE_ALREADY_SENT
   })
-  // 使用路由控制
-  app.use(proxyRouter.routes()).use(proxyRouter.allowedMethods())
 
   // 配置创建好了，就启动
-  const koaHandler = app.callback()
-  const server = http.createServer(koaHandler)
+  const nodeHandler = getRequestListener(app.fetch)
+  const server = http.createServer(nodeHandler)
   server.maxConnections = 1000
 
   // 捕获带Expect:100-continue的PUT上传请求直接透传，本机不处理
   server.on('checkContinue', (req, res) => {
     // 全部交给后端的webdav服务处理，修复群晖webdav的问题
-    koaHandler(req, res)
+    nodeHandler(req, res)
   })
 
   server.listen(port, () => logger.info('服务启动成功: ' + port))

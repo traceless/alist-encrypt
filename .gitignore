@@ -8,6 +8,8 @@ target/
 *.tar.gz
 dependency-reduced-pom.xml
 .pnpm-store/
+tablerdemo
+.ab/
 project_plan.md
 # maven plugin ignore
 release.properties

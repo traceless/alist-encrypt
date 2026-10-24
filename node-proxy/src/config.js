@@ -20,7 +20,7 @@ if (serverAddr && serverAddr.indexOf(':') > 6) {
   serverHost = serverAddr.split(':')[0]
   serverPort = serverAddr.split(':')[1]
 }
-console.log('@@serverAddr:', serverAddr)
+console.log('@@ALIST_HOST:', serverAddr)
 /** 全局代理alist，包括它的webdav和http服务，要配置上 */
 const alistServerTemp = {
   name: 'alist',

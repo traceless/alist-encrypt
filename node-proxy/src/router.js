@@ -1,29 +1,27 @@
 'use strict'
 
-import Router from 'koa-router'
-import bodyparser from 'koa-bodyparser'
+import { Hono } from 'hono'
 import crypto from 'crypto'
 import fs from 'fs'
 import { alistServer, webdavServer, port, initAlistConfig, version } from './config.js'
 import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './dao/userDao.js'
 import responseHandle from './middleware/responseHandle.js'
+import bodyParser from './middleware/bodyParser.js'
 import { encodeFromFolder, decodeFromFolder } from './utils/commonUtil.js'
 import { encryptFile, searchFile } from './utils/convertFile.js'
 
-// bodyparser解析body
-const bodyparserMw = bodyparser({ enableTypes: ['json', 'form', 'text'] })
-
 // 总路径，添加所有的子路由
-const allRouter = new Router()
-// 拦截全部
-allRouter.all(/^\/enc-api\/*/, bodyparserMw, responseHandle, async (ctx, next) => {
-  console.log('@@log request-url: ', ctx.req.url)
+const allRouter = new Hono()
+
+// 拦截全部，解析body并统一包装响应
+allRouter.use('/enc-api/*', bodyParser, responseHandle, async (c, next) => {
+  console.log('@@log request-url: ', c.env.incoming.url)
   await next()
 })
 
 // 白名单路由
-allRouter.all('/enc-api/login', async (ctx, next) => {
-  const { username, password } = ctx.request.body
+allRouter.all('/enc-api/login', async (c) => {
+  const { username, password } = c.get('requestBody')
   console.log(username, password)
   const userInfo = await getUserInfo(username)
   console.log(userInfo)
@@ -33,32 +31,30 @@ allRouter.all('/enc-api/login', async (ctx, next) => {
     // 异步执行
     cacheUserToken(token, userInfo)
     userInfo.password = null
-    ctx.body = { data: { userInfo, jwtToken: token } }
-    return
+    return c.json({ data: { userInfo, jwtToken: token } })
   }
-  ctx.body = { msg: 'passwword error', code: 500 }
+  return c.json({ msg: 'passwword error', code: 500 })
 })
 
 // 拦截登录
-allRouter.all(/^\/enc-api\/*/, async (ctx, next) => {
+allRouter.use('/enc-api/*', async (c, next) => {
   // nginx不支持下划线headers
-  const { authorizetoken: authorizeToken } = ctx.request.headers
+  const authorizeToken = c.req.header('authorizetoken')
   // 查询数据库是否有密码
   const userInfo = await getUserByToken(authorizeToken)
   if (userInfo == null) {
-    ctx.body = { code: 401, msg: 'user unlogin' }
-    return
+    return c.json({ code: 401, msg: 'user unlogin' })
   }
-  ctx.userInfo = userInfo
+  c.set('userInfo', userInfo)
   await next()
 })
 
-// 设置前缀
-const router = new Router({ prefix: '/enc-api' })
+// /index 短地址
+allRouter.get('/index', (c) => c.redirect('/public/index.html', 302))
 
 // 用户信息
-router.all('/getUserInfo', async (ctx, next) => {
-  const userInfo = ctx.userInfo
+allRouter.all('/enc-api/getUserInfo', async (c) => {
+  const userInfo = c.get('userInfo')
   console.log('@@getUserInfo', userInfo)
   userInfo.password = null
   const data = {
@@ -68,32 +64,30 @@ router.all('/getUserInfo', async (ctx, next) => {
     roles: ['admin'],
     version,
   }
-  ctx.body = { data }
+  return c.json({ data })
 })
 
 // 更新用户信息
-router.all('/updatePasswd', async (ctx, next) => {
-  const { password, newpassword, username } = ctx.request.body
+allRouter.all('/enc-api/updatePasswd', async (c) => {
+  const { password, newpassword, username } = c.get('requestBody')
   if (newpassword.length < 7) {
-    ctx.body = { msg: 'password too short, at less 8 digits', code: 500 }
-    return
+    return c.json({ msg: 'password too short, at less 8 digits', code: 500 })
   }
   const userInfo = await getUserInfo(username)
   if (password !== userInfo.password) {
-    ctx.body = { msg: 'password error', code: 500 }
-    return
+    return c.json({ msg: 'password error', code: 500 })
   }
   userInfo.password = newpassword
   updateUserInfo(userInfo)
-  ctx.body = { msg: 'update success' }
+  return c.json({ msg: 'update success' })
 })
 
-router.all('/getAlistConfig', async (ctx, next) => {
-  ctx.body = { data: alistServer._snapshot }
+allRouter.all('/enc-api/getAlistConfig', async (c) => {
+  return c.json({ data: alistServer._snapshot })
 })
 
-router.all('/saveAlistConfig', async (ctx, next) => {
-  let alistConfig = ctx.request.body
+allRouter.all('/enc-api/saveAlistConfig', async (c) => {
+  let alistConfig = c.get('requestBody')
   for (const index in alistConfig.passwdList) {
     const passwdInfo = alistConfig.passwdList[index]
     if (typeof passwdInfo.encPath === 'string') {
@@ -106,15 +100,15 @@ router.all('/saveAlistConfig', async (ctx, next) => {
   alistConfig = initAlistConfig(alistConfig)
   Object.assign(alistServer, alistConfig)
   alistServer._snapshot = _snapshot
-  ctx.body = { msg: 'save ok' }
+  return c.json({ msg: 'save ok' })
 })
 
-router.all('/getWebdavonfig', async (ctx, next) => {
-  ctx.body = { data: webdavServer }
+allRouter.all('/enc-api/getWebdavonfig', async (c) => {
+  return c.json({ data: webdavServer })
 })
 
-router.all('/saveWebdavConfig', async (ctx, next) => {
-  const config = ctx.request.body
+allRouter.all('/enc-api/saveWebdavConfig', async (c) => {
+  const config = c.get('requestBody')
   for (const index in config.passwdList) {
     const passwdInfo = config.passwdList[index]
     if (typeof passwdInfo.encPath === 'string') {
@@ -124,11 +118,11 @@ router.all('/saveWebdavConfig', async (ctx, next) => {
   config.id = crypto.randomUUID()
   webdavServer.push(config)
   fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
-  ctx.body = { data: webdavServer }
+  return c.json({ data: webdavServer })
 })
 
-router.all('/updateWebdavConfig', async (ctx, next) => {
-  const config = ctx.request.body
+allRouter.all('/enc-api/updateWebdavConfig', async (c) => {
+  const config = c.get('requestBody')
   for (const index in config.passwdList) {
     const passwdInfo = config.passwdList[index]
     if (typeof passwdInfo.encPath === 'string') {
@@ -142,61 +136,52 @@ router.all('/updateWebdavConfig', async (ctx, next) => {
     }
   }
   fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
-  ctx.body = { data: webdavServer }
+  return c.json({ data: webdavServer })
 })
 
-router.all('/delWebdavConfig', async (ctx, next) => {
-  const { id } = ctx.request.body
+allRouter.all('/enc-api/delWebdavConfig', async (c) => {
+  const { id } = c.get('requestBody')
   for (const index in webdavServer) {
     if (webdavServer[index].id === id) {
       webdavServer.splice(index, 1)
     }
   }
   fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
-  ctx.body = { data: webdavServer }
+  return c.json({ data: webdavServer })
 })
 // get folder passwd encode
-router.all('/encodeFoldName', async (ctx, next) => {
-  const { password, encType, folderPasswd, folderEncType } = ctx.request.body
+allRouter.all('/enc-api/encodeFoldName', async (c) => {
+  const { password, encType, folderPasswd, folderEncType } = c.get('requestBody')
   const folderNameEnc = encodeFromFolder(password, encType, folderPasswd, folderEncType)
-  ctx.body = { data: { folderNameEnc } }
-  console.log('@@encodeFoldName', password, folderNameEnc)
+  return c.json({ data: { folderNameEnc } })
 })
 
-router.all('/decodeFoldName', async (ctx, next) => {
-  const { password, folderNameEnc, encType } = ctx.request.body
+allRouter.all('/enc-api/decodeFoldName', async (c) => {
+  const { password, folderNameEnc, encType } = c.get('requestBody')
   const arr = folderNameEnc.split('&')
   if (arr.length < 2) {
-    ctx.body = { msg: 'folderName not encdoe', code: 500 }
-    return
+    return c.json({ msg: 'folderName not encdoe', code: 500 })
   }
   const data = decodeFromFolder(password, encType, folderNameEnc)
   if (!data) {
-    ctx.body = { msg: 'folderName is error', code: 500 }
-    return
+    return c.json({ msg: 'folderName is error', code: 500 })
   }
   const { folderEncType, folderPasswd } = data
-  ctx.body = { data: { folderEncType, folderPasswd } }
+  return c.json({ data: { folderEncType, folderPasswd } })
 })
 
 // encrypt or decrypt file
-router.all('/encryptFile', async (ctx, next) => {
-  const { folderPath, outPath, encType, password, operation, encName } = ctx.request.body
+allRouter.all('/enc-api/encryptFile', async (c) => {
+  const { folderPath, outPath, encType, password, operation, encName } = c.get('requestBody')
   if (!fs.existsSync(folderPath)) {
-    ctx.body = { msg: 'encrypt file path not exists', code: 500 }
-    return
+    return c.json({ msg: 'encrypt file path not exists', code: 500 })
   }
   const files = searchFile(folderPath)
   if (files.length > 10000) {
-    ctx.body = { msg: 'too maney file, exceeding 10000', code: 500 }
-    return
+    return c.json({ msg: 'too maney file, exceeding 10000', code: 500 })
   }
   encryptFile(password, encType, operation, folderPath, outPath, encName)
-  ctx.body = { msg: 'waiting operation' }
+  return c.json({ msg: 'waiting operation' })
 })
 
-// 用这种方式代替前缀的功能，{ prefix: } 不能和正则联合使用
-allRouter.use(router.routes(), router.allowedMethods())
-
-// restRouter.all(/\/enc-api\/*/, router.routes(), restRouter.allowedMethods())
 export default allRouter
