@@ -204,6 +204,7 @@
             color: #6366f1;
             text-align: center;
             line-height: 1.5;
+            white-space: pre-line;
         }
 
         .file-list {
@@ -493,6 +494,11 @@
             </div>
             <button class="btn-main" id="btnStartZip">生成分卷压缩包</button>
             <div class="bottom-hint">解密并分卷打包：逐块解密加密文件，明文按标准分卷 zip 直接写盘（.z01…+.zip），用 7-Zip / WinRAR 打开 .zip 即可解压全部内容。内存占用≈处理块大小，不随文件大小累积。</div>
+            <div class="bottom-hint" style="text-align: left; margin: 2px;">适用场景：
+- iOS 设备（不支持流式写入）
+- 浏览器内存不足时处理大文件
+- 将同名的 .z01、.z02…和最后一个 .zip 放在同一目录
+- 用 WinRAR/7-Zip 打开最后一个 .zip，即可合并还原原文件</div>
         </div>
     </div>
 
@@ -799,15 +805,21 @@
                 showToast('请输入密码并且选择文件', 'error');
                 return;
             }
-            if (!window.showDirectoryPicker) {
-                showToast('当前浏览器不支持选择输出目录（需 Chrome 内核）', 'error');
-                return;
-            }
             if (!window.zip || !window.zip.SplitDataWriter) {
                 showToast('zip.js 未加载', 'error');
                 return;
             }
-            const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+            // iOS Safari 等无 File System Access API 的环境：逐卷内存打包+自动下载，限制总大小 1G
+            let dirHandle = null;
+            if (window.showDirectoryPicker) {
+                dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+            } else {
+                const totalSize = zipFiles.reduce((s, f) => s + f.size, 0);
+                if (totalSize > MB * 1024) {
+                    showToast(`当前浏览器无法流式写盘，走逐卷下载模式，文件总大小 ${(totalSize / (MB * 1024)).toFixed(2)} GB 超过 1G 限制，请使用 Chrome / Edge 内核浏览器`, 'error');
+                    return;
+                }
+            }
             const btn = document.getElementById('btnStartZip');
             const txtDom = document.getElementById('zipProgText');
             const barDom = document.getElementById('zipProgBar');
@@ -819,17 +831,33 @@
             let volumeIndex = 0;
             let doneBytes = 0;
             const volumeHandles = [];
+            const volumeBlobs = [];
             btn.disabled = true;
             txtDom.textContent = '处理中…';
             try {
                 // SplitDataWriter：generator 每次 yield 一个卷的写入流，写满 splitBytes 自动切卷
                 async function* volumeGenerator() {
                     while (true) {
+                        // 内存路径：上一卷若已写完（说明不是最后卷），此刻确认并立即下载释放
+                        for (const v of volumeBlobs) downloadBlob(v.blob, v.name);
+                        volumeBlobs.length = 0;
                         const name = `${baseName}.z${String(volumeIndex + 1).padStart(2, '0')}`;
-                        const fileHandle = await dirHandle.getFileHandle(name, { create: true });
-                        volumeHandles.push(fileHandle);
-                        volumeIndex++;
-                        yield { writable: await fileHandle.createWritable() };
+                        if (dirHandle) {
+                            const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+                            volumeHandles.push(fileHandle);
+                            volumeIndex++;
+                            yield { writable: await fileHandle.createWritable() };
+                        } else {
+                            // iOS Safari 等无 FSAA 环境：整卷收集后 Blob 化（最后卷等 patch 后改名 .zip 再下载）
+                            const chunks = [];
+                            volumeIndex++;
+                            yield {
+                                writable: new WritableStream({
+                                    write(chunk) { chunks.push(chunk) },
+                                    close() { volumeBlobs.push({ name, blob: new Blob(chunks) }) },
+                                })
+                            };
+                        }
                     }
                 }
                 const zipWriter = new zip.ZipWriter(new zip.SplitDataWriter(volumeGenerator(), splitBytes));
@@ -853,27 +881,38 @@
                 }
                 await zipWriter.close();
 
-                // 标准分卷要求最后一卷以 .zip 结尾；FSAA 无 rename，走"读取→patch→写入新 handle→删旧卷"。
+                // 标准分卷要求最后一卷以 .zip 结尾
                 // patch：zip.js 写入的 central directory 起始卷号偏小 1，按 PKZIP AppNote 修正为最后卷号
-                const lastVolName = `${baseName}.z${String(volumeIndex).padStart(2, '0')}`;
-                const lastFile = await volumeHandles[volumeIndex - 1].getFile();
-                const buf = new Uint8Array(await lastFile.arrayBuffer());
-                for (let i = buf.length - 22; i >= 0; i--) {
-                    if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x05 && buf[i + 3] === 0x06) {
-                        buf[i + 10] = (volumeIndex - 1) & 0xff;
-                        buf[i + 11] = (volumeIndex - 1) >>> 8;
-                        break;
+                const patchEocd = (u8) => {
+                    for (let i = u8.length - 22; i >= 0; i--) {
+                        if (u8[i] === 0x50 && u8[i + 1] === 0x4b && u8[i + 2] === 0x05 && u8[i + 3] === 0x06) {
+                            u8[i + 10] = (volumeIndex - 1) & 0xff;
+                            u8[i + 11] = (volumeIndex - 1) >>> 8;
+                            break;
+                        }
                     }
+                    return u8;
                 }
-                const zipHandle = await dirHandle.getFileHandle(baseName + '.zip', { create: true });
-                const ws = await zipHandle.createWritable();
-                await ws.write(buf);
-                await ws.close();
-                await dirHandle.removeEntry(lastVolName);
+                if (dirHandle) {
+                    // FSAA 无 rename：读最后卷→patch→写 .zip 新 handle→删旧卷
+                    const lastVolName = `${baseName}.z${String(volumeIndex).padStart(2, '0')}`;
+                    const lastFile = await volumeHandles[volumeIndex - 1].getFile();
+                    const buf = patchEocd(new Uint8Array(await lastFile.arrayBuffer()));
+                    const zipHandle = await dirHandle.getFileHandle(baseName + '.zip', { create: true });
+                    const ws = await zipHandle.createWritable();
+                    await ws.write(buf);
+                    await ws.close();
+                    await dirHandle.removeEntry(lastVolName);
+                } else {
+                    // 内存路径：最后卷 patch 后以 .zip 下载（前面的卷已在切卷时下载）
+                    const last = volumeBlobs.pop();
+                    const buf = patchEocd(new Uint8Array(await last.blob.arrayBuffer()));
+                    downloadBlob(new Blob([buf]), baseName + '.zip');
+                }
 
                 txtDom.textContent = `✅分卷完成（共 ${volumeIndex} 卷）`;
                 barDom.style.width = '100%';
-                showToast('分卷压缩包生成完成', 'success');
+                showToast(dirHandle ? '分卷压缩包生成完成' : '分卷完成，已触发逐卷下载（请允许浏览器多文件下载）', 'success');
                 setTimeout(() => barDom.style.width = '0%', 1800);
             } catch (err) {
                 console.error(err);

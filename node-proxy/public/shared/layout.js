@@ -5,10 +5,11 @@ import { toast } from './ui.js'
 import { icon, enhanceIcons } from './icons.js'
 
 const MENUS = [
-  { id: 'index', title: '概览', icon: 'dashboard', href: '/public/index.html' },
-  { id: 'alist', title: 'Alist 配置', icon: 'cloud', href: '/public/alist.html' },
-  { id: 'webdav', title: 'WebDAV 配置', icon: 'folders', href: '/public/webdav.html' },
-  { id: 'local', title: '云端加密', icon: 'lock', href: '/public/local-encrypt.html' }
+  { id: 'index', title: '概览', icon: 'ti-dashboard', href: '/public/index.html' },
+  { id: 'alist', title: 'Alist 配置', icon: 'ti-cloud', href: '/public/alist.html' },
+  { id: 'webdav', title: 'WebDAV 配置', icon: 'ti-folders', href: '/public/webdav.html' },
+  { id: 'local', title: '云端加密', icon: 'ti-lock', href: '/public/local-encrypt.html' },
+  { id: 'decrypt', title: '在线解密', icon: 'ti-lock-open', href: '/public/online-decrypt.html' }
 ]
 
 const THEME_KEY = 'enc_theme'

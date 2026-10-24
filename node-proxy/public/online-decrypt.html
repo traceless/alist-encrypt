@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="/public/favicon.ico">
+  <link rel="stylesheet" href="/public/assets/css/tabler.min.css">
+  <link rel="stylesheet" href="/public/assets/app.css">
+  <script>
+    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/blueimp-md5@2.19.0/js/md5.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.11/dist/zip.min.js"></script>
+</head>
+<body data-page="decrypt" data-page-title="在线解密">
+  <template id="page-content">
+    <div class="container-xl">
+      <div class="alert alert-info mb-3">
+        <i class="ti ti-info-circle icon me-1"></i>
+        浏览器本地流式加解密，文件不出本机。算法与后端一致（AES-CTR / ChaCha20），密文可与云端加密、CLI 工具互通。
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <a class="nav-link active" data-bs-toggle="tab" href="#tab-enc" role="tab" aria-selected="true">
+                <i class="ti ti-lock icon me-1"></i> 文件加密
+              </a>
+            </li>
+            <li class="nav-item" role="presentation">
+              <a class="nav-link" data-bs-toggle="tab" href="#tab-dec" role="tab" aria-selected="false">
+                <i class="ti ti-lock-open icon me-1"></i> 文件解密
+              </a>
+            </li>
+            <li class="nav-item" role="presentation">
+              <a class="nav-link" data-bs-toggle="tab" href="#tab-zip" role="tab" aria-selected="false">
+                <i class="ti ti-folders icon me-1"></i> 解密转分卷
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div class="card-body">
+          <div class="tab-content">
+
+            <!-- 文件加密 -->
+            <div class="tab-pane active show" id="tab-enc" role="tabpanel">
+              <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label">加密算法</label>
+                  <select class="form-select" id="algoEnc">
+                    <option value="aesctr">AES-CTR（推荐）</option>
+                    <option value="chacha20">CHACHA20</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">处理块大小</label>
+                  <select class="form-select" id="blockEnc">
+                    <option value="10">10 MB</option>
+                    <option value="100" selected>100 MB</option>
+                    <option value="500">500 MB</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">密码</label>
+                  <input type="password" class="form-control" id="pwdEnc_inp" placeholder="加密密码" autocomplete="new-password">
+                </div>
+              </div>
+              <label class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="toggleAppendEnc">
+                <span class="form-check-label">文件名加密（文件名整体加密为密文 + .enc 后缀）</span>
+              </label>
+              <div class="mb-3" data-drop="enc">
+                <label class="form-label">待加密文件</label>
+                <div class="p-4 rounded-3 border border-dashed text-center text-muted" data-dropzone style="cursor:pointer">
+                  <i class="ti ti-cloud-upload icon me-1"></i> 点击选择或拖拽文件到此处
+                </div>
+                <input type="file" multiple hidden data-fileinput>
+                <input type="file" multiple webkitdirectory hidden data-folderinput>
+                <div class="mt-2 d-flex gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-folderbtn><i class="ti ti-folders icon me-1"></i> 选择文件夹</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" data-clearbtn><i class="ti ti-trash icon me-1"></i> 清空列表</button>
+                </div>
+                <ul class="list-group list-group-flush mt-2" data-filelist></ul>
+              </div>
+              <div class="progress mb-3" style="height: 6px">
+                <div class="progress-bar" id="encProgBar" style="width: 0%"></div>
+              </div>
+              <div class="text-muted small mb-3" id="encProgText">就绪</div>
+              <button type="button" class="btn btn-primary" id="btnStartEnc">
+                <i class="ti ti-lock icon me-1"></i> 开始加密
+              </button>
+            </div>
+
+            <!-- 文件解密 -->
+            <div class="tab-pane" id="tab-dec" role="tabpanel">
+              <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label">解密算法</label>
+                  <select class="form-select" id="algoDec">
+                    <option value="aesctr">AES-CTR（推荐）</option>
+                    <option value="chacha20">CHACHA20</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">处理块大小</label>
+                  <select class="form-select" id="blockDec">
+                    <option value="10">10 MB</option>
+                    <option value="100" selected>100 MB</option>
+                    <option value="500">500 MB</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">密码</label>
+                  <input type="password" class="form-control" id="pwdDec_inp" placeholder="解密密码" autocomplete="new-password">
+                </div>
+              </div>
+              <label class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="toggleAppendDec">
+                <span class="form-check-label">文件名解密（密文名还原为原文件名）</span>
+              </label>
+              <div class="mb-3" data-drop="dec">
+                <label class="form-label">待解密文件</label>
+                <div class="p-4 rounded-3 border border-dashed text-center text-muted" data-dropzone style="cursor:pointer">
+                  <i class="ti ti-cloud-upload icon me-1"></i> 点击选择或拖拽文件到此处
+                </div>
+                <input type="file" multiple hidden data-fileinput>
+                <input type="file" multiple webkitdirectory hidden data-folderinput>
+                <div class="mt-2 d-flex gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-folderbtn><i class="ti ti-folders icon me-1"></i> 选择文件夹</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" data-clearbtn><i class="ti ti-trash icon me-1"></i> 清空列表</button>
+                </div>
+                <ul class="list-group list-group-flush mt-2" data-filelist></ul>
+              </div>
+              <div class="progress mb-3" style="height: 6px">
+                <div class="progress-bar" id="decProgBar" style="width: 0%"></div>
+              </div>
+              <div class="text-muted small mb-3" id="decProgText">就绪</div>
+              <button type="button" class="btn btn-success" id="btnStartDec">
+                <i class="ti ti-lock-open icon me-1"></i> 开始解密
+              </button>
+            </div>
+
+            <!-- 解密并转分卷压缩包 -->
+            <div class="tab-pane" id="tab-zip" role="tabpanel">
+              <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                  <label class="form-label">解密算法</label>
+                  <select class="form-select" id="algoZip">
+                    <option value="aesctr">AES-CTR（推荐）</option>
+                    <option value="chacha20">CHACHA20</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">处理块大小</label>
+                  <select class="form-select" id="blockZip">
+                    <option value="10">10 MB</option>
+                    <option value="100" selected>100 MB</option>
+                    <option value="500">500 MB</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">单卷大小</label>
+                  <select class="form-select" id="zipSize">
+                    <option value="10">10 MB</option>
+                    <option value="100">100 MB</option>
+                    <option value="500" selected>500 MB</option>
+                    <option value="1000">1 GB</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">密码</label>
+                  <input type="password" class="form-control" id="pwdZip_inp" placeholder="解密密码" autocomplete="new-password">
+                </div>
+              </div>
+              <div class="mb-3" data-drop="zip">
+                <label class="form-label">待解密打包的文件</label>
+                <div class="p-4 rounded-3 border border-dashed text-center text-muted" data-dropzone style="cursor:pointer">
+                  <i class="ti ti-cloud-upload icon me-1"></i> 点击选择或拖拽文件到此处
+                </div>
+                <input type="file" multiple hidden data-fileinput>
+                <input type="file" multiple webkitdirectory hidden data-folderinput>
+                <div class="mt-2 d-flex gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-folderbtn><i class="ti ti-folders icon me-1"></i> 选择文件夹</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" data-clearbtn><i class="ti ti-trash icon me-1"></i> 清空列表</button>
+                </div>
+                <ul class="list-group list-group-flush mt-2" data-filelist></ul>
+              </div>
+              <div class="progress mb-3" style="height: 6px">
+                <div class="progress-bar" id="zipProgBar" style="width: 0%"></div>
+              </div>
+              <div class="text-muted small mb-3" id="zipProgText">就绪</div>
+              <button type="button" class="btn btn-primary" id="btnStartZip">
+                <i class="ti ti-folders icon me-1"></i> 生成分卷压缩包
+              </button>
+              <div class="text-secondary small mt-3">
+                解密并分卷打包：逐块解密加密文件，明文按标准分卷 zip 直接写盘（.z01…+.zip），用 7-Zip / WinRAR 打开 .zip 即可解压全部内容。内存占用≈处理块大小，不随文件大小累积。
+              </div>
+              <div class="text-secondary small" style="text-align: left; max-width: 520px">
+                适用场景：
+                <ul class="mb-0 ps-3">
+                  <li>iOS 设备（不支持流式写入）</li>
+                  <li>浏览器内存不足时处理大文件</li>
+                  <li>将同名的 .z01、.z02…和最后一个 .zip 放在同一目录</li>
+                  <li>用 WinRAR/7-Zip 打开最后一个 .zip，即可合并还原原文件</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="/public/assets/js/tabler.min.js"></script>
+  <script type="module" src="/public/shared/layout.js"></script>
+  <script type="module">
+    import { MB, derivePwdKey, encryptAesChunk, encryptCha20Chunk, createReadableStream, encodeName, decodeName } from '/public/shared/crypto-core.js'
+    import { toast } from '/public/shared/ui.js'
+
+    const $ = (id) => document.getElementById(id)
+
+    function formatFileSize(bytes, decimals = 2) {
+      if (bytes === 0) return '0 B'
+      const k = 1024
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+      const i = Math.floor(Math.log(bytes) / Math.log(k))
+      return (bytes / Math.pow(k, i)).toFixed(decimals) + ' ' + sizes[i]
+    }
+
+    // ---------- 文件列表与上传 ----------
+    const panels = {
+      enc: { files: [] },
+      dec: { files: [] },
+      zip: { files: [] }
+    }
+
+    function renderFileList(key) {
+      const arr = panels[key].files
+      const listEl = document.querySelector(`[data-drop="${key}"] [data-filelist]`)
+      listEl.innerHTML = ''
+      arr.forEach((f, idx) => {
+        const li = document.createElement('li')
+        li.className = 'list-group-item d-flex justify-content-between align-items-center py-1 px-2'
+        li.innerHTML = `<span class="text-truncate me-2">${f.name} <span class="text-muted">(${formatFileSize(f.size)})</span></span>`
+        const btn = document.createElement('button')
+        btn.className = 'btn btn-sm btn-ghost-danger'
+        btn.innerHTML = '<i class="ti ti-trash icon"></i>'
+        btn.onclick = () => { arr.splice(idx, 1); renderFileList(key) }
+        li.appendChild(btn)
+        listEl.appendChild(li)
+      })
+    }
+
+    function bindUpload(key) {
+      const wrap = document.querySelector(`[data-drop="${key}"]`)
+      const dropzone = wrap.querySelector('[data-dropzone]')
+      const fileInput = wrap.querySelector('[data-fileinput]')
+      const folderInput = wrap.querySelector('[data-folderinput]')
+      const arr = panels[key].files
+      dropzone.onclick = () => fileInput.click()
+      wrap.querySelector('[data-folderbtn]').onclick = () => folderInput.click()
+      wrap.querySelector('[data-clearbtn]').onclick = () => { arr.length = 0; renderFileList(key) }
+      const add = (files) => { for (const f of files) arr.push(f); renderFileList(key) }
+      fileInput.onchange = () => { add(fileInput.files); fileInput.value = '' }
+      folderInput.onchange = () => { add(folderInput.files); folderInput.value = '' }
+      dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('bg-azure-lt') })
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('bg-azure-lt'))
+      dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('bg-azure-lt'); add(e.dataTransfer.files) })
+    }
+    bindUpload('enc'); bindUpload('dec'); bindUpload('zip')
+
+    // ---------- 非谷歌内核回退：整文件读入内存分块处理（块边界与流式路径一致） ----------
+    async function processFileInMemory(file, pwd, blockSize, selectedAlgo, onProgress) {
+      let encryptChunk
+      if (selectedAlgo === 'chacha20') {
+        encryptChunk = await encryptCha20Chunk(await derivePwdKey(pwd, 'CHA20'), file.size)
+      } else {
+        encryptChunk = await encryptAesChunk(await derivePwdKey(pwd, 'AES-CTR'), file.size)
+      }
+      const buf = new Uint8Array(await file.arrayBuffer())
+      const out = new Uint8Array(file.size)
+      const CHUNK = MB * blockSize
+      for (let off = 0; off < buf.length; off += CHUNK) {
+        const end = Math.min(off + CHUNK, buf.length)
+        // startChunk 必须为 16 倍数，CHUNK 是 MB 倍数满足条件；块边界与流式路径一致
+        out.set(await encryptChunk(off, buf.subarray(off, end)), off)
+        if (onProgress) onProgress(end / file.size)
+      }
+      return out
+    }
+
+    function downloadBlob(blob, name) {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = name
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000)
+    }
+
+    // AES-CTR 流式分块处理：流式写盘（密钥链与加密完全一致，传原始密码由内部统一派生）
+    async function processFileAesCtr(file, pwd, blockSize, selectedAlgo, fileHandle, onProgress) {
+      let encryptChunk
+      if (selectedAlgo === 'chacha20') {
+        encryptChunk = await encryptCha20Chunk(await derivePwdKey(pwd, 'CHA20'), file.size)
+      } else {
+        encryptChunk = await encryptAesChunk(await derivePwdKey(pwd, 'AES-CTR'), file.size)
+      }
+      const readStream = createReadableStream(encryptChunk, file, blockSize, onProgress)
+      const writable = await fileHandle.createWritable()
+      await readStream.pipeTo(writable)
+    }
+
+    function guard1G(files, downloadMode) {
+      const totalSize = files.reduce((s, f) => s + f.size, 0)
+      if (totalSize > MB * 1024) {
+        toast(`当前浏览器无法流式写盘${downloadMode ? '，走逐卷下载模式' : ''}，文件总大小 ${(totalSize / (MB * 1024)).toFixed(2)} GB 超过 1G 限制，请使用 Chrome / Edge 内核浏览器`, 'warning', 6000)
+        return false
+      }
+      return true
+    }
+
+    // ---------- 文件加密 ----------
+    $('btnStartEnc').onclick = async () => {
+      const btn = $('btnStartEnc')
+      const pwd = $('pwdEnc_inp').value.trim()
+      const blockSize = Number($('blockEnc').value)
+      const selectedAlgo = $('algoEnc').value
+      const encNameChecked = $('toggleAppendEnc').checked
+      const files = panels.enc.files
+      if (!pwd || files.length === 0) {
+        toast('请输入密码并且选择文件', 'warning')
+        return
+      }
+      let dirHandle = null
+      if (window.showDirectoryPicker) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
+      } else if (!guard1G(files)) {
+        return
+      }
+      const barDom = $('encProgBar')
+      const txtDom = $('encProgText')
+      btn.disabled = true
+      txtDom.textContent = '处理中...'
+      try {
+        // 成功一个移除一个：失败时剩余文件保留在列表里，修正后可直接重试
+        while (files.length > 0) {
+          const f = files[0]
+          let outName = f.name + '.enc'
+          if (encNameChecked) {
+            outName = await encodeName(pwd, selectedAlgo, f.name) + '.enc'
+          }
+          if (dirHandle) {
+            const fileHandle = await dirHandle.getFileHandle(outName, { create: true })
+            await processFileAesCtr(f, pwd, blockSize, selectedAlgo, fileHandle, (p) => {
+              barDom.style.width = (p * 100).toFixed(1) + '%'
+              txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`
+            })
+          } else {
+            const out = await processFileInMemory(f, pwd, blockSize, selectedAlgo, (p) => {
+              barDom.style.width = (p * 100).toFixed(1) + '%'
+              txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`
+            })
+            downloadBlob(new Blob([out]), outName)
+          }
+          files.shift()
+          renderFileList('enc')
+        }
+        txtDom.textContent = '✅加密完成'
+        barDom.style.width = '100%'
+        toast('加密完成！', 'success')
+        setTimeout(() => barDom.style.width = '0%', 1800)
+      } catch (err) {
+        console.error(err)
+        txtDom.textContent = '加密失败'
+        toast('加密失败：' + ((err && err.message) || err), 'danger')
+      } finally {
+        btn.disabled = false
+      }
+    }
+
+    // ---------- 文件解密 ----------
+    $('btnStartDec').onclick = async () => {
+      const btn = $('btnStartDec')
+      const pwd = $('pwdDec_inp').value.trim()
+      const blockSize = Number($('blockDec').value)
+      const selectedAlgo = $('algoDec').value
+      const decNameChecked = $('toggleAppendDec').checked
+      const files = panels.dec.files
+      if (!pwd || files.length === 0) {
+        toast('请输入密码并且选择文件', 'warning')
+        return
+      }
+      let dirHandle = null
+      if (window.showDirectoryPicker) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
+      } else if (!guard1G(files)) {
+        return
+      }
+      const barDom = $('decProgBar')
+      const txtDom = $('decProgText')
+      btn.disabled = true
+      txtDom.textContent = '处理中...'
+      try {
+        while (files.length > 0) {
+          const f = files[0]
+          // 密钥链必须与加密完全一致：传原始密码，由 processFileAesCtr 内部统一派生
+          let outName
+          const stem = f.name.replace(/\.enc$/i, '')
+          if (decNameChecked) {
+            // 密文名还原原名；非密文名（普通名/crc校验不过）返回 orig_ 前缀原名（与后端约定一致）
+            outName = await decodeName(pwd, selectedAlgo, stem)
+          } else {
+            outName = stem
+          }
+          if (dirHandle) {
+            const fileHandle = await dirHandle.getFileHandle(outName, { create: true })
+            await processFileAesCtr(f, pwd, blockSize, selectedAlgo, fileHandle, (p) => {
+              barDom.style.width = (p * 100).toFixed(1) + '%'
+              txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`
+            })
+          } else {
+            const out = await processFileInMemory(f, pwd, blockSize, selectedAlgo, (p) => {
+              barDom.style.width = (p * 100).toFixed(1) + '%'
+              txtDom.textContent = `${f.name} ${(p * 100).toFixed(1)}%`
+            })
+            downloadBlob(new Blob([out]), outName)
+          }
+          files.shift()
+          renderFileList('dec')
+        }
+        txtDom.textContent = '✅解密完成'
+        barDom.style.width = '100%'
+        toast('解密完成！', 'success')
+        setTimeout(() => barDom.style.width = '0%', 1800)
+      } catch (err) {
+        console.error(err)
+        txtDom.textContent = '解密失败'
+        toast('解密失败：' + ((err && err.message) || err), 'danger')
+      } finally {
+        btn.disabled = false
+      }
+    }
+
+    // ---------- 解密并转分卷压缩包 ----------
+    $('btnStartZip').onclick = async () => {
+      const btn = $('btnStartZip')
+      const splitBytes = Number($('zipSize').value) * MB
+      const blockMB = Number($('blockZip').value)
+      const pwd = $('pwdZip_inp').value.trim()
+      const selectedAlgo = $('algoZip').value
+      const files = panels.zip.files
+      if (!pwd || files.length === 0) {
+        toast('请输入密码并且选择文件', 'warning')
+        return
+      }
+      if (!window.zip || !window.zip.SplitDataWriter) {
+        toast('zip.js 未加载完成，请稍后重试', 'warning')
+        return
+      }
+      // iOS Safari 等无 File System Access API 的环境：逐卷内存打包+自动下载，限制总大小 1G
+      let dirHandle = null
+      if (window.showDirectoryPicker) {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
+      } else if (!guard1G(files, true)) {
+        return
+      }
+      const barDom = $('zipProgBar')
+      const txtDom = $('zipProgText')
+      // 单文件用原文件名做基础名（video.mp4.enc → video.z01/video.zip），多文件用 archive
+      const baseName = files.length === 1
+        ? files[0].name.replace(/\.enc$/i, '').replace(/\.[^.]+$/, '')
+        : 'archive'
+      const totalSize = files.reduce((s, f) => s + f.size, 0)
+      let volumeIndex = 0
+      let doneBytes = 0
+      const volumeHandles = []
+      const volumeBlobs = []
+      btn.disabled = true
+      txtDom.textContent = '处理中…'
+      try {
+        // SplitDataWriter：generator 每次 yield 一个卷的写入流，写满 splitBytes 自动切卷
+        async function* volumeGenerator() {
+          while (true) {
+            // 内存路径：上一卷若已写完（说明不是最后卷），此刻确认并立即下载释放
+            for (const v of volumeBlobs) downloadBlob(v.blob, v.name)
+            volumeBlobs.length = 0
+            const name = `${baseName}.z${String(volumeIndex + 1).padStart(2, '0')}`
+            if (dirHandle) {
+              const fileHandle = await dirHandle.getFileHandle(name, { create: true })
+              volumeHandles.push(fileHandle)
+              volumeIndex++
+              yield { writable: await fileHandle.createWritable() }
+            } else {
+              // iOS Safari 等无 FSAA 环境：整卷收集后 Blob 化（最后卷等 patch 后改名 .zip 再下载）
+              const chunks = []
+              volumeIndex++
+              yield {
+                writable: new WritableStream({
+                  write(chunk) { chunks.push(chunk) },
+                  close() { volumeBlobs.push({ name, blob: new Blob(chunks) }) },
+                })
+              }
+            }
+          }
+        }
+        const zipWriter = new window.zip.ZipWriter(new window.zip.SplitDataWriter(volumeGenerator(), splitBytes))
+        for (const f of files) {
+          // 密钥链与加密面板完全一致：密码→PBKDF2→passwdOutward→(AES-CTR: md5(+size) / ChaCha20: SHA-256(+size))
+          let encryptChunk
+          if (selectedAlgo === 'chacha20') {
+            encryptChunk = await encryptCha20Chunk(await derivePwdKey(pwd, 'CHA20'), f.size)
+          } else {
+            encryptChunk = await encryptAesChunk(await derivePwdKey(pwd, 'AES-CTR'), f.size)
+          }
+          // 复用同款流：读密文块→解密（CTR/ChaCha 均加解密对称）→enqueue
+          const readable = createReadableStream(encryptChunk, f, blockMB, (p) => {
+            const total = Math.min((doneBytes + p * f.size) / totalSize, 1) * 100
+            barDom.style.width = total.toFixed(1) + '%'
+            txtDom.textContent = `解密打包 ${f.name} ${total.toFixed(1)}%`
+          })
+          // {readable, size} 是 zip.js add 的官方流式形态；level 0 存储模式（密文不可再压缩）
+          await zipWriter.add(f.name.replace(/\.enc$/i, ''), { readable, size: f.size }, { level: 0 })
+          doneBytes += f.size
+        }
+        await zipWriter.close()
+
+        // 标准分卷要求最后一卷以 .zip 结尾
+        // patch：zip.js 写入的 central directory 起始卷号偏小 1，按 PKZIP AppNote 修正为最后卷号
+        const patchEocd = (u8) => {
+          for (let i = u8.length - 22; i >= 0; i--) {
+            if (u8[i] === 0x50 && u8[i + 1] === 0x4b && u8[i + 2] === 0x05 && u8[i + 3] === 0x06) {
+              u8[i + 10] = (volumeIndex - 1) & 0xff
+              u8[i + 11] = (volumeIndex - 1) >>> 8
+              break
+            }
+          }
+          return u8
+        }
+        if (dirHandle) {
+          // FSAA 无 rename：读最后卷→patch→写 .zip 新 handle→删旧卷
+          const lastVolName = `${baseName}.z${String(volumeIndex).padStart(2, '0')}`
+          const lastFile = await volumeHandles[volumeIndex - 1].getFile()
+          const buf = patchEocd(new Uint8Array(await lastFile.arrayBuffer()))
+          const zipHandle = await dirHandle.getFileHandle(baseName + '.zip', { create: true })
+          const ws = await zipHandle.createWritable()
+          await ws.write(buf)
+          await ws.close()
+          await dirHandle.removeEntry(lastVolName)
+        } else {
+          // 内存路径：最后卷 patch 后以 .zip 下载（前面的卷已在切卷时下载）
+          const last = volumeBlobs.pop()
+          const buf = patchEocd(new Uint8Array(await last.blob.arrayBuffer()))
+          downloadBlob(new Blob([buf]), baseName + '.zip')
+        }
+
+        txtDom.textContent = `✅分卷完成（共 ${volumeIndex} 卷）`
+        barDom.style.width = '100%'
+        toast(dirHandle ? '分卷压缩包生成完成' : '分卷完成，已触发逐卷下载（请允许浏览器多文件下载）', 'success')
+        setTimeout(() => barDom.style.width = '0%', 1800)
+      } catch (err) {
+        console.error(err)
+        txtDom.textContent = '打包失败'
+        toast('打包失败：' + ((err && err.message) || err), 'danger')
+      } finally {
+        btn.disabled = false
+      }
+    }
+  </script>
+</body>
+</html>
