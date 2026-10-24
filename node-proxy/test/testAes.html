@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>文件加密工具</title>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.11/dist/zip.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -441,11 +441,11 @@
             <div class="bottom-hint">流式模式：内存占用更小，支持大文件。多文件自动选择输出目录，无需逐个确认。</div>
         </div>
 
-        <!-- 转压缩包面板 -->
+        <!-- 转压缩包面板：解密 + 分卷打包二合一（对齐 encfile 原版，分卷侧更标准） -->
         <div class="panel" id="panel-zipsplit">
-            <label class="label">选择待打包文件（加密解密都一样）</label>
+            <label class="label">选择加密文件（自动解密后打包）</label>
             <div class="drop-zone" id="dropZip">
-                <p>点击选择文件（支持多选）</p>
+                <p>点击选择加密文件（支持多选）</p>
                 <small>或选择文件夹批量处理</small>
                 <input type="file" id="fileZip" multiple>
             </div>
@@ -458,23 +458,31 @@
 
             <label class="label">输入密码</label>
             <div style="display:flex;gap:8px;align-items:center;">
-                <input type="password" id="pwdZip_inp" placeholder="输入加密时密码" style="flex:1;">
+                <input type="password" id="pwdZip_inp" placeholder="输入加密时设置的密码" style="flex:1;">
                 <div style="display:flex;align-items:center;gap:4px;white-space:nowrap;">
                     <button class="btnShowPwd btn-small" id="pwdZip">显示</button>
                 </div>
             </div>
 
-            <label class="label">加解密算法</label>
-            <select id="algoDec">
-                <option value="aes-ctr">AES‑CTR</option>
+            <label class="label">解密算法</label>
+            <select id="algoZip">
+                <option value="aesctr">AES-CTR</option>
                 <option value="chacha20">CHACHA20</option>
             </select>
 
-            <label class="label">Zip单卷大小</label>
+            <label class="label">处理块大小（解密块）</label>
+            <select id="blockZip">
+                <option value="10">10 MB</option>
+                <option value="100" selected>100 MB</option>
+                <option value="500">500 MB</option>
+            </select>
+
+            <label class="label">单卷大小</label>
             <select id="zipSize">
                 <option value="100">100 MB</option>
-                <option value="500">500 MB</option>
-                <option value="1000">1GB </option>
+                <option value="500" selected>500 MB</option>
+                <option value="1000">1 GB</option>
+                <option value="2000">2 GB</option>
             </select>
 
             <div class="progress-wrap">
@@ -484,6 +492,7 @@
                 </div>
             </div>
             <button class="btn-main" id="btnStartZip">生成分卷压缩包</button>
+            <div class="bottom-hint">解密并分卷打包：逐块解密加密文件，明文按标准分卷 zip 直接写盘（.z01…+.zip），用 7-Zip / WinRAR 打开 .zip 即可解压全部内容。内存占用≈处理块大小，不随文件大小累积。</div>
         </div>
     </div>
 
@@ -591,15 +600,6 @@
         bindUpload(document.getElementById('dropDec'), document.getElementById('fileDec'), document.getElementById('listDec'), decFiles, 'btnFolderDec', 'btnClearDec');
         bindUpload(document.getElementById('dropZip'), document.getElementById('fileZip'), document.getElementById('listZip'), zipFiles, 'btnFolderZip', 'btnClearZip');
 
-        // 保存文件，适合小文件。
-        function saveBlob(blob, name) {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = name;
-            a.click();
-            URL.revokeObjectURL(a.href);
-        }
-
         /**
          * AES‑CTR 流式分块处理
          * 加密文件格式：[16字节IV][密文...]
@@ -701,33 +701,99 @@
             alert('所有文件处理完成！')
         }
 
-        //zip分卷
+        //zip分卷（解密+打包二合一：密文→逐块解密→zip.js 标准分卷，内存峰值≈处理块大小）
         document.getElementById('btnStartZip').onclick = async () => {
             const splitBytes = Number(document.getElementById('zipSize').value) * MB;
-            if (zipFiles.length === 0) {
-                showToast('请选择文件', 'error');
+            const blockMB = Number(document.getElementById('blockZip').value);
+            const pwd = document.getElementById('pwdZip_inp').value.trim();
+            const selectedAlgo = document.getElementById('algoZip').value;
+            if (!pwd || zipFiles.length === 0) {
+                showToast('请输入密码并且选择文件', 'error');
                 return;
             }
-            const zip = new JSZip();
-            zipFiles.forEach(f => zip.file(f.name, f));
+            if (!window.showDirectoryPicker) {
+                showToast('当前浏览器不支持选择输出目录（需 Chrome 内核）', 'error');
+                return;
+            }
+            if (!window.zip || !window.zip.SplitDataWriter) {
+                showToast('zip.js 未加载', 'error');
+                return;
+            }
+            const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+            const btn = document.getElementById('btnStartZip');
             const txtDom = document.getElementById('zipProgText');
             const barDom = document.getElementById('zipProgBar');
-            txtDom.textContent = '打包中…';
-            const buf = await zip.generateAsync({ type: 'uint8array' }, meta => {
-                barDom.style.width = meta.percent + '%';
-                txtDom.textContent = `打包 ${meta.percent.toFixed(1)}%`;
-            });
-            let part = 1;
-            for (let off = 0; off < buf.byteLength; off += splitBytes) {
-                const piece = buf.slice(off, off + splitBytes);
-                const ext = off + splitBytes >= buf.byteLength ? '.zip' : `.z${String(part).padStart(2, '0')}`;
-                saveBlob(new Blob([piece]), `archive${ext}`);
-                part++;
+            // 单文件用原文件名做基础名（video.mp4.enc → video.z01/video.zip），多文件用 archive
+            const baseName = zipFiles.length === 1
+                ? zipFiles[0].name.replace(/\.enc$/i, '').replace(/\.[^.]+$/, '')
+                : 'archive';
+            const totalSize = zipFiles.reduce((s, f) => s + f.size, 0);
+            let volumeIndex = 0;
+            let doneBytes = 0;
+            const volumeHandles = [];
+            btn.disabled = true;
+            txtDom.textContent = '处理中…';
+            try {
+                // SplitDataWriter：generator 每次 yield 一个卷的写入流，写满 splitBytes 自动切卷
+                async function* volumeGenerator() {
+                    while (true) {
+                        const name = `${baseName}.z${String(volumeIndex + 1).padStart(2, '0')}`;
+                        const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+                        volumeHandles.push(fileHandle);
+                        volumeIndex++;
+                        yield { writable: await fileHandle.createWritable() };
+                    }
+                }
+                const zipWriter = new zip.ZipWriter(new zip.SplitDataWriter(volumeGenerator(), splitBytes));
+                for (const f of zipFiles) {
+                    // 密钥链与加密面板完全一致：密码→PBKDF2→passwdOutward→(AES-CTR: md5(+size) / ChaCha20: SHA-256(+size))
+                    let encryptChunk;
+                    if (selectedAlgo === 'chacha20') {
+                        encryptChunk = await encryptCha20Chunk(await derivePwdKey(pwd, 'CHA20'), f.size);
+                    } else {
+                        encryptChunk = await encryptAesChunk(await derivePwdKey(pwd, 'AES-CTR'), f.size);
+                    }
+                    // 复用加密面板同款流：读密文块→解密（CTR/ChaCha 均加解密对称）→enqueue
+                    const readable = createReadableStream(encryptChunk, f, blockMB, (p) => {
+                        const total = Math.min((doneBytes + p * f.size) / totalSize, 1) * 100;
+                        barDom.style.width = total.toFixed(1) + '%';
+                        txtDom.textContent = `解密打包 ${f.name} ${total.toFixed(1)}%`;
+                    });
+                    // {readable, size} 是 zip.js add 的官方流式形态；level 0 存储模式（明文视频等不可再压）
+                    await zipWriter.add(f.name.replace(/\.enc$/i, ''), { readable, size: f.size }, { level: 0 });
+                    doneBytes += f.size;
+                }
+                await zipWriter.close();
+
+                // 标准分卷要求最后一卷以 .zip 结尾；FSAA 无 rename，走"读取→patch→写入新 handle→删旧卷"。
+                // patch：zip.js 写入的 central directory 起始卷号偏小 1，按 PKZIP AppNote 修正为最后卷号
+                const lastVolName = `${baseName}.z${String(volumeIndex).padStart(2, '0')}`;
+                const lastFile = await volumeHandles[volumeIndex - 1].getFile();
+                const buf = new Uint8Array(await lastFile.arrayBuffer());
+                for (let i = buf.length - 22; i >= 0; i--) {
+                    if (buf[i] === 0x50 && buf[i + 1] === 0x4b && buf[i + 2] === 0x05 && buf[i + 3] === 0x06) {
+                        buf[i + 10] = (volumeIndex - 1) & 0xff;
+                        buf[i + 11] = (volumeIndex - 1) >>> 8;
+                        break;
+                    }
+                }
+                const zipHandle = await dirHandle.getFileHandle(baseName + '.zip', { create: true });
+                const ws = await zipHandle.createWritable();
+                await ws.write(buf);
+                await ws.close();
+                await dirHandle.removeEntry(lastVolName);
+
+                txtDom.textContent = `✅分卷完成（共 ${volumeIndex} 卷）`;
+                barDom.style.width = '100%';
+                showToast('分卷压缩包生成完成', 'success');
+                setTimeout(() => barDom.style.width = '0%', 1800);
+            } catch (err) {
+                console.error(err);
+                txtDom.textContent = '打包失败';
+                showToast('打包失败：' + ((err && err.message) || err), 'error');
+            } finally {
+                btn.disabled = false;
             }
-            txtDom.textContent = '分卷包已下载';
-            barDom.style.width = '100%';
-            showToast('分卷压缩包下载完成', 'success');
-            setTimeout(() => barDom.style.width = '0%', 1800);
         }
 
         // ========================= 上面大部分AI代码生成的，上面的加密算法被替换了下面的实际加密代码 =========================
