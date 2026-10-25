@@ -10,7 +10,7 @@ registerPage('overview', {
       const [userInfoRes, alistRes, webdavRes] = await Promise.allSettled([
         api('/getUserInfo', { plateFormId: 2 }),
         api('/getAlistConfig'),
-        api('/getWebdavonfig')
+        api('/getWebdavConfig')
       ])
 
       if (userInfoRes.status === 'fulfilled') {

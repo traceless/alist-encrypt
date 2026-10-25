@@ -12,7 +12,7 @@ registerPage('webdav', {
     let editingIdx = -1 // -1 = 新增
 
     ;(async () => {
-      const res = await api('/getWebdavonfig')
+      const res = await api('/getWebdavConfig')
       configs = res.data || []
       renderTable()
     })()

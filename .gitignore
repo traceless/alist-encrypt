@@ -1,38 +1,26 @@
-# maven ignore
-target/
-*.class
-*.jar
-*.war
-*.zip
-*.tar
-*.tar.gz
-dependency-reduced-pom.xml
-.pnpm-store/
-tablerdemo
-.ab/
-project_plan.md
-# maven plugin ignore
-release.properties
-cobertura.ser
-*.gpg
-
-# eclipse ignore
-.settings/
+# node
 node_modules/
-conf/
 dist/
 build/
-bin
-.vscode
-.project
-.classpath
-# idea ignore 33
-.idea/
-*.ipr
-*.iml
-*.iws
 
-# temp ignore
+# 本地配置与数据
+conf/
+
+# 前端 demo / 依赖缓存（本地保留，不入库）
+tablerdemo
+.pnpm-store/
+
+# encryptFile 默认输出目录
+outFile/
+
+# 编辑器 / agent
+.vscode
+.idea/
+.trae/
+/agent/
+.ab/
+
+# 临时文件
 logs/
 *.log
 *.doc
@@ -41,10 +29,9 @@ logs/
 *.patch
 *.tmp
 
-# system ignore 额
+# system
 .DS_Store
 Thumbs.db
 
-# agent build ignore
-/agent/
-
+# 本地计划文档
+project_plan.md

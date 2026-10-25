@@ -131,6 +131,11 @@ encName.put('/api/fs/put', async (c) => {
   uploadPath = uploadPath + '/' + fileName
   headers['file-path'] = encodeURIComponent(uploadPath)
   if (passwdInfo) {
+    // body 加密后已是密文，必须删除前端声明的明文文件hash：云盘按声明的md5走秒传
+    // 会因hash不匹配触发天翼云 InvalidUploadFileStatus 报错，或秒传命中明文文件导致下载解密内容错乱
+    delete headers['x-file-md5']
+    delete headers['x-file-sha1']
+    delete headers['x-file-sha256']
     // you can custom Suffix
     if (passwdInfo.encName) {
       // convertRealName()会处理掉orig_的名字，所以用原始的encodeName

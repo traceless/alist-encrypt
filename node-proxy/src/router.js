@@ -104,7 +104,7 @@ allRouter.all('/enc-api/saveAlistConfig', async (c) => {
   return c.json({ msg: 'save ok' })
 })
 
-allRouter.all('/enc-api/getWebdavonfig', async (c) => {
+allRouter.all('/enc-api/getWebdavConfig', async (c) => {
   return c.json({ data: webdavServer })
 })
 
