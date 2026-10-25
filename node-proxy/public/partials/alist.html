@@ -1,0 +1,122 @@
+<div class="container-xl">
+  <div class="card mb-3">
+    <div class="card-header">
+      <h3 class="card-title"><i class="ti ti-cloud icon me-1"></i> Alist 服务配置</h3>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-sm-6 col-md-4">
+          <label class="form-label">服务器地址</label>
+          <input class="form-control" id="al-host" placeholder="192.168.1.100">
+          <span class="form-hint">alist 的 ip 或域名地址</span>
+        </div>
+        <div class="col-sm-6 col-md-4">
+          <label class="form-label">端口</label>
+          <input class="form-control" id="al-port" placeholder="5244">
+        </div>
+        <div class="col-sm-6 col-md-4">
+          <label class="form-label">协议</label>
+          <label class="form-check form-switch mt-1">
+            <input class="form-check-input" type="checkbox" id="al-https">
+            <span class="form-check-label" id="al-https-label">http</span>
+          </label>
+          <span class="form-hint">默认 http</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title"><i class="ti ti-key icon me-1"></i> 加密密码组</h3>
+      <div class="card-actions">
+        <button class="btn btn-primary" id="add-passwd"><i class="ti ti-plus icon me-1"></i> 添加密码组</button>
+      </div>
+    </div>
+    <div class="card-body" id="passwd-list"></div>
+    <div class="card-footer text-end">
+      <button class="btn btn-primary" id="save-btn"><i class="ti ti-device-floppy icon me-1"></i> 保存全部配置</button>
+      <span class="text-muted small ms-2">保存后立即生效并写入 conf/config.json</span>
+    </div>
+  </div>
+</div>
+
+<!-- 文件夹名加解密弹窗 -->
+<div class="modal modal-blur fade" id="folder-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">子密码 / 文件夹名加解密</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          根据子文件夹密文名动态切换解密密码。基础密码：
+          <strong data-base-pwd></strong> · 算法：<strong data-base-enc></strong>
+        </div>
+        <ul class="nav nav-tabs mb-3" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-encode" type="button" role="tab">加密名字</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-decode" type="button" role="tab">解密名字</button>
+          </li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane show active" id="tab-encode" role="tabpanel">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">文件夹备注</label>
+                <input class="form-control" id="fm-name" placeholder="my_video（不能有特殊符号）">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">子目录算法</label>
+                <select class="form-select" id="fm-enc-type">
+                  <option value="aesctr">AES-CTR</option>
+                  <option value="chacha20">CHACHA20</option>
+                  <option value="rc4">RC4（已废弃）</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">子目录密码</label>
+                <input class="form-control" id="fm-passwd" placeholder="123456">
+              </div>
+            </div>
+            <div class="mt-3 d-flex align-items-center gap-2">
+              <button class="btn btn-outline-primary" id="fm-encode-btn"><i class="ti ti-wand icon me-1"></i> 生成密文名</button>
+              <button class="btn d-none" id="fm-copy-btn"><i class="ti ti-copy icon me-1"></i> 复制</button>
+            </div>
+            <div class="mt-3 d-none" id="fm-result-wrap">
+              <label class="form-label">生成的文件夹密文名（用此密文名命名文件夹，则按此密码解密）</label>
+              <div class="input-group">
+                <input class="form-control font-monospace" id="fm-result" readonly>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="tab-decode" role="tabpanel">
+            <div class="mb-3">
+              <label class="form-label">文件夹密文名</label>
+              <input class="form-control font-monospace" id="fm-dec-input" placeholder="粘贴文件夹密文名">
+            </div>
+            <button class="btn btn-outline-primary" id="fm-decode-btn"><i class="ti ti-lock-open icon me-1"></i> 解密</button>
+            <div class="mt-3 d-none" id="fm-dec-result">
+              <div class="datagrid">
+                <div class="datagrid-item">
+                  <div class="datagrid-title">文件夹密码</div>
+                  <div class="datagrid-content" data-dec-pwd></div>
+                </div>
+                <div class="datagrid-item">
+                  <div class="datagrid-title">算法</div>
+                  <div class="datagrid-content" data-dec-enc></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -16,7 +16,8 @@ export function clearToken() {
 }
 
 export function redirectToLogin() {
-  const redirect = location.pathname + location.search
+  // SPA 下当前页面在 hash 里（/public/index.html#alist），回跳时要一并带上
+  const redirect = location.pathname + location.search + location.hash
   location.replace(LOGIN_URL + '?redirect=' + encodeURIComponent(redirect))
 }
 

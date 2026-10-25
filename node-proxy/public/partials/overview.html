@@ -1,0 +1,104 @@
+<div class="container-xl">
+  <div class="row g-3 mb-3">
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-sm">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto"><span class="avatar enc-tile enc-tile-blue"><i class="ti ti-info-circle icon"></i></span></div>
+            <div class="col">
+              <div class="subheader">服务版本</div>
+              <div class="h1 mb-0 me-2" id="stat-version">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-sm">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto"><span class="avatar enc-tile enc-tile-green"><i class="ti ti-cloud icon"></i></span></div>
+            <div class="col">
+              <div class="subheader">Alist 服务</div>
+              <div class="h3 mb-0" id="stat-alist">-</div>
+              <div class="text-muted small" id="stat-alist-sub"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-sm">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto"><span class="avatar enc-tile enc-tile-purple"><i class="ti ti-folders icon"></i></span></div>
+            <div class="col">
+              <div class="subheader">WebDAV 配置</div>
+              <div class="h3 mb-0" id="stat-webdav">-</div>
+              <div class="text-muted small" id="stat-webdav-sub"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-key icon me-1"></i> 修改密码</h3>
+        </div>
+        <div class="card-body">
+          <form id="passwd-form" autocomplete="off">
+            <div class="mb-3">
+              <label class="form-label">用户名</label>
+              <input type="text" class="form-control" id="pf-username" disabled>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">原密码</label>
+              <input type="password" class="form-control" id="pf-old" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">新密码</label>
+              <input type="password" class="form-control" id="pf-new" required>
+              <span class="form-hint">至少 7 位字符</span>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">确认新密码</label>
+              <input type="password" class="form-control" id="pf-new2" required>
+            </div>
+            <button type="submit" class="btn btn-primary" id="pf-submit">保存新密码</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-rocket icon me-1"></i> 功能规划</h3>
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex align-items-center ps-0 pe-0">
+              <i class="ti ti-cloud-lock icon me-2 text-muted"></i>
+              <div class="flex-fill"><strong>在线加密</strong><div class="text-muted small">文件在线加密解密</div></div>
+              <span class="badge bg-secondary-lt">规划中</span>
+            </div>
+            <div class="list-group-item d-flex align-items-center ps-0 pe-0">
+              <i class="ti ti-cloud-upload icon me-2 text-muted"></i>
+              <div class="flex-fill"><strong>文件转存</strong><div class="text-muted small">把网盘文件转存到加密文件夹，建议 1G 内；大文件推荐先本地加密再上传</div></div>
+              <span class="badge bg-secondary-lt">规划中</span>
+            </div>
+            <div class="list-group-item d-flex align-items-center ps-0 pe-0 border-0">
+              <i class="ti ti-lock icon me-2 text-success"></i>
+              <div class="flex-fill"><strong>云端加密</strong><div class="text-muted small">已上线，前往「云端加密」页面使用</div></div>
+              <span class="badge bg-success-lt">已上线</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

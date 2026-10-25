@@ -10,178 +10,154 @@
     document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
   </script>
 </head>
-<body data-page="index" data-page-title="概览">
-  <template id="page-content">
-    <div class="container-xl">
-      <div class="row g-3 mb-3">
-        <div class="col-sm-6 col-lg-4">
-          <div class="card card-sm">
-            <div class="card-body">
-              <div class="row align-items-center">
-                <div class="col-auto"><span class="avatar enc-tile enc-tile-blue"><i class="ti ti-info-circle icon"></i></span></div>
-                <div class="col">
-                  <div class="subheader">服务版本</div>
-                  <div class="h1 mb-0 me-2" id="stat-version">-</div>
-                </div>
-              </div>
-            </div>
-          </div>
+<body>
+  <!-- SPA 壳层：侧边栏 + 顶栏常驻，右侧 5 个 page-content 占位由 hash 路由懒加载切换 -->
+  <!-- 结构对齐 layout.js（现由本页静态承载）：offcanvas 只包菜单，桌面端(≥992px)自动变 static 常驻 -->
+
+  <aside class="navbar navbar-vertical navbar-expand-lg">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar-menu" aria-label="打开菜单">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <h1 class="navbar-brand navbar-brand-autodark">
+        <a href="#overview">
+          <img src="/public/logo.png" width="28" height="28" alt="logo" class="me-2">
+          <span class="align-middle">alist-encrypt</span>
+        </a>
+      </h1>
+      <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebar-menu">
+        <div class="offcanvas-header">
+          <h2 class="offcanvas-title">
+            <img src="/public/logo.png" width="24" height="24" alt="logo" class="me-2">
+            alist-encrypt
+          </h2>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="关闭"></button>
         </div>
-        <div class="col-sm-6 col-lg-4">
-          <div class="card card-sm">
-            <div class="card-body">
-              <div class="row align-items-center">
-                <div class="col-auto"><span class="avatar enc-tile enc-tile-green"><i class="ti ti-cloud icon"></i></span></div>
-                <div class="col">
-                  <div class="subheader">Alist 服务</div>
-                  <div class="h3 mb-0" id="stat-alist">-</div>
-                  <div class="text-muted small" id="stat-alist-sub"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-sm-6 col-lg-4">
-          <div class="card card-sm">
-            <div class="card-body">
-              <div class="row align-items-center">
-                <div class="col-auto"><span class="avatar enc-tile enc-tile-purple"><i class="ti ti-folders icon"></i></span></div>
-                <div class="col">
-                  <div class="subheader">WebDAV 配置</div>
-                  <div class="h3 mb-0" id="stat-webdav">-</div>
-                  <div class="text-muted small" id="stat-webdav-sub"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div class="offcanvas-body">
+          <ul class="navbar-nav pt-lg-3">
+            <li class="nav-item">
+              <a class="nav-link" href="#overview" data-page="overview">
+                <span class="nav-link-icon"><i class="ti ti-dashboard"></i></span>
+                <span class="nav-link-title">概览</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#alist" data-page="alist">
+                <span class="nav-link-icon"><i class="ti ti-cloud"></i></span>
+                <span class="nav-link-title">Alist 配置</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#webdav" data-page="webdav">
+                <span class="nav-link-icon"><i class="ti ti-folders"></i></span>
+                <span class="nav-link-title">WebDAV 配置</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#cloud" data-page="cloud">
+                <span class="nav-link-icon"><i class="ti ti-lock"></i></span>
+                <span class="nav-link-title">云端加密</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#decrypt" data-page="decrypt">
+                <span class="nav-link-icon"><i class="ti ti-lock-open"></i></span>
+                <span class="nav-link-title">在线解密</span>
+              </a>
+            </li>
+          </ul>
         </div>
       </div>
-
-      <div class="row g-3">
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header">
-              <h3 class="card-title"><i class="ti ti-key icon me-1"></i> 修改密码</h3>
-            </div>
-            <div class="card-body">
-              <form id="passwd-form" autocomplete="off">
-                <div class="mb-3">
-                  <label class="form-label">用户名</label>
-                  <input type="text" class="form-control" id="pf-username" disabled>
-                </div>
-                <div class="mb-3">
-                  <label class="form-label">原密码</label>
-                  <input type="password" class="form-control" id="pf-old" required>
-                </div>
-                <div class="mb-3">
-                  <label class="form-label">新密码</label>
-                  <input type="password" class="form-control" id="pf-new" required>
-                  <span class="form-hint">至少 7 位字符</span>
-                </div>
-                <div class="mb-3">
-                  <label class="form-label">确认新密码</label>
-                  <input type="password" class="form-control" id="pf-new2" required>
-                </div>
-                <button type="submit" class="btn btn-primary" id="pf-submit">保存新密码</button>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-6">
-          <div class="card">
-            <div class="card-header">
-              <h3 class="card-title"><i class="ti ti-rocket icon me-1"></i> 功能规划</h3>
-            </div>
-            <div class="card-body">
-              <div class="list-group list-group-flush">
-                <div class="list-group-item d-flex align-items-center ps-0 pe-0">
-                  <i class="ti ti-cloud-lock icon me-2 text-muted"></i>
-                  <div class="flex-fill"><strong>在线加密</strong><div class="text-muted small">文件在线加密解密</div></div>
-                  <span class="badge bg-secondary-lt">规划中</span>
-                </div>
-                <div class="list-group-item d-flex align-items-center ps-0 pe-0">
-                  <i class="ti ti-cloud-upload icon me-2 text-muted"></i>
-                  <div class="flex-fill"><strong>文件转存</strong><div class="text-muted small">把网盘文件转存到加密文件夹，建议 1G 内；大文件推荐先本地加密再上传</div></div>
-                  <span class="badge bg-secondary-lt">规划中</span>
-                </div>
-                <div class="list-group-item d-flex align-items-center ps-0 pe-0 border-0">
-                  <i class="ti ti-lock icon me-2 text-success"></i>
-                  <div class="flex-fill"><strong>云端加密</strong><div class="text-muted small">已上线，前往「云端加密」页面使用</div></div>
-                  <span class="badge bg-success-lt">已上线</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="mt-auto px-3 pb-3 d-none d-lg-block">
+        <div class="text-muted small">管理控制台</div>
       </div>
     </div>
-  </template>
+  </aside>
+
+  <div class="page">
+    <header class="navbar navbar-expand-md d-print-none">
+      <div class="container-xl">
+        <h1 class="navbar-title py-3 ps-0" data-topbar-title>概览</h1>
+        <div class="navbar-nav flex-row order-md-last align-items-center">
+          <a class="nav-link px-2 hide-theme-dark" href="#" data-theme-toggle title="切换暗色模式" aria-label="切换暗色模式">
+            <i class="ti ti-moon-stars"></i>
+          </a>
+          <a class="nav-link px-2 hide-theme-light" href="#" data-theme-toggle title="切换亮色模式" aria-label="切换亮色模式">
+            <i class="ti ti-sun-high"></i>
+          </a>
+          <div class="nav-item dropdown ms-2">
+            <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown">
+              <span class="avatar avatar-sm bg-blue-lt" data-user-avatar>A</span>
+              <div class="d-none d-xl-block ps-2">
+                <div data-user-name>-</div>
+                <div class="mt-1 small text-muted" data-user-version></div>
+              </div>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+              <a href="#" class="dropdown-item" data-logout>
+                <i class="ti ti-logout icon dropdown-item-icon"></i> 退出登录
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-wrapper">
+      <div class="page-body">
+        <div class="page-content" id="page-overview"></div>
+        <div class="page-content d-none" id="page-alist"></div>
+        <div class="page-content d-none" id="page-webdav"></div>
+        <div class="page-content d-none" id="page-cloud"></div>
+        <div class="page-content d-none" id="page-decrypt"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="/public/assets/js/tabler.min.js"></script>
-  <script type="module" src="/public/shared/layout.js"></script>
   <script type="module">
-    import { api } from '/public/shared/api.js'
+    import { requireAuth, logout } from '/public/shared/auth.js'
     import { toast } from '/public/shared/ui.js'
-    import { setUser } from '/public/shared/layout.js'
+    import { enhanceIcons } from '/public/shared/icons.js'
+    import { setUser, toggleTheme, startRouter } from '/public/shared/router.js'
 
-    const $ = (id) => document.getElementById(id)
-
-    const [userInfoRes, alistRes, webdavRes] = await Promise.allSettled([
-      api('/getUserInfo', { plateFormId: 2 }),
-      api('/getAlistConfig'),
-      api('/getWebdavonfig')
+    // 页面逻辑模块：registerPage 注册 mount 钩子（片段 HTML 注入后 script 不执行，逻辑必须模块化）
+    await Promise.all([
+      import('/public/shared/pages/overview.js'),
+      import('/public/shared/pages/alist.js'),
+      import('/public/shared/pages/webdav.js'),
+      import('/public/shared/pages/cloud.js'),
+      import('/public/shared/pages/decrypt.js')
     ])
 
-    if (userInfoRes.status === 'fulfilled') {
-      const d = userInfoRes.value.data
-      setUser(d.userInfo, d.version)
-      $('stat-version').textContent = d.version || '-'
-      $('pf-username').value = d.userInfo?.username || ''
-    } else {
-      console.error(userInfoRes.reason)
-    }
+    // 壳层静态 <i class="ti ti-*"> 标记转内联 svg（之后动态注入的内容由 MutationObserver 自动处理）
+    enhanceIcons(document.body)
 
-    if (alistRes.status === 'fulfilled') {
-      const c = alistRes.value.data || {}
-      const list = c.passwdList || []
-      $('stat-alist').textContent = `${c.serverHost || '-'}:${c.serverPort || '-'}`
-      const enabled = list.filter((x) => x.enable).length
-      $('stat-alist-sub').textContent = `密码组 ${enabled}/${list.length} 启用 · ${c.https ? 'https' : 'http'}`
-    } else {
-      $('stat-alist').textContent = '加载失败'
-    }
-
-    if (webdavRes.status === 'fulfilled') {
-      const list = webdavRes.value.data || []
-      $('stat-webdav').textContent = `${list.length} 个配置`
-      const enabled = list.filter((x) => x.enable).length
-      $('stat-webdav-sub').textContent = `${enabled} 个启用中`
-    } else {
-      $('stat-webdav').textContent = '加载失败'
-    }
-
-    $('passwd-form').addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const oldPwd = $('pf-old').value
-      const newPwd = $('pf-new').value
-      const newPwd2 = $('pf-new2').value
-      if (newPwd.length < 7) {
-        toast('新密码至少 7 位字符', 'warning')
-        return
-      }
-      if (newPwd !== newPwd2) {
-        toast('两次输入的新密码不一致', 'warning')
-        return
-      }
-      try {
-        const res = await api('/updatePasswd', { username: $('pf-username').value, password: oldPwd, newpassword: newPwd })
-        toast(res.msg || '密码修改成功')
-        $('passwd-form').reset()
-      } catch (err) {
-        toast(err.message || '密码修改失败', 'danger')
-      }
+    document.querySelectorAll('[data-theme-toggle]').forEach((a) => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault()
+        toggleTheme()
+      })
     })
+    document.querySelector('[data-logout]').addEventListener('click', (e) => {
+      e.preventDefault()
+      logout()
+      toast('已退出登录', 'info')
+    })
+
+    // 校验登录态并填充用户信息（未登录时 requireAuth 内部会跳转登录页）
+    try {
+      const data = await requireAuth()
+      setUser(data.userInfo, data.version)
+    } catch (e) {
+      // 网络错误等：页面保留，提示错误；401 已由 api 层跳转
+      if (e.code !== 401 && e.code !== 403 && e.message !== 'unauthorized') {
+        console.error(e)
+        toast(e.message || '获取用户信息失败', 'danger')
+      }
+    }
+
+    startRouter()
   </script>
 </body>
 </html>

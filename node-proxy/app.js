@@ -200,6 +200,12 @@ function startupServer() {
 
   server.listen(port, () => logger.info('服务启动成功: ' + port))
   setInterval(() => {
-    logger.debug('server_connections', server._connections, Date.now())
+    // 用公开 API 替代私有属性 server._connections
+    server.getConnections((err, count) => {
+      if (err) {
+        return logger.error('server_connections error', err)
+      }
+      logger.debug('server_connections', count, Date.now())
+    })
   }, 600 * 1000)
 }

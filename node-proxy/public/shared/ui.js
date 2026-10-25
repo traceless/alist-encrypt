@@ -34,6 +34,13 @@ export function bsModal(el) {
   return new bs.Modal(el)
 }
 
+// 唯一 ID：crypto.randomUUID 仅安全上下文（HTTPS/localhost）可用，
+// 局域网 IP 访问时为 undefined，这里做兜底
+export function genId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)
+}
+
 // opts: { title, text, okText, danger }
 export function confirmDialog(opts = {}) {
   return new Promise((resolve) => {

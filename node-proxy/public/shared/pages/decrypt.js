@@ -1,233 +1,38 @@
-<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <link rel="icon" href="/public/favicon.ico">
-  <link rel="stylesheet" href="/public/assets/css/tabler.min.css">
-  <link rel="stylesheet" href="/public/assets/app.css">
-  <script>
-    document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('enc_theme') === 'dark' ? 'dark' : 'light')
-  </script>
-  <script defer src="https://cdn.jsdelivr.net/npm/blueimp-md5@2.19.0/js/md5.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.11/dist/zip.min.js"></script>
-</head>
-<body data-page="decrypt" data-page-title="在线解密">
-  <template id="page-content">
-    <div class="container-xl">
-      <div class="alert alert-info mb-3">
-        <i class="ti ti-info-circle icon me-1"></i>
-        浏览器本地流式加解密，文件不出本机。算法与后端一致（AES-CTR / ChaCha20），密文可与云端加密、CLI 工具互通。
-      </div>
+import { MB, derivePwdKey, encryptAesChunk, encryptCha20Chunk, createReadableStream, encodeName, decodeName } from '/public/shared/crypto-core.js'
+import { toast } from '/public/shared/ui.js'
+import { registerPage } from '/public/shared/router.js'
 
-      <div class="card">
-        <div class="card-header">
-          <ul class="nav nav-tabs card-header-tabs" role="tablist">
-            <li class="nav-item" role="presentation">
-              <a class="nav-link active" data-bs-toggle="tab" href="#tab-enc" role="tab" aria-selected="true">
-                <i class="ti ti-lock icon me-1"></i> 文件加密
-              </a>
-            </li>
-            <li class="nav-item" role="presentation">
-              <a class="nav-link" data-bs-toggle="tab" href="#tab-dec" role="tab" aria-selected="false">
-                <i class="ti ti-lock-open icon me-1"></i> 文件解密
-              </a>
-            </li>
-            <li class="nav-item" role="presentation">
-              <a class="nav-link" data-bs-toggle="tab" href="#tab-zip" role="tab" aria-selected="false">
-                <i class="ti ti-folders icon me-1"></i> 解密转分卷
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div class="card-body">
-          <div class="tab-content">
+// CDN 依赖懒加载：原独立页为 head defer，SPA 下首次进入本页再加载（md5 供 crypto-core 派生密钥，zip.js 供分卷打包）
+const CDN_SCRIPTS = [
+  'https://cdn.jsdelivr.net/npm/blueimp-md5@2.19.0/js/md5.min.js',
+  'https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.8.11/dist/zip.min.js'
+]
+let cdnPromise = null
+function cdnReady() {
+  if (!cdnPromise) {
+    cdnPromise = Promise.all(CDN_SCRIPTS.map((src) => new Promise((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = src
+      s.onload = resolve
+      s.onerror = () => reject(new Error('CDN 脚本加载失败：' + src))
+      document.head.appendChild(s)
+    })))
+  }
+  return cdnPromise
+}
 
-            <!-- 文件加密 -->
-            <div class="tab-pane active show" id="tab-enc" role="tabpanel">
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label class="form-label">加密算法</label>
-                  <select class="form-select" id="algoEnc">
-                    <option value="aesctr">AES-CTR（推荐）</option>
-                    <option value="chacha20">CHACHA20</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">处理块大小</label>
-                  <select class="form-select" id="blockEnc">
-                    <option value="10">10 MB</option>
-                    <option value="100" selected>100 MB</option>
-                    <option value="500">500 MB</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">密码</label>
-                  <input type="password" class="form-control" id="pwdEnc_inp" placeholder="加密密码" autocomplete="new-password">
-                </div>
-              </div>
-              <label class="form-check form-switch mb-3">
-                <input class="form-check-input" type="checkbox" id="toggleAppendEnc">
-                <span class="form-check-label">文件名加密（文件名整体加密为密文 + .enc 后缀）</span>
-              </label>
-              <div class="mb-3" data-drop="enc">
-                <label class="form-label">待加密文件</label>
-                <div class="p-4 rounded-3 border border-dashed text-center text-muted" data-dropzone style="cursor:pointer">
-                  <i class="ti ti-cloud-upload icon me-1"></i> 点击选择或拖拽文件到此处
-                </div>
-                <input type="file" multiple hidden data-fileinput>
-                <input type="file" multiple webkitdirectory hidden data-folderinput>
-                <div class="mt-2 d-flex gap-2">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" data-folderbtn><i class="ti ti-folders icon me-1"></i> 选择文件夹</button>
-                  <button type="button" class="btn btn-sm btn-outline-danger" data-clearbtn><i class="ti ti-trash icon me-1"></i> 清空列表</button>
-                </div>
-                <ul class="list-group list-group-flush mt-2" data-filelist></ul>
-              </div>
-              <div class="progress mb-3" style="height: 6px">
-                <div class="progress-bar" id="encProgBar" style="width: 0%"></div>
-              </div>
-              <div class="text-muted small mb-3" id="encProgText">就绪</div>
-              <button type="button" class="btn btn-primary" id="btnStartEnc">
-                <i class="ti ti-lock icon me-1"></i> 开始加密
-              </button>
-            </div>
+function formatFileSize(bytes, decimals = 2) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return (bytes / Math.pow(k, i)).toFixed(decimals) + ' ' + sizes[i]
+}
 
-            <!-- 文件解密 -->
-            <div class="tab-pane" id="tab-dec" role="tabpanel">
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label class="form-label">解密算法</label>
-                  <select class="form-select" id="algoDec">
-                    <option value="aesctr">AES-CTR（推荐）</option>
-                    <option value="chacha20">CHACHA20</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">处理块大小</label>
-                  <select class="form-select" id="blockDec">
-                    <option value="10">10 MB</option>
-                    <option value="100" selected>100 MB</option>
-                    <option value="500">500 MB</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">密码</label>
-                  <input type="password" class="form-control" id="pwdDec_inp" placeholder="解密密码" autocomplete="new-password">
-                </div>
-              </div>
-              <label class="form-check form-switch mb-3">
-                <input class="form-check-input" type="checkbox" id="toggleAppendDec">
-                <span class="form-check-label">文件名解密（密文名还原为原文件名）</span>
-              </label>
-              <div class="mb-3" data-drop="dec">
-                <label class="form-label">待解密文件</label>
-                <div class="p-4 rounded-3 border border-dashed text-center text-muted" data-dropzone style="cursor:pointer">
-                  <i class="ti ti-cloud-upload icon me-1"></i> 点击选择或拖拽文件到此处
-                </div>
-                <input type="file" multiple hidden data-fileinput>
-                <input type="file" multiple webkitdirectory hidden data-folderinput>
-                <div class="mt-2 d-flex gap-2">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" data-folderbtn><i class="ti ti-folders icon me-1"></i> 选择文件夹</button>
-                  <button type="button" class="btn btn-sm btn-outline-danger" data-clearbtn><i class="ti ti-trash icon me-1"></i> 清空列表</button>
-                </div>
-                <ul class="list-group list-group-flush mt-2" data-filelist></ul>
-              </div>
-              <div class="progress mb-3" style="height: 6px">
-                <div class="progress-bar" id="decProgBar" style="width: 0%"></div>
-              </div>
-              <div class="text-muted small mb-3" id="decProgText">就绪</div>
-              <button type="button" class="btn btn-success" id="btnStartDec">
-                <i class="ti ti-lock-open icon me-1"></i> 开始解密
-              </button>
-            </div>
-
-            <!-- 解密并转分卷压缩包 -->
-            <div class="tab-pane" id="tab-zip" role="tabpanel">
-              <div class="row g-3 mb-3">
-                <div class="col-md-3">
-                  <label class="form-label">解密算法</label>
-                  <select class="form-select" id="algoZip">
-                    <option value="aesctr">AES-CTR（推荐）</option>
-                    <option value="chacha20">CHACHA20</option>
-                  </select>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">处理块大小</label>
-                  <select class="form-select" id="blockZip">
-                    <option value="10">10 MB</option>
-                    <option value="100" selected>100 MB</option>
-                    <option value="500">500 MB</option>
-                  </select>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">单卷大小</label>
-                  <select class="form-select" id="zipSize">
-                    <option value="10">10 MB</option>
-                    <option value="100">100 MB</option>
-                    <option value="500" selected>500 MB</option>
-                    <option value="1000">1 GB</option>
-                  </select>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">密码</label>
-                  <input type="password" class="form-control" id="pwdZip_inp" placeholder="解密密码" autocomplete="new-password">
-                </div>
-              </div>
-              <div class="mb-3" data-drop="zip">
-                <label class="form-label">待解密打包的文件</label>
-                <div class="p-4 rounded-3 border border-dashed text-center text-muted" data-dropzone style="cursor:pointer">
-                  <i class="ti ti-cloud-upload icon me-1"></i> 点击选择或拖拽文件到此处
-                </div>
-                <input type="file" multiple hidden data-fileinput>
-                <input type="file" multiple webkitdirectory hidden data-folderinput>
-                <div class="mt-2 d-flex gap-2">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" data-folderbtn><i class="ti ti-folders icon me-1"></i> 选择文件夹</button>
-                  <button type="button" class="btn btn-sm btn-outline-danger" data-clearbtn><i class="ti ti-trash icon me-1"></i> 清空列表</button>
-                </div>
-                <ul class="list-group list-group-flush mt-2" data-filelist></ul>
-              </div>
-              <div class="progress mb-3" style="height: 6px">
-                <div class="progress-bar" id="zipProgBar" style="width: 0%"></div>
-              </div>
-              <div class="text-muted small mb-3" id="zipProgText">就绪</div>
-              <button type="button" class="btn btn-primary" id="btnStartZip">
-                <i class="ti ti-folders icon me-1"></i> 生成分卷压缩包
-              </button>
-              <div class="text-secondary small mt-3">
-                解密并分卷打包：逐块解密加密文件，明文按标准分卷 zip 直接写盘（.z01…+.zip），用 7-Zip / WinRAR 打开 .zip 即可解压全部内容。内存占用≈处理块大小，不随文件大小累积。
-              </div>
-              <div class="text-secondary small" style="text-align: left; max-width: 520px">
-                适用场景：
-                <ul class="mb-0 ps-3">
-                  <li>iOS 设备（不支持流式写入）</li>
-                  <li>浏览器内存不足时处理大文件</li>
-                  <li>将同名的 .z01、.z02…和最后一个 .zip 放在同一目录</li>
-                  <li>用 WinRAR/7-Zip 打开最后一个 .zip，即可合并还原原文件</li>
-                </ul>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <script src="/public/assets/js/tabler.min.js"></script>
-  <script type="module" src="/public/shared/layout.js"></script>
-  <script type="module">
-    import { MB, derivePwdKey, encryptAesChunk, encryptCha20Chunk, createReadableStream, encodeName, decodeName } from '/public/shared/crypto-core.js'
-    import { toast } from '/public/shared/ui.js'
-
+registerPage('decrypt', {
+  mount() {
     const $ = (id) => document.getElementById(id)
-
-    function formatFileSize(bytes, decimals = 2) {
-      if (bytes === 0) return '0 B'
-      const k = 1024
-      const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      return (bytes / Math.pow(k, i)).toFixed(decimals) + ' ' + sizes[i]
-    }
+    cdnReady().catch((e) => console.error('[decrypt]', e.message))
 
     // ---------- 文件列表与上传 ----------
     const panels = {
@@ -455,6 +260,12 @@
         toast('请输入密码并且选择文件', 'warning')
         return
       }
+      try {
+        await cdnReady()
+      } catch (err) {
+        toast(err.message || 'CDN 脚本加载失败', 'danger')
+        return
+      }
       if (!window.zip || !window.zip.SplitDataWriter) {
         toast('zip.js 未加载完成，请稍后重试', 'warning')
         return
@@ -567,6 +378,5 @@
         btn.disabled = false
       }
     }
-  </script>
-</body>
-</html>
+  }
+})

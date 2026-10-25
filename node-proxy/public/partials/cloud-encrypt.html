@@ -1,0 +1,85 @@
+<div class="container-xl">
+  <div class="alert alert-info mb-3">
+    <i class="ti ti-info-circle icon me-1"></i>
+    对 encrypt 所在系统中的文件夹进行加解密。Windows 场景：打开 encrypt.exe 启动服务后，即可对本机文件夹加密。
+    任务为异步执行，提交后请留意输出目录。
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-lock icon me-1"></i> 服务器文件加解密</h3>
+        </div>
+        <div class="card-body">
+          <form id="enc-form" autocomplete="off">
+            <div class="mb-3">
+              <label class="form-label">操作类型</label>
+              <div class="d-flex gap-3">
+                <label class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="operation" value="enc" checked>
+                  <span class="form-check-label">加密</span>
+                </label>
+                <label class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="operation" value="dec">
+                  <span class="form-check-label">解密</span>
+                </label>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">加密算法</label>
+              <select class="form-select" id="ef-enc-type">
+                <option value="aesctr">AES-CTR（推荐）</option>
+                <option value="chacha20">CHACHA20</option>
+                <option value="rc4">RC4（已废弃）</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">密码</label>
+              <input class="form-control" id="ef-password" placeholder="加密/解密密码" required>
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="ef-enc-folder">
+                  <span class="form-check-label">目录名加密</span>
+                </label>
+              </div>
+              <div class="col-md-6">
+                <label class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="ef-enc-name">
+                  <span class="form-check-label">文件名加密</span>
+                </label>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">云端路径</label>
+              <input class="form-control" id="ef-folder-path" placeholder="/home/my-video">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">输出路径</label>
+              <input class="form-control" id="ef-out-path" placeholder="/home/outPath">
+            </div>
+            <button type="submit" class="btn btn-primary" id="ef-submit">
+              <i class="ti ti-lock icon me-1"></i> 执行加密
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title"><i class="ti ti-bulb icon me-1"></i> 使用提示</h3>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2"><i class="ti ti-point icon text-muted"></i> 切换「加密/解密」时，执行按钮文案随之变化</li>
+            <li class="mb-2"><i class="ti ti-point icon text-muted"></i> 后端为异步批处理，文件数上限 10000</li>
+            <li class="mb-2"><i class="ti ti-point icon text-muted"></i> 大文件推荐本地加密后，用云盘客户端上传，比网页转存可靠</li>
+            <li class="mb-2"><i class="ti ti-point icon text-muted"></i> AES-CTR 支持定位播放，适合视频类文件</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

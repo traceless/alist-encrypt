@@ -5,7 +5,8 @@ import { api, getToken, clearToken } from './api.js'
 // data: { codes, userInfo, roles, version }
 export async function requireAuth() {
   if (!getToken()) {
-    location.replace('/public/login.html?redirect=' + encodeURIComponent(location.pathname + location.search))
+    // SPA 下当前页面在 hash 里，回跳后能直接回到切前的页面
+    location.replace('/public/login.html?redirect=' + encodeURIComponent(location.pathname + location.search + location.hash))
     throw new Error('unauthorized')
   }
   const res = await api('/getUserInfo', { plateFormId: 2 })
