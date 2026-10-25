@@ -10,15 +10,6 @@ import FlowEnc from './utils/flowEnc.js'
 import { getWebdavFileInfo } from './utils/webdavClient.js'
 import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response'
 
-async function sleep(time) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve()
-    }, time || 3000)
-  })
-}
-const origPrefix = 'orig_'
-
 /**
  * 获取文件信息
  * @param {object} fileInfo 文件信息
@@ -74,7 +65,7 @@ function convertShowFilePath(href, passwdInfo, isDir) {
  * @param {*} passwdInfo 密码信息
  * @returns
  */
-function cacheWebdavFileInfo(fileInfo, passwdInfo) {
+async function cacheWebdavFileInfo(fileInfo, passwdInfo) {
   const href = fileInfo.href
   const fileName = path.basename(href)
   let propstat = fileInfo.propstat
@@ -90,12 +81,12 @@ function cacheWebdavFileInfo(fileInfo, passwdInfo) {
   if (!isFolder) {
     const getcontentlength = propstat.prop.getcontentlength
     const fileDetail = { path: href, showPath, name: fileName, is_dir: isFolder, size: getcontentlength }
-    cacheFileInfo(fileDetail, true)
+    await cacheFileInfo(fileDetail, true)
     return fileDetail
   }
   // cache this folder info
   const fileDetail = { path: href, showPath, name: fileName, is_dir: isFolder, size: 0 }
-  cacheFileInfo(fileDetail, true)
+  await cacheFileInfo(fileDetail, true)
   return fileDetail
 }
 
@@ -211,9 +202,9 @@ const preHandle = async (c, next) => {
       // 这里是获取到列表，文件夹和文件
       if (respJson instanceof Array) {
         // logger.info('@@respJsonArray', respJson)
-        respJson.forEach((fileInfo) => {
+        for (const fileInfo of respJson) {
           // cache real file info，include forder name
-          cacheWebdavFileInfo(fileInfo, passwdInfo)
+          await cacheWebdavFileInfo(fileInfo, passwdInfo)
           if (passwdInfo?.encName) {
             const { fileName, showName, showFolderName } = getFileNameForShow(fileInfo, passwdInfo)
             // logger.debug('@@getFileNameForShow1 list', passwdInfo.password, fileName, decodeURI(fileName), showName)
@@ -229,16 +220,15 @@ const preHandle = async (c, next) => {
               respBody = respBody.replace(request.url.replace(/&/g, '&amp;').replace(/</g, '&gt;'), baseUrl.replace(/&/g, '&amp;').replace(/</g, '&gt;'))
               if (baseUrl === fileInfo.href) {
                 // 不替换跟目录的href连接名字
-                return
+                continue
               }
               // 因为上面执行了replace，所以一定要前置 `/${hrefName}，不然会出现orig_orig_xxx.txt的情况
               respBody = respBody.replace(`/${hrefName}${endsWith}</D:href>`, `/${encodeURI(showXmlName)}${endsWith}</D:href>`)
               respBody = respBody.replace(`${displayname}</D:displayname>`, `${showXmlName}</D:displayname>`)
             }
           }
-        })
-        // waiting cacheWebdavFileInfo a moment
-        await sleep(50)
+        // await sleep(50)
+        }
       } else if (passwdInfo?.encName) {
         // 这里PROPFIND请求的是文件信息，上面得到是列表后，客户端还会继续请求每个文件的信息。。。
         const fileInfo = respJson
@@ -354,7 +344,7 @@ const preHandle = async (c, next) => {
         if (webdavFileInfo.size * 1 > 0) {
           const showPath = convertShowFilePath(decodeURI(webdavFileInfo.href), passwdInfo, webdavFileInfo.is_dir)
           webdavFileInfo.showPath = showPath
-          cacheFileInfo(webdavFileInfo, true)
+          await cacheFileInfo(webdavFileInfo, true)
         }
         request.fileSize = webdavFileInfo.size * 1
       }

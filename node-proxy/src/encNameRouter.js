@@ -12,14 +12,6 @@ import crypto from 'crypto'
 import { cacheFileInfo, getFileInfo } from './dao/fileDao.js'
 import bodyParser from './middleware/bodyParser.js'
 
-async function sleep(time) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve()
-    }, time || 3000)
-  })
-}
-
 const encName = new Hono()
 
 // 缓存alist的文件信息
@@ -62,11 +54,8 @@ const cacheFileInfoList = async (c, next) => {
     }
     // 这里要注意闭包问题，mad
     logger.debug('@@cacheFileInfo_path', foldPath, fileInfo)
-    cacheFileInfo(fileInfo)
-  }
-  // waiting cacheFileInfo a moment
-  if (content.length > 100) {
-    await sleep(50)
+    // 如果文件列表很多，可能会慢，后续可以调整优化为异步缓存
+    await cacheFileInfo(fileInfo)
   }
   logger.info('@@fs/list', content.length)
   await next()
@@ -228,7 +217,7 @@ encName.all('/api/fs/dirs', bodyParser, async (c) => {
       fileInfo.size = 0
       // 保持原接口一致的结构相应
       delete nameObj.origName
-      cacheFileInfo(fileInfo)
+      await cacheFileInfo(fileInfo)
     }
   }
   logger.info('@@fs/dirs', realfoldPath)

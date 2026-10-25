@@ -13,6 +13,9 @@ class KvStore {
     fs.mkdirSync(path.dirname(dbFile), { recursive: true })
     this.db = new DatabaseSync(dbFile)
     this.db.exec('PRAGMA journal_mode = WAL')
+    // WAL 官方推荐配置：commit 不逐次 fsync 真盘（FULL 默认），实测单写 5.9ms→0.54ms；
+    // 语义：仅掉电/内核崩溃可能丢最近几笔提交，不损坏库——本 KV 全是缓存，可接受
+    this.db.exec('PRAGMA synchronous = NORMAL')
     this.db.exec('CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, expire INTEGER NOT NULL, value TEXT NOT NULL)')
     this.setStmt = this.db.prepare('INSERT OR REPLACE INTO kv (key, expire, value) VALUES (?, ?, ?)')
     this.getStmt = this.db.prepare('SELECT expire, value FROM kv WHERE key = ?')
