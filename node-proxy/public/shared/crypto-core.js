@@ -383,7 +383,21 @@ export async function decodeName(password, encType, encodeName) {
         return 'orig_' + encodeName
     }
     // 选择base64url或者cjk进行解码
-    const fullBuf = codeType === 2 ? cjkToBin(encodeName) : fromBase64URL(encodeName)
+    let fullBuf
+    if (codeType === 2) {
+        try {
+            fullBuf = cjkToBin(encodeName)
+        } catch (e) {
+            // 可能是未加密的纯中文文件名，或被用户改乱的数据
+            return 'orig_' + encodeName
+        }
+    } else {
+        fullBuf = fromBase64URL(encodeName)
+    }
+    if (fullBuf.length < 4) {
+        // 不足以包含crc32校验码
+        return 'orig_' + encodeName
+    }
     // 开始解码，后4字节是CRC32校验码
     const encNameBytes = fullBuf.subarray(0, fullBuf.length - 4)
     const crc32Bytes = fullBuf.subarray(fullBuf.length - 4)
@@ -433,6 +447,7 @@ export function toUInt32LE(bytes) {
 // -------------- CJK 编码（14bit/字）--------------------
 const CJK_BASE = 0x4e00
 const BITS_PER_CHAR = 14
+const MAX_VALUE = (1 << BITS_PER_CHAR) - 1 // 16383
 
 export function binToCjk(buf) {
     const bits = []
@@ -470,21 +485,27 @@ export function binToCjk(buf) {
 
 export function cjkToBin(cjkStr) {
     const codePoints = [...cjkStr].map((c) => c.codePointAt(0))
-    const bits = []
-    let tailBits = 0
-    // 判断尾部标记
-    if (codePoints.length >= 2) {
-        const marker = codePoints.at(-1) - CJK_BASE
-        // marker 一定小于14，不然则说明非法的字符集
-        tailBits = marker
-        codePoints.pop()
-        if (marker > 13) {
-            throw new Error('非法cjk字符集！')
-        }
+    if (codePoints.length === 0) {
+        return new Uint8Array(0)
+    }
+    // 判断尾部标记：余位数量 0~13，越界说明是非法的字符集
+    const tailBits = codePoints.at(-1) - CJK_BASE
+    if (tailBits < 0 || tailBits > 13) {
+        throw new Error('非法cjk字符集！')
+    }
+    codePoints.pop()
+    // 空Buffer编码后只剩标记字符
+    if (codePoints.length === 0) {
+        return new Uint8Array(0)
     }
 
+    const bits = []
     for (let i = 0; i < codePoints.length; i++) {
         const offset = codePoints[i] - CJK_BASE
+        // 数据字符必须在 0 ~ 16383 范围内，越界会导致高位丢失产生错误数据
+        if (offset < 0 || offset > MAX_VALUE) {
+            throw new Error('非法cjk字符集！')
+        }
         let take = BITS_PER_CHAR
         // 如果大于0则说明最后一个字符是溢出的
         if (tailBits > 0 && i === codePoints.length - 1) {

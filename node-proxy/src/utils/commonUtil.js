@@ -185,7 +185,22 @@ export function decodeName(password, encType, encodeName) {
     return decodeOldName(password, encType, encodeName)
   }
   // 选择base64url或者cjk进行解码
-  const fullBuf = codeType === 2 ? cjkToBin(encodeName) : base64Util.decode4Url(encodeName)
+  let fullBuf
+  if (codeType === 2) {
+    try {
+      fullBuf = cjkToBin(encodeName)
+    } catch (e) {
+      // 可能是未加密的纯中文文件名，或被用户改乱的数据
+      logger.error('@cjk decode error', encodeName)
+      return null
+    }
+  } else {
+    fullBuf = base64Util.decode4Url(encodeName)
+  }
+  if (fullBuf.length < 4) {
+    // 不足以包含crc32校验码
+    return null
+  }
   // 开始解码，后4字节是CRC32校验码
   const encNameBytes = fullBuf.subarray(0, fullBuf.length - 4)
   const crc32Bytes = fullBuf.subarray(fullBuf.length - 4)

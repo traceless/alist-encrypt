@@ -81,7 +81,13 @@ export async function httpProxy(request, response, encryptTransform, decryptTran
   }
   // 下载时解密文件名
   if (method === 'GET' && response.statusCode === 200 && passwdInfo && passwdInfo.encName) {
-    let fileName = decodeURIComponent(path.basename(url))
+    // 网盘URL可能带畸形百分号编码，decodeURIComponent会抛URIError，退回原始值避免中断响应
+    let fileName
+    try {
+      fileName = decodeURIComponent(path.basename(url))
+    } catch {
+      fileName = path.basename(url)
+    }
     fileName = decodeName(passwdInfo.password, passwdInfo.encType, fileName.replace(path.extname(fileName), ''))
     if (fileName) {
       let cd = response.getHeader('content-disposition')
