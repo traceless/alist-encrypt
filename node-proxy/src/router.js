@@ -8,6 +8,7 @@ import { getUserInfo, cacheUserToken, getUserByToken, updateUserInfo } from './d
 import responseHandle from './middleware/responseHandle.js'
 import bodyParser from './middleware/bodyParser.js'
 import { encodeFromFolder, decodeFromFolder } from './utils/commonUtil.js'
+import path from 'path'
 import { encryptFile, searchFile } from './utils/convertFile.js'
 import { logger } from './common/logger.js'
 
@@ -170,17 +171,23 @@ allRouter.all('/enc-api/decodeFoldName', async (c) => {
   return c.json({ data: { folderEncType, folderPasswd } })
 })
 
-// encrypt or decrypt file
+// encrypt or decrypt local file
 allRouter.all('/enc-api/encryptFile', async (c) => {
   const { folderPath, outPath, encType, password, operation, encName } = c.get('requestBody')
-  if (!fs.existsSync(folderPath)) {
+  // 绝对路径化后再扫描，保证与任务内部的 substring 截取基准一致
+  const folderPathAbs = path.isAbsolute(folderPath) ? folderPath : path.join(process.cwd(), folderPath)
+  if (!fs.existsSync(folderPathAbs)) {
     return c.json({ msg: 'encrypt file path not exists', code: 500 })
   }
-  const files = searchFile(folderPath)
+  // 异步扫描一次，结果传给任务复用（原版 router/任务各扫一遍且全同步阻塞事件循环）
+  const files = await searchFile(folderPathAbs)
   if (files.length > 10000) {
     return c.json({ msg: 'too maney file, exceeding 10000', code: 500 })
   }
-  encryptFile(password, encType, operation, folderPath, outPath, encName)
+  // 长任务 fire-and-forget：必须挂 catch，否则任何异常都会以 unhandledRejection 打崩整个代理进程
+  encryptFile(password, encType, operation, folderPathAbs, outPath, encName, files).catch((err) => {
+    logger.error('@@encryptFile task error', err)
+  })
   return c.json({ msg: 'waiting operation' })
 })
 
