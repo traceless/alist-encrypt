@@ -32,16 +32,16 @@ async function testSqlite() {
   ins.run('userTable', null, JSON.stringify({ user: 'admin', token: 'x' }))
   ins.run('file:a', Date.now() + 60000, JSON.stringify({ size: 123 }))
   ins.run('file:b', Date.now() - 1, JSON.stringify({ size: 456 }))
-  const one = db.prepare('SELECT value FROM kv WHERE key = ?').get('userTable')
-  check('sqlite get 单条', one?.value && JSON.parse(one.value).user === 'admin', JSON.stringify(one))
+  const one = db.prepare('SELECT value FROM kv WHERE key = ?').all('userTable')
+  check('sqlite get 单条', one?.[0]?.value && JSON.parse(one[0].value).user === 'admin', JSON.stringify(one))
   const rows = db.prepare('SELECT key FROM kv ORDER BY key').all()
   check('sqlite all 行数', rows.length === 3, JSON.stringify(rows))
   check('sqlite 返回对象数组形状', Array.isArray(rows) && typeof rows[0] === 'object' && 'key' in rows[0])
   db.prepare("DELETE FROM kv WHERE expire IS NOT NULL AND expire < ?").run(Date.now())
   const after = db.prepare('SELECT key FROM kv').all()
   check('sqlite 过期清理', after.length === 2, JSON.stringify(after))
-  const mode = db.prepare('PRAGMA journal_mode').get?.() || db.prepare('PRAGMA journal_mode').all?.()
-  check('sqlite WAL 生效', JSON.stringify(mode).toLowerCase().includes('wal'), JSON.stringify(mode))
+  const modeRows = db.prepare('PRAGMA journal_mode').all()
+  check('sqlite WAL 生效', JSON.stringify(modeRows).toLowerCase().includes('wal'), JSON.stringify(modeRows))
   db.close()
 }
 
@@ -66,7 +66,11 @@ async function testHashing() {
 }
 
 async function testWorker() {
-  const worker = new Worker(new URL('./worker-child.mjs', import.meta.url))
+  // txiki 的 Worker specifier 必须是本地路径（相对 cwd 或绝对路径），
+  // 不能传 file:// URL（tjs__load_file 直接 uv_fs_open，不转换 scheme）
+  const selfPath = decodeURIComponent(new URL(import.meta.url).pathname)
+  const workerPath = selfPath.slice(0, selfPath.lastIndexOf('/') + 1) + 'worker-child.mjs'
+  const worker = new Worker(workerPath)
   const result = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('worker timeout')), 10000)
     worker.onmessage = (e) => {
@@ -103,19 +107,16 @@ async function testFsAndProcess() {
   const bin = await tjs.readFile('/tmp/tjs-spike-rw.bin')
   check('readFile/writeFile 二进制', bin.length === 4 && bin[3] === 4)
 
-  // 目录创建
-  await tjs.mkdir('/tmp/tjs-spike-dir/nested', { recursive: true }).catch(async (e) => {
-    // 兼容不同签名：目录创建失败时逐级创建
-    await tjs.mkdir('/tmp/tjs-spike-dir').catch(() => {})
-    await tjs.mkdir('/tmp/tjs-spike-dir/nested')
-  })
+  // 目录创建（tjs.makeDir 支持 recursive）
+  await tjs.makeDir('/tmp/tjs-spike-dir/nested', { recursive: true })
   const st = await tjs.stat('/tmp/tjs-spike-dir/nested')
-  check('mkdir recursive + stat', st.isDirectory?.() ?? false, JSON.stringify(st))
+  const isDir = typeof st.isDirectory === 'function' ? st.isDirectory() : st.isDirectory === true || st.type === 'dir'
+  check('makeDir recursive + stat', isDir, JSON.stringify(st))
 
-  // 环境与进程
-  check('tjs.cwd 可用', typeof tjs.cwd() === 'string' && tjs.cwd().length > 0)
-  check('tjs.argv 可用', Array.isArray(tjs.argv))
-  check('tjs.getenv 可用', typeof tjs.getenv('PATH') === 'string' || tjs.getenv('PATH') === null)
+  // 环境与进程（tjs.cwd 是 string 属性、tjs.env 是对象、argv 仅 run 模式）
+  check('tjs.cwd 属性', typeof tjs.cwd === 'string' && tjs.cwd.length > 0)
+  check('tjs.args 可用', Array.isArray(tjs.args) && tjs.args.length > 0, 'args=' + JSON.stringify(tjs.args))
+  check('tjs.env 读取', typeof tjs.env.PATH === 'string' || tjs.env.PATH === undefined)
 
   // 定时器（levelDB 30s 清理等价）
   await new Promise((resolve) => {

@@ -100,8 +100,10 @@ function buildApp() {
 }
 
 // ---------- S2e: Hono 挂载（node-proxy 现有依赖，验证框架核心在 tjs 可用） ----------
+// 注意：tjs 对 node_modules 的 bare specifier（exports 字段）解析不完整，
+// 需用相对路径导入 dist/index.js —— 迁移时由 runtime 适配层统一收敛。
 async function honoSmoke() {
-  const { Hono } = await import('hono')
+  const { Hono } = await import('../node_modules/hono/dist/index.js')
   const app = new Hono()
   app.use(async (c, next) => {
     c.set('ts', Date.now())
@@ -193,6 +195,8 @@ async function serveMode() {
   console.log(`SPIKE_SERVER_READY port=${server.port} pid=${typeof process !== 'undefined' ? process.pid : 'see-ps'}`)
 }
 
-const mode = (typeof tjs !== 'undefined' ? tjs.argv[2] : process.argv[2]) || 'selftest'
+// tjs.run 下 tjs.args = [tjs路径, run, 脚本名, 模式...]；node 下 process.argv = [node, 脚本, 模式...]
+const rawArgs = typeof tjs !== 'undefined' ? tjs.args : process.argv
+const mode = rawArgs[rawArgs.length - 1] === 'serve' ? 'serve' : 'selftest'
 if (mode === 'selftest') await selftest()
 else await serveMode()
