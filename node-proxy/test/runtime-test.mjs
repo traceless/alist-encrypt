@@ -189,6 +189,100 @@ async function suiteFsx() {
   assertTrue('fsx rm-recursive', !(await fsx.exists(base)))
 }
 
+// ---------- R5 formatx ----------
+// 决策：项目日志 0 占位符使用，formatx 不支持占位符（% 原样输出）；
+// 向量即 node v22.23.4 原生 util.format 无占位符路径 + inspect 实测输出
+const FORMAT_CASES = [
+  ['plain-1arg', ['a'], 'a'],
+  ['plain-0args', [], ''],
+  ['plain-multi-str', ['a', 'b', 'c'], 'a b c'],
+  ['plain-mixed', [1, 'a', { x: 1 }], '1 a { x: 1 }'],
+  ['plain-obj', [{ x: 1 }], '{ x: 1 }'],
+  ['plain-empty-obj-arr', [{}, []], '{} []'],
+  ['plain-date', [new Date(0)], '1970-01-01T00:00:00.000Z'],
+  ['plain-specials', [NaN, -0, Infinity], 'NaN -0 Infinity'],
+  ['plain-bigint', [1n], '1n'],
+  ['plain-symbol', [Symbol('x')], 'Symbol(x)'],
+  ['plain-regexp', [/re/g], '/re/g'],
+  ['plain-prims', [true, null, undefined], 'true null undefined'],
+  ['pct-literal', ['100% done'], '100% done'],
+  ['pct-no-support', ['x=%s', 1], 'x=%s 1'],
+  ['i-arr', [[1, 2]], '[ 1, 2 ]'],
+  ['i-nested3', [{ a: { b: { c: 1 } } }], '{ a: { b: { c: 1 } } }'],
+  ['i-nested4', [{ a: { b: { c: { d: 1 } } } }], '{ a: { b: { c: [Object] } } }'],
+  ['i-nested-arr', [{ a: { b: [1] } }], '{ a: { b: [ 1 ] } }'],
+  ['i-mixed', [{ a: 1, b: { c: [2] } }], '{ a: 1, b: { c: [ 2 ] } }'],
+  ['i-numkey', [{ 1: 'x' }], "{ '1': 'x' }"],
+  ['i-zerokey', [{ 0: 1 }], "{ '0': 1 }"],
+  ['i-dashkey', [{ 'a-b': 1 }], "{ 'a-b': 1 }"],
+  ['i-spacekey', [{ 'a b': 1 }], "{ 'a b': 1 }"],
+  ['i-symkey', [{ [Symbol('s')]: 1, a: 2 }], '{ a: 2, [Symbol(s)]: 1 }'],
+  ['i-map', [new Map([['a', 1]])], "Map(1) { 'a' => 1 }"],
+  ['i-set', [new Set([1, 'x'])], "Set(2) { 1, 'x' }"],
+  ['i-map-empty', [new Map()], 'Map(0) {}'],
+  ['i-set-empty', [new Set()], 'Set(0) {}'],
+  ['i-u8', [new Uint8Array([1, 2, 3])], 'Uint8Array(3) [ 1, 2, 3 ]'],
+  ['i-quote-field', [{ k: "a'b" }], `{ k: "a'b" }`],
+  ['i-escape-field', [{ k: 'a\nb' }], "{ k: 'a\\nb' }"],
+  ['i-fn-named', [function foo() {}], '[Function: foo]'],
+  ['i-fn-anon', [() => {}], '[Function (anonymous)]'],
+]
+
+async function suiteFormatx() {
+  const { format } = await import('../src/runtime/formatx.js')
+  for (const [name, args, want] of FORMAT_CASES) {
+    assertEq(`fmt ${name}`, format(...args), want)
+  }
+  // Error 精简形态（不带堆栈）：断言前缀
+  assertTrue('fmt err-prefix', format(new Error('boom')).startsWith('Error: boom'))
+  // node 端：与原生 util.format 逐项对拍（pct-no-support 为有意差异，排除；防止向量本身写错）
+  if (!IS_TJS) {
+    const { format: native } = await import('util')
+    for (const [name, args, want] of FORMAT_CASES) {
+      if (name === 'pct-no-support') continue
+      assertEq(`fmt-native ${name}`, want, native(...args))
+    }
+  }
+}
+
+// ---------- R6 workerx ----------
+// node：真 worker_threads 收发一轮（对齐 PRGA 模式：msgId once + postMessage 回声）
+// tjs：无线程能力（26.6.0 实测），同步 shim + registerWorkerTask，断言同一收发语义
+async function suiteWorkerx() {
+  const wt = await import('../src/runtime/workerx.js')
+  assertTrue('wt isMainThread', wt.isMainThread === true)
+  assertTrue('wt cpusCount>0', wt.cpusCount() > 0)
+  const echo = (data) => ({ echo: data, doubled: typeof data.n === 'number' ? data.n * 2 : null })
+  let worker
+  if (IS_TJS) {
+    wt.registerWorkerTask(echo)
+    worker = new wt.Worker(null, { workerData: 'tjs-shim' })
+  } else {
+    worker = new wt.Worker(new URL('./workerx-echo-worker.mjs', import.meta.url), { workerData: 'node-worker' })
+  }
+  const got = await new Promise((resolve, reject) => {
+    worker.on('error', reject)
+    // 对齐 PRGAThread 的分发模式：message 事件按 msgId 二次派发
+    worker.on('message', ({ msgId, resData }) => worker.emit(msgId, resData))
+    worker.once('reply-1', resolve)
+    worker.postMessage({ msgId: 'reply-1', data: { n: 21, tag: 'x' } })
+  })
+  // 对齐 PRGAExcuteThread 语义：once(msgId, res => ...) 的 res 即内层 resData（计算结果）
+  assertEq('wt echo doubled', got.doubled, 42)
+  assertEq('wt echo tag', got.echo.tag, 'x')
+  if (!IS_TJS) await worker.terminate()
+  // once 自动清理（tjs shim 语义；node EventEmitter 原生）
+  if (IS_TJS) {
+    worker.postMessage({ msgId: 'reply-2', data: { n: 1 } })
+    await new Promise((r) => setTimeout(r, 20))
+    let fired = 0
+    worker.once('reply-3', () => fired++)
+    worker.postMessage({ msgId: 'reply-3', data: { n: 2 } })
+    await new Promise((r) => setTimeout(r, 20))
+    assertEq('wt once-once', fired, 1)
+  }
+}
+
 async function main() {
   console.log(`=== runtime-test @ ${RUNTIME} ===`)
   suiteProbe()
@@ -197,6 +291,8 @@ async function main() {
   await suitePathsNodeDiff()
   await suiteEnvx()
   await suiteFsx()
+  await suiteFormatx()
+  await suiteWorkerx()
   console.log(`\n===== 汇总: PASS=${pass} FAIL=${fail} =====`)
   console.log(fail === 0 ? '=== RUNTIME OK ===' : '=== RUNTIME FAILED ===')
   if (fail !== 0) fatalExit(1)

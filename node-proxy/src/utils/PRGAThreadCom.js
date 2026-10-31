@@ -1,4 +1,4 @@
-import { isMainThread, parentPort, workerData } from 'worker_threads'
+import { isMainThread, parentPort, workerData } from '../runtime/workerx.js'
 
 // is not MainThread
 if (!isMainThread) {
