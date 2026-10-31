@@ -1,0 +1,16 @@
+# tjs 双二进制构建清单（build-tjs.sh 构建后自动更新本文件）
+#
+# 产物用途：
+#   tjs-glibc  主力 —— zig cc x86_64-linux-gnu（glibc 2.17 基线），可 dlopen 系统
+#              libcrypto/libnettle，chacha20 FFI 路径（EVP 978MB/s）可用
+#   tjs-musl   兜底 —— zig cc x86_64-linux-musl 全静态，单文件任意 Linux 可跑，
+#              dlopen 不可用（musl 硬限制），自动降级纯 JS chacha20
+# 验证基线：node-proxy/bench/ffi-crypto-bench.mjs 双跑通过（2026-10-25）
+#
+# 源码钉住：github.com/saghul/txiki.js @ fc2b5f3b2d09e6db739eb619cfb1acca37d6bdf0 (v26.6.0)
+# 补丁集：  patches/0001-lift-lws-body-cap.patch（1 行：lws 100MiB body 上限 → 1TiB）
+# 工具链：  zig 0.13.0 / cmake 3.31.6 / ninja 1.12.1 / libffi 3.4.6（musl 静态）
+#
+## 构建时间 2026-10-30 19:40:33，verify.mjs 冒烟 PASS
+sha256  tjs-musl   a790f7187ef16ba1fd15981502095c528a0204a5629507b3ecf8bd25fd08e1b9
+sha256  tjs-glibc  f5d8832a21953ba7f68bcbf86b204e848f7342652c8127de03b4659d7a946323

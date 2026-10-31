@@ -1,0 +1,3 @@
+#!/bin/sh
+# tjs 构建 wrapper：musl 静态目标（build-tjs.sh 调用，ZIG_BIN 由其导出）
+exec "${ZIG_BIN:?ZIG_BIN not set}" cc -target x86_64-linux-musl "$@"
