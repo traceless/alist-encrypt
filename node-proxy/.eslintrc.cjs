@@ -7,6 +7,9 @@ module.exports = {
     es6: true,
     es2021: true,
   },
+  globals: {
+    tjs: 'readonly', // txiki.js 运行时全局（src/runtime 双运行时探测用）
+  },
   extends: ['eslint:recommended', 'plugin:prettier/recommended'],
   parserOptions: {
     ecmaVersion: 'latest',
