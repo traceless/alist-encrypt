@@ -125,8 +125,8 @@ class Rc4Md5 {
 
   _nextByte() {
     this.i = (this.i + 1) & 0xff
-    this.j = (this.j + this.sbox[this.i]) & 0xff;
-    [this.sbox[this.i], this.sbox[this.j]] = [this.sbox[this.j], this.sbox[this.i]]
+    this.j = (this.j + this.sbox[this.i]) & 0xff
+    ;[this.sbox[this.i], this.sbox[this.j]] = [this.sbox[this.j], this.sbox[this.i]]
     const t = (this.sbox[this.i] + this.sbox[this.j]) & 0xff
     return this.sbox[t]
   }
@@ -152,17 +152,16 @@ class Rc4Md5 {
     }
     //  对S表进行置换
     for (let i = 0, j = 0; i < 256; i++) {
-      j = (j + this.sbox[i] + key[i % key.length]) & 0xff;
+      j = (j + this.sbox[i] + key[i % key.length]) & 0xff
       ;[this.sbox[i], this.sbox[j]] = [this.sbox[j], this.sbox[i]]
     }
     this.i = 0
     this.j = 0
   }
-
 }
 
 // 测试
-const plainText = "Hello RC4 流密码测试"
+const plainText = 'Hello RC4 流密码测试'
 const rc4 = new Rc4Md5('1234567')
 const buffer = rc4.encryptText(plainText)
 

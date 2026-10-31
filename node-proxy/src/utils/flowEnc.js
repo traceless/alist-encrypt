@@ -31,7 +31,6 @@ class FlowEnc {
     this.encryptType = encryptType
     this.key = encryptFlow.key
     cachePasswdOutward[password + encryptType] = this.passwdOutward
-
   }
 
   async setPosition(position) {

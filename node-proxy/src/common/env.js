@@ -1,13 +1,14 @@
 import fs from 'fs'
 
 // 等价 dotenv v16.3 的行解析：export 前缀、: 赋值、单双反引号剥离、双引号内 \n\r 转义、行尾 # 注释
-const LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg
+const LINE =
+  /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/gm
 
 function parse(src) {
   const obj = {}
   let lines = src.toString()
   // Convert line breaks to same format
-  lines = lines.replace(/\r\n?/mg, '\n')
+  lines = lines.replace(/\r\n?/gm, '\n')
   let match
   LINE.lastIndex = 0
   while ((match = LINE.exec(lines)) != null) {
@@ -15,7 +16,7 @@ function parse(src) {
     let value = match[2] || ''
     value = value.trim()
     const maybeQuote = value[0]
-    value = value.replace(/^(['"`])([\s\S]*)\1$/mg, '$2')
+    value = value.replace(/^(['"`])([\s\S]*)\1$/gm, '$2')
     if (maybeQuote === '"') {
       value = value.replace(/\\n/g, '\n').replace(/\\r/g, '\r')
     }

@@ -1,5 +1,5 @@
-import fs from 'fs'
 import { addUserInfo, getUserInfo } from './dao/userDao.js'
+import * as fsx from './runtime/fsx.js'
 import nedb from './utils/levelDB.js'
 
 // inti config, fix ncc get local conf
@@ -7,10 +7,9 @@ function getConfPath() {
   return process.cwd() + '/conf'
 }
 
-// 初始化目录
-if (!fs.existsSync(getConfPath())) {
-  // fs.mkdirSync(path.resolve('conf'))
-  fs.mkdirSync(process.cwd() + '/conf')
+// 初始化目录（R4 fsx：统一 async，顶层 await）
+if (!(await fsx.exists(getConfPath()))) {
+  await fsx.mkdir(getConfPath())
 }
 // 从环境变量上读取配置信息，docker首次启动时候可以直接进行配置
 const serverAddr = process.env.ALIST_HOST
@@ -33,7 +32,7 @@ const alistServerTemp = {
     {
       password: '123456',
       describe: 'my video', // 加密内容描述
-      encType: 'aesctr', // 算法类型: aesctr（默认）、rc4 
+      encType: 'aesctr', // 算法类型: aesctr（默认）、rc4
       enable: true, // enable encrypt
       encName: false, // encrypt file name
       encFolder: false,
@@ -73,14 +72,14 @@ function getConfFilePath() {
   return process.cwd() + '/conf/config.json'
 }
 
-const exist = fs.existsSync(getConfFilePath())
+const exist = await fsx.exists(getConfFilePath())
 if (!exist) {
   // 把默认数据写入到config.json
   const configData = { alistServer: alistServerTemp, webdavServer: webdavServerTemp, port: 5344 }
-  fs.writeFileSync(getConfFilePath(), JSON.stringify(configData, '', '\t'))
+  await fsx.writeFile(getConfFilePath(), JSON.stringify(configData, '', '\t'))
 }
 // 读取配置文件
-const configJson = fs.readFileSync(getConfFilePath(), 'utf8')
+const configJson = await fsx.readFileText(getConfFilePath())
 const configData = JSON.parse(configJson)
 
 // 兼容之前的数据进来，保留2个版
@@ -96,7 +95,7 @@ if (configData.alistServer.flowPassword) {
   delete alistServer.encryptType
   delete alistServer.encPath
   configData.webdavServer = webdavServerTemp
-  fs.writeFileSync(process.cwd() + '/conf/config.json', JSON.stringify(configData, '', '\t'))
+  await fsx.writeFile(process.cwd() + '/conf/config.json', JSON.stringify(configData, '', '\t'))
 }
 
 /** 初始化用户的数据库 */

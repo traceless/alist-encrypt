@@ -217,7 +217,10 @@ const preHandle = async (c, next) => {
               logger.debug('@@respBody_list', request.url, baseUrl, fileInfo.href, fileName, hrefName, respBody)
               let endsWith = showName ? '' : '/'
               // 先把加密的路径替换掉
-              respBody = respBody.replace(request.url.replace(/&/g, '&amp;').replace(/</g, '&gt;'), baseUrl.replace(/&/g, '&amp;').replace(/</g, '&gt;'))
+              respBody = respBody.replace(
+                request.url.replace(/&/g, '&amp;').replace(/</g, '&gt;'),
+                baseUrl.replace(/&/g, '&amp;').replace(/</g, '&gt;')
+              )
               if (baseUrl === fileInfo.href) {
                 // 不替换跟目录的href连接名字
                 continue
@@ -227,7 +230,7 @@ const preHandle = async (c, next) => {
               respBody = respBody.replace(`${displayname}</D:displayname>`, `${showXmlName}</D:displayname>`)
             }
           }
-        // await sleep(50)
+          // await sleep(50)
         }
       } else if (passwdInfo?.encName) {
         // 这里PROPFIND请求的是文件信息，上面得到是列表后，客户端还会继续请求每个文件的信息。。。

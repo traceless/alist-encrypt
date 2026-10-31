@@ -1,6 +1,6 @@
-import fs from 'fs'
 import path from 'path'
 import { DatabaseSync } from 'node:sqlite'
+import * as fsx from '../runtime/fsx.js'
 
 /**
  * 基于 node:sqlite 的 KV 存储（替换 nedb-promises）
@@ -10,7 +10,7 @@ import { DatabaseSync } from 'node:sqlite'
 class KvStore {
   constructor(dbFile) {
     this.dbFile = dbFile
-    fs.mkdirSync(path.dirname(dbFile), { recursive: true })
+    // R4 fsx：目录创建移至 async load()（constructor 不可 await）
     this.db = new DatabaseSync(dbFile)
     this.db.exec('PRAGMA journal_mode = WAL')
     // WAL 官方推荐配置：commit 不逐次 fsync 真盘（FULL 默认），实测单写 5.9ms→0.54ms；
@@ -24,17 +24,18 @@ class KvStore {
   }
 
   async load() {
-    this.migrateFromNedb()
+    await fsx.mkdir(path.dirname(this.dbFile), { recursive: true })
+    await this.migrateFromNedb()
   }
 
   // 旧 nedb datafile 是每行一个 JSON 文档（{key, expire, value}），迁移后改名备份
-  migrateFromNedb() {
+  async migrateFromNedb() {
     const oldFile = path.join(path.dirname(this.dbFile), 'datafile')
-    if (!fs.existsSync(oldFile)) {
+    if (!(await fsx.exists(oldFile))) {
       return
     }
     try {
-      const lines = fs.readFileSync(oldFile, 'utf8').trim().split('\n').filter(Boolean)
+      const lines = (await fsx.readFileText(oldFile)).trim().split('\n').filter(Boolean)
       let migrated = 0
       for (const line of lines) {
         let doc
@@ -55,7 +56,7 @@ class KvStore {
         migrated++
       }
       const backupFile = `${oldFile}.nedb-backup-${Date.now()}`
-      fs.renameSync(oldFile, backupFile)
+      await fsx.rename(oldFile, backupFile)
       console.log('@@nedb migrated:', migrated, 'records ->', this.dbFile, 'backup:', backupFile)
     } catch (e) {
       console.error('@@nedb migrate error', e)

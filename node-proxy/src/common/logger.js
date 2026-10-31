@@ -12,7 +12,9 @@ const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 }
 function layout(level, category, msg) {
   const d = new Date()
   const pad = (n, w = 2) => String(n).padStart(w, '0')
-  const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`
+  const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(
+    d.getSeconds()
+  )}.${pad(d.getMilliseconds(), 3)}`
   return `[${ts}] [${level.toUpperCase()}] ${category} - ${msg}`
 }
 

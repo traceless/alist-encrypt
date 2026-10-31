@@ -113,7 +113,10 @@ function parseDoc(xml) {
       const end = xml.indexOf('?>', lt + 2)
       if (end === -1) throw new Error('unclosed pi')
       // fxp 实测：<?xml ...?> 输出 '?xml':''
-      const rawName = xml.slice(lt + 2, end).trim().split(/\s+/)[0]
+      const rawName = xml
+        .slice(lt + 2, end)
+        .trim()
+        .split(/\s+/)[0]
       root['?' + rawName.replace(NS_PREFIX_RE, '')] = ''
       i = end + 2
       continue
@@ -139,7 +142,10 @@ function parseDoc(xml) {
     consumeText()
     const gt = findTagEnd(xml, lt + 1)
     const selfClosing = xml[gt - 1] === '/'
-    const rawName = xml.slice(lt + 1, selfClosing ? gt - 1 : gt).trim().split(/\s+/)[0]
+    const rawName = xml
+      .slice(lt + 1, selfClosing ? gt - 1 : gt)
+      .trim()
+      .split(/\s+/)[0]
     const name = rawName.replace(NS_PREFIX_RE, '')
     if (!name) throw new Error('invalid tag name')
     const top = stack[stack.length - 1]

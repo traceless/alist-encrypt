@@ -54,10 +54,14 @@ class ChaCha20 {
   }
   // 四分之一轮运算（核心）
   _qr(st, a, b, c, d) {
-    st[a] = (st[a] + st[b]) >>> 0; st[d] = this._rotl(st[d] ^ st[a], 16)
-    st[c] = (st[c] + st[d]) >>> 0; st[b] = this._rotl(st[b] ^ st[c], 12)
-    st[a] = (st[a] + st[b]) >>> 0; st[d] = this._rotl(st[d] ^ st[a], 8)
-    st[c] = (st[c] + st[d]) >>> 0; st[b] = this._rotl(st[b] ^ st[c], 7)
+    st[a] = (st[a] + st[b]) >>> 0
+    st[d] = this._rotl(st[d] ^ st[a], 16)
+    st[c] = (st[c] + st[d]) >>> 0
+    st[b] = this._rotl(st[b] ^ st[c], 12)
+    st[a] = (st[a] + st[b]) >>> 0
+    st[d] = this._rotl(st[d] ^ st[a], 8)
+    st[c] = (st[c] + st[d]) >>> 0
+    st[b] = this._rotl(st[b] ^ st[c], 7)
   }
 
   // 生成密钥流块

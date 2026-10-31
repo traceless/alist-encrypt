@@ -1,19 +1,19 @@
 'use strict'
 import fs from 'fs'
-import fsp from 'fs/promises'
 import path from 'path'
 
 import FlowEnc from './flowEnc.js'
 import { encodeName, decodeName } from './commonUtil.js'
 import { logger } from '../common/logger.js'
+import * as fsx from '../runtime/fsx.js'
 
 // 异步递归扫描目录，不阻塞事件循环（原 readdirSync/statSync 全同步版在万级文件时会卡住整个代理）
 export async function searchFile(filePath) {
   const fileArray = []
-  const files = await fsp.readdir(filePath)
+  const files = await fsx.readdir(filePath)
   for (const child of files) {
     const filePath2 = path.join(filePath, child)
-    const info = await fsp.stat(filePath2)
+    const info = await fsx.stat(filePath2)
     if (info.isDirectory()) {
       const deepArr = await searchFile(filePath2)
       fileArray.push(...deepArr)
@@ -36,7 +36,7 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
   }
   outPath = outPath || path.join(process.cwd(), 'outFile', Date.now().toString())
   logger.info('@@encryptFile input:', encType, enc, encPath, '->', outPath)
-  if (!fs.existsSync(encPath)) {
+  if (!(await fsx.exists(encPath))) {
     logger.error('@@encryptFile you input filePath is not exists ', encPath)
     clearInterval(timer)
     return
@@ -44,16 +44,16 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
   // 双扫消除：router 已扫描则复用结果；CLI 直调时自行扫描
   const allFilePath = preScanned || (await searchFile(encPath))
   // init outpath dir
-  await fsp.mkdir(outPath, { recursive: true })
+  await fsx.mkdir(outPath, { recursive: true })
   const tempDir = path.join(outPath, '.temp')
-  await fsp.mkdir(tempDir, { recursive: true })
+  await fsx.mkdir(tempDir, { recursive: true })
   // 同目录只创建一次，避免万级文件时反复 mkdir
   const ensuredDirs = new Set([tempDir, outPath])
   const ensureDir = async (dir) => {
     if (ensuredDirs.has(dir)) {
       return
     }
-    await fsp.mkdir(dir, { recursive: true })
+    await fsx.mkdir(dir, { recursive: true })
     ensuredDirs.add(dir)
   }
   let promiseArr = []
@@ -88,7 +88,7 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
       readStream.pipe(enc === 'enc' ? flowEnc.encryptTransform() : flowEnc.decryptTransform()).pipe(writeStream)
       readStream.on('end', () => {
         logger.debug('@@finish filePath', filePath, outFilePathTemp)
-        fsp.rename(outFilePathTemp, outFilePath).then(resolve, reject)
+        fsx.rename(outFilePathTemp, outFilePath).then(resolve, reject)
       })
       // 原版无错误监听：流失败会变成 unhandled error 事件直接打崩进程
       readStream.on('error', reject)
@@ -101,7 +101,7 @@ export async function encryptFile(password, encType, enc, encPath, outPath, encN
     }
   }
   await Promise.all(promiseArr)
-  await fsp.rm(tempDir, { recursive: true })
+  await fsx.rm(tempDir, { recursive: true })
   logger.info('@@encryptFile all finish', ((Date.now() - start) / 1000).toFixed(2) + 's', allFilePath.length + ' files')
   clearInterval(timer)
 }

@@ -162,6 +162,33 @@ async function suiteEnvx() {
   }
 }
 
+// ---------- R4 fsx ----------
+async function suiteFsx() {
+  const fsx = await import('../src/runtime/fsx.js')
+  const base = `${cwd()}/.fsx-test-tmp`
+  await fsx.rm(base, { recursive: true }).catch(() => {})
+  await fsx.mkdir(`${base}/sub/deep`, { recursive: true })
+  assertTrue('fsx mkdir-recursive exists', await fsx.exists(`${base}/sub/deep`))
+  assertEq('fsx exists-missing', await fsx.exists(`${base}/nope`), false)
+  await fsx.writeFile(`${base}/f.txt`, 'hello-fsx')
+  assertEq('fsx readFileText', await fsx.readFileText(`${base}/f.txt`), 'hello-fsx')
+  const raw = await fsx.readFile(`${base}/f.txt`)
+  assertTrue('fsx readFile bytes', raw instanceof Uint8Array && raw.length === 9)
+  await fsx.writeFile(`${base}/b.bin`, new TextEncoder().encode('bin-42'))
+  assertEq('fsx readFile bin', new TextDecoder().decode(await fsx.readFile(`${base}/b.bin`)), 'bin-42')
+  await fsx.rename(`${base}/f.txt`, `${base}/g.txt`)
+  assertTrue('fsx rename old-gone', !(await fsx.exists(`${base}/f.txt`)))
+  assertEq('fsx rename new-here', await fsx.readFileText(`${base}/g.txt`), 'hello-fsx')
+  const names = (await fsx.readdir(base)).sort()
+  assertEq('fsx readdir', names.join(','), 'b.bin,g.txt,sub')
+  const st = await fsx.stat(`${base}/g.txt`)
+  assertTrue('fsx stat file', st.isFile() && !st.isDirectory() && st.size === 9)
+  const stDir = await fsx.stat(`${base}/sub`)
+  assertTrue('fsx stat dir', stDir.isDirectory())
+  await fsx.rm(base, { recursive: true })
+  assertTrue('fsx rm-recursive', !(await fsx.exists(base)))
+}
+
 async function main() {
   console.log(`=== runtime-test @ ${RUNTIME} ===`)
   suiteProbe()
@@ -169,6 +196,7 @@ async function main() {
   suitePaths()
   await suitePathsNodeDiff()
   await suiteEnvx()
+  await suiteFsx()
   console.log(`\n===== 汇总: PASS=${pass} FAIL=${fail} =====`)
   console.log(fail === 0 ? '=== RUNTIME OK ===' : '=== RUNTIME FAILED ===')
   if (fail !== 0) fatalExit(1)
