@@ -1,6 +1,7 @@
 import path from 'path'
-import { DatabaseSync } from 'node:sqlite'
+import { DatabaseSync } from '../runtime/sqlitex.js'
 import * as fsx from '../runtime/fsx.js'
+import { cwd as cwdRef } from '../runtime/isTjs.js'
 
 /**
  * 基于 node:sqlite 的 KV 存储（替换 nedb-promises）
@@ -100,7 +101,7 @@ class KvStore {
   }
 }
 
-const nedb = new KvStore(process.cwd() + '/conf/nedb/datafile.db')
+const nedb = new KvStore(cwdRef() + '/conf/nedb/datafile.db')
 
 // 定时清除过期的数据
 setInterval(() => {

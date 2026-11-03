@@ -1,10 +1,12 @@
 import { addUserInfo, getUserInfo } from './dao/userDao.js'
 import * as fsx from './runtime/fsx.js'
+import { cwd as cwdRef } from './runtime/isTjs.js'
+import { envGet } from './runtime/envx.js'
 import nedb from './utils/levelDB.js'
 
 // inti config, fix ncc get local conf
 function getConfPath() {
-  return process.cwd() + '/conf'
+  return cwdRef() + '/conf'
 }
 
 // 初始化目录（R4 fsx：统一 async，顶层 await）
@@ -12,7 +14,7 @@ if (!(await fsx.exists(getConfPath()))) {
   await fsx.mkdir(getConfPath())
 }
 // 从环境变量上读取配置信息，docker首次启动时候可以直接进行配置
-const serverAddr = process.env.ALIST_HOST
+const serverAddr = envGet('ALIST_HOST')
 let serverHost = '192.168.1.100'
 let serverPort = 5244
 if (serverAddr && serverAddr.indexOf(':') > 6) {
@@ -69,7 +71,7 @@ const webdavServerTemp = [
 
 // inti config, fix ncc get local conf
 function getConfFilePath() {
-  return process.cwd() + '/conf/config.json'
+  return cwdRef() + '/conf/config.json'
 }
 
 const exist = await fsx.exists(getConfFilePath())
@@ -95,7 +97,7 @@ if (configData.alistServer.flowPassword) {
   delete alistServer.encryptType
   delete alistServer.encPath
   configData.webdavServer = webdavServerTemp
-  await fsx.writeFile(process.cwd() + '/conf/config.json', JSON.stringify(configData, '', '\t'))
+  await fsx.writeFile(cwdRef() + '/conf/config.json', JSON.stringify(configData, '', '\t'))
 }
 
 /** 初始化用户的数据库 */

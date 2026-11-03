@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "hono": "./node_modules/hono/dist/index.js",
+    "@hono/node-server/utils/response": "./node_modules/@hono/node-server/dist/utils/response.mjs",
+    "path": "./src/runtime/paths.js",
+    "crypto": "./src/runtime/cryptox.js",
+    "stream": "./src/runtime/streamx.js",
+    "fs": "./src/runtime/fsmod.js"
+  }
+}

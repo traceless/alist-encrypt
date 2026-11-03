@@ -9,6 +9,7 @@ import responseHandle from './middleware/responseHandle.js'
 import bodyParser from './middleware/bodyParser.js'
 import { encodeFromFolder, decodeFromFolder } from './utils/commonUtil.js'
 import path from 'path'
+import { cwd as cwdRef } from './runtime/isTjs.js'
 import { encryptFile, searchFile } from './utils/convertFile.js'
 import { logger } from './common/logger.js'
 
@@ -97,7 +98,7 @@ allRouter.all('/enc-api/saveAlistConfig', async (c) => {
   }
   const _snapshot = JSON.parse(JSON.stringify(alistConfig))
   // 写入到文件中，这里并不是真正的同步，，
-  await fsx.writeFile(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: _snapshot, webdavServer, port }, '', '\t'))
+  await fsx.writeFile(cwdRef() + '/conf/config.json', JSON.stringify({ alistServer: _snapshot, webdavServer, port }, '', '\t'))
   alistConfig = initAlistConfig(alistConfig)
   Object.assign(alistServer, alistConfig)
   alistServer._snapshot = _snapshot
@@ -118,7 +119,7 @@ allRouter.all('/enc-api/saveWebdavConfig', async (c) => {
   }
   config.id = crypto.randomUUID()
   webdavServer.push(config)
-  await fsx.writeFile(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
+  await fsx.writeFile(cwdRef() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
   return c.json({ data: webdavServer })
 })
 
@@ -136,7 +137,7 @@ allRouter.all('/enc-api/updateWebdavConfig', async (c) => {
       webdavServer[index] = config
     }
   }
-  await fsx.writeFile(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
+  await fsx.writeFile(cwdRef() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
   return c.json({ data: webdavServer })
 })
 
@@ -147,7 +148,7 @@ allRouter.all('/enc-api/delWebdavConfig', async (c) => {
       webdavServer.splice(index, 1)
     }
   }
-  await fsx.writeFile(process.cwd() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
+  await fsx.writeFile(cwdRef() + '/conf/config.json', JSON.stringify({ alistServer: alistServer._snapshot, webdavServer, port }, '', '\t'))
   return c.json({ data: webdavServer })
 })
 // get folder passwd encode
@@ -175,7 +176,7 @@ allRouter.all('/enc-api/decodeFoldName', async (c) => {
 allRouter.all('/enc-api/encryptFile', async (c) => {
   const { folderPath, outPath, encType, password, operation, encName } = c.get('requestBody')
   // 绝对路径化后再扫描，保证与任务内部的 substring 截取基准一致
-  const folderPathAbs = path.isAbsolute(folderPath) ? folderPath : path.join(process.cwd(), folderPath)
+  const folderPathAbs = path.isAbsolute(folderPath) ? folderPath : path.join(cwdRef(), folderPath)
   if (!(await fsx.exists(folderPathAbs))) {
     return c.json({ msg: 'encrypt file path not exists', code: 500 })
   }

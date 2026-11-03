@@ -4,8 +4,10 @@ import { IS_TJS } from '../runtime/isTjs.js'
 import * as paths from '../runtime/paths.js'
 import { randomUUID } from '../runtime/hashing.js'
 
-// node: process.argv[1]（脚本/exe 路径）；tjs: tjs.args = [exePath, 'run', scriptPath]
-const pkgDirPath = paths.dirname(IS_TJS ? tjs.args[2] : process.argv[1])
+// node: process.argv[1]（脚本/exe 路径，兼容 ncc/pkg 打包）；
+// tjs: 本模块位于 <应用根>/src/utils/，回退两级定位应用根
+// （tjs.args 含 '--import-map' 等 CLI 参数，脚本位置不固定，不可用 args[2]，已实测）
+const pkgDirPath = IS_TJS ? paths.resolve(decodeURIComponent(new URL('../../', import.meta.url).pathname)) : paths.dirname(process.argv[1])
 await loadEnv(pkgDirPath + '/.env')
 
 const pkgThreadPath = pkgDirPath + '/PRGAThreadCom.js'
