@@ -1,0 +1,26 @@
+diff --git a/src/httpserver.c b/src/httpserver.c
+index dd088a91..0f08abcb 100644
+--- a/src/httpserver.c
++++ b/src/httpserver.c
+@@ -478,10 +478,20 @@ static const char *tjs_http_method_name(int method_idx) {
+         [LWSHUMETH_DELETE] = "DELETE",
+         [LWSHUMETH_CONNECT] = "CONNECT",
+         [LWSHUMETH_HEAD] = "HEAD",
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
++        [LWSHUMETH_PROPFIND] = "PROPFIND",
++        [LWSHUMETH_MKCOL] = "MKCOL",
++        [LWSHUMETH_COPY] = "COPY",
++        [LWSHUMETH_MOVE] = "MOVE",
++        [LWSHUMETH_PROPPATCH] = "PROPPATCH",
++        [LWSHUMETH_LOCK] = "LOCK",
++        [LWSHUMETH_UNLOCK] = "UNLOCK",
++#endif
+     };
+     /* clang-format on */
+ 
+-    if (method_idx >= 0 && method_idx < (int) countof(method_names)) {
++    if (method_idx >= 0 && method_idx < (int) countof(method_names) &&
++        method_names[method_idx]) {
+         return method_names[method_idx];
+     }
+ 

@@ -36,7 +36,15 @@ DL_CACHE=${DL_CACHE:-/tmp}
 
 ZIG_DIR="$TOOLS_DIR/zig-linux-x86_64-$ZIG_VER"
 CMAKE_DIR="$TOOLS_DIR/cmake-$CMAKE_VER-linux-x86_64"
-PATCH_FILE="$REPO_DIR/patches/0001-lift-lws-body-cap.patch"
+
+# 补丁集（顺序敏感）：
+#   0001 顶层 src/httpserver.c      —— lws 请求体上限 100MiB → 1TiB
+#   0002 deps/libwebsockets 子模块  —— lextable 扩展 WebDAV 方法（PROPFIND/MKCOL/COPY/MOVE/
+#                                      PROPPATCH/LOCK/UNLOCK），含枚举/词表/方法数组/生成器
+#   0003 顶层 src/httpserver.c      —— tjs 侧方法名映射（LWSHUMETH 扩展 + NULL 兜底）
+PATCH_LIST="0001-lift-lws-body-cap.patch:.:src/httpserver.c:max_http_body_size = 1ULL << 40
+0002-lws-webdav-methods.patch:deps/libwebsockets:lib/roles/http/lextable-strings.h:propfind
+0003-tjs-webdav-method-names.patch:.:src/httpserver.c:LWSHUMETH_PROPFIND"
 
 log()  { printf '[build-tjs] %s\n' "$*"; }
 die()  { printf '[build-tjs] FATAL: %s\n' "$*" >&2; exit 1; }
@@ -127,6 +135,43 @@ ensure_libffi() {
 }
 
 # ---- 3. txiki.js 源码 + 补丁 ----
+apply_patch() { # apply_patch <patch-file> <subdir> <marker-file> <marker-string>
+  PNAME=$1; PSUB=$2; PMARKER_FILE=$3; PMARKER=$4
+  PF="$REPO_DIR/patches/$PNAME"
+  if [ "$PSUB" = "." ]; then
+    PWORK="$SRC_DIR"; PMARKER_PATH="$SRC_DIR/$PMARKER_FILE"
+  else
+    PWORK="$SRC_DIR/$PSUB"; PMARKER_PATH="$PWORK/$PMARKER_FILE"
+  fi
+  [ -f "$PF" ] || die "补丁文件缺失: $PF"
+  if ( cd "$PWORK" && git apply --check "$PF" 2>/dev/null ); then
+    log "应用补丁 $PNAME（$PSUB）"
+    ( cd "$PWORK" && git apply "$PF" ) || die "补丁 $PNAME 应用失败"
+  elif grep -q "$PMARKER" "$PMARKER_PATH"; then
+    log "补丁 $PNAME 已应用，跳过"
+  else
+    die "补丁 $PNAME 无法应用（源码既无补丁也无痕迹）"
+  fi
+}
+
+# 0002 改动了 lextable 词表与生成器，须用 minilex.c 重新生成 lextable.h
+regen_lextable() {
+  LWS_HTTP_DIR="$SRC_DIR/deps/libwebsockets/lib/roles/http"
+  grep -q 'propfind' "$LWS_HTTP_DIR/lextable-strings.h" 2>/dev/null || return 0
+  # 临时产物写 TOOLS_DIR，避免污染源码树（minilex 的 "-" 输出陷阱与日志残留）
+  TMP_MINILEX="$TOOLS_DIR/.minilex"
+  TMP_LEXTABLE="$TOOLS_DIR/.lextable.h.new"
+  TMP_MINILEX_LOG="$TOOLS_DIR/.minilex.log"
+  log "重生成 lextable.h ..."
+  "$ZIG_BIN" cc -O2 "$LWS_HTTP_DIR/minilex.c" -o "$TMP_MINILEX" \
+    || die "minilex.c 编译失败"
+  ( cd "$LWS_HTTP_DIR" && "$TMP_MINILEX" > "$TMP_LEXTABLE" \
+      2> "$TMP_MINILEX_LOG" ) || die "minilex 生成失败（见 $TMP_MINILEX_LOG）"
+  mv "$TMP_LEXTABLE" "$LWS_HTTP_DIR/lextable.h"
+  rm -f "$TMP_MINILEX"
+  log "lextable.h 已重生成（$(wc -l < "$LWS_HTTP_DIR/lextable.h") 行）"
+}
+
 ensure_source() {
   if [ ! -d "$SRC_DIR/.git" ]; then
     log "克隆 txiki.js ..."
@@ -143,14 +188,13 @@ ensure_source() {
   # submodule 6 个：libuv/libwebsockets/mbedtls/mimalloc/quickjs/wamr
   git submodule update --init --recursive
   # 应用补丁（幂等：已打则跳过）
-  if git apply --check "$PATCH_FILE" 2>/dev/null; then
-    log "应用补丁 0001-lift-lws-body-cap.patch"
-    git apply "$PATCH_FILE"
-  elif grep -q 'max_http_body_size = 1ULL << 40' src/httpserver.c; then
-    log "补丁已应用，跳过"
-  else
-    die "补丁无法应用（源码既无补丁也无痕迹）"
-  fi
+  while IFS=: read -r name subdir marker_file marker; do
+    [ -n "$name" ] || continue
+    apply_patch "$name" "$subdir" "$marker_file" "$marker"
+  done <<PATCH_EOF
+$PATCH_LIST
+PATCH_EOF
+  regen_lextable
 }
 
 # ---- 4. 双二进制构建 ----
@@ -175,6 +219,8 @@ build_one() { # build_one <build-subdir> <cc> <cxx> <ldflags>
 
 # ---- 5. 产物落盘 + 冒烟 + manifest ----
 finalize() {
+  # cmake 的 CXX-DetectStdlib 探测会把预处理结果写成源码树根下的 "-"，收尾清掉
+  rm -f "$SRC_DIR/-"
   mkdir -p "$REPO_DIR/dist"
   for p in musl:build glibc:build-glibc; do
     name=${p%%:*}; subdir=${p##*:}
@@ -215,6 +261,8 @@ finalize() {
     echo '#'
     echo "# 源码钉住：github.com/saghul/txiki.js @ $TJS_COMMIT (v26.6.0)"
     echo '# 补丁集：  patches/0001-lift-lws-body-cap.patch（1 行：lws 100MiB body 上限 → 1TiB）'
+    echo '#           patches/0002-lws-webdav-methods.patch（lextable 扩展 WebDAV 方法）'
+    echo '#           patches/0003-tjs-webdav-method-names.patch（tjs 方法名映射）'
     echo "# 工具链：  zig $ZIG_VER / cmake $CMAKE_VER / ninja $NINJA_VER / libffi $LIBFFI_VER（musl 静态）"
     echo '#'
     echo "## 构建时间 $(date '+%Y-%m-%d %H:%M:%S')，verify.mjs 冒烟 PASS"
@@ -225,7 +273,7 @@ finalize() {
 }
 
 main() {
-  [ -f "$PATCH_FILE" ] || die "补丁文件缺失: $PATCH_FILE"
+  [ -d "$REPO_DIR/patches" ] || die "补丁目录缺失: $REPO_DIR/patches"
   mkdir -p "$TOOLS_DIR"
   install_wrappers
   ensure_zig

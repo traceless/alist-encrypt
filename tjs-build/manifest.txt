@@ -9,8 +9,10 @@
 #
 # 源码钉住：github.com/saghul/txiki.js @ fc2b5f3b2d09e6db739eb619cfb1acca37d6bdf0 (v26.6.0)
 # 补丁集：  patches/0001-lift-lws-body-cap.patch（1 行：lws 100MiB body 上限 → 1TiB）
+#           patches/0002-lws-webdav-methods.patch（lextable 扩展 WebDAV 方法）
+#           patches/0003-tjs-webdav-method-names.patch（tjs 方法名映射）
 # 工具链：  zig 0.13.0 / cmake 3.31.6 / ninja 1.12.1 / libffi 3.4.6（musl 静态）
 #
-## 构建时间 2026-10-30 19:40:33，verify.mjs 冒烟 PASS
-sha256  tjs-musl   a790f7187ef16ba1fd15981502095c528a0204a5629507b3ecf8bd25fd08e1b9
-sha256  tjs-glibc  f5d8832a21953ba7f68bcbf86b204e848f7342652c8127de03b4659d7a946323
+## 构建时间 2026-11-05 06:12:03，verify.mjs 冒烟 PASS
+sha256  tjs-musl   520b2c9ccfcc8c335c10495c463997d32cc8f889940910c81691289925a1bece
+sha256  tjs-glibc  bc355a7b310ef2fdd213c9e96cef6d0d0fd24932fad0a9d852ada00664bafc0e

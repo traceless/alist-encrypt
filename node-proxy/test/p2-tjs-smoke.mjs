@@ -48,7 +48,7 @@ function skip(name, reason) {
 
 // ============================== mock 上游 ==============================
 // mock 收到的请求记录（断言上游视角的透传结果）
-const mockLog = { alistBodies: {}, webdavPutBody: null }
+const mockLog = { alistBodies: {}, webdavPutBody: null, davMethods: [] }
 
 const BIG_SIZE = 2 * 1024 * 1024
 const bigPayload = Buffer.alloc(BIG_SIZE)
@@ -116,13 +116,19 @@ const webdavMock = await startMock(WEBDAV_PORT, (req, res) => {
   req.on('data', (c) => chunks.push(c))
   req.on('end', () => {
     const body = Buffer.concat(chunks)
-    if (req.method === 'PROPFIND') {
-      // enable=false 纯透传：不解析、不改写，断言状态码与 XML 原样透传
-      res.setHeader('content-type', 'application/xml')
-      res.statusCode = 207
-      res.end(
-        '<?xml version="1.0" encoding="utf-8"?><D:multistatus xmlns:D="DAV:"><D:response><D:href>/aliyun-dav/</D:href><D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response></D:multistatus>'
-      )
+    if (['PROPFIND', 'MKCOL', 'COPY', 'MOVE', 'PROPPATCH', 'LOCK', 'UNLOCK'].includes(req.method)) {
+      mockLog.davMethods.push(req.method)
+      if (req.method === 'PROPFIND') {
+        // enable=false 纯透传：不解析、不改写，断言状态码与 XML 原样透传
+        res.setHeader('content-type', 'application/xml')
+        res.statusCode = 207
+        res.end(
+          '<?xml version="1.0" encoding="utf-8"?><D:multistatus xmlns:D="DAV:"><D:response><D:href>/aliyun-dav/</D:href><D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response></D:multistatus>'
+        )
+        return
+      }
+      res.statusCode = 200
+      res.end('DAV-' + req.method)
       return
     }
     if (req.method === 'GET' && req.url === '/aliyun-dav/plain.txt') {
@@ -287,21 +293,29 @@ try {
   console.log('--- webdav 透传（enable=false 全分支跳过 → proxyHandle）---')
 
   // C1 PROPFIND 207 + XML 原样透传
-  // tjs 已知限制：lws h1 parser 的 lextable 只识别 GET/POST/OPTIONS/PUT/PATCH/DELETE/CONNECT/HEAD，
-  // PROPFIND/MKCOL/MOVE/COPY/LOCK/UNLOCK 等扩展方法在解析层直接 403（需 tjs-build 补丁重生成
-  // lextable 后回归，见迁移计划 P2.5）；node 侧完整透传
+  // tjs-build P2.5 补丁后 lws lextable 已扩展 PROPFIND/MKCOL/COPY/MOVE/PROPPATCH/LOCK/UNLOCK，
+  // 解析层不再 403，node/tjs 两端行为应一致
   const c1 = await fetch(`${BASE}/aliyun-dav/`, { method: 'PROPFIND', headers: { depth: '1' } })
   const c1text = await c1.text()
-  if (/tjs/.test(cmd)) {
-    ok(c1.status === 403, 'C1 PROPFIND 403（tjs 已知限制）', `status=${c1.status}`)
-    skip('C1 PROPFIND 207 XML 透传', 'lws lextable 无扩展方法，待 tjs-build 0002 补丁')
-  } else {
-    ok(
-      c1.status === 207 && c1text.includes('<D:multistatus') && c1text.includes('/aliyun-dav/'),
-      'C1 PROPFIND 207 XML 透传',
-      `status=${c1.status} body=${c1text.slice(0, 80)}`
-    )
+  ok(
+    c1.status === 207 && c1text.includes('<D:multistatus') && c1text.includes('/aliyun-dav/'),
+    'C1 PROPFIND 207 XML 透传',
+    `status=${c1.status} body=${c1text.slice(0, 80)}`
+  )
+
+  // C1b WebDAV 扩展方法逐个解析层接受 + 透传到上游
+  for (const m of ['MKCOL', 'COPY', 'MOVE', 'PROPPATCH', 'LOCK', 'UNLOCK']) {
+    // COPY/MOVE 按规范必须携带 Destination（应用层会解析该头，缺失会报 Invalid URL）
+    const headers = /COPY|MOVE/.test(m) ? { destination: 'http://127.0.0.1:5245/aliyun-dav/y' } : {}
+    const r = await fetch(`${BASE}/aliyun-dav/x`, { method: m, headers })
+    const text = await r.text()
+    ok(r.status === 200 && text === `DAV-${m}`, `C1 ${m} 解析层接受并透传`, `status=${r.status} body=${text.slice(0, 40)}`)
   }
+  ok(
+    ['PROPFIND', 'MKCOL', 'COPY', 'MOVE', 'PROPPATCH', 'LOCK', 'UNLOCK'].every((m) => mockLog.davMethods.includes(m)),
+    'C1c 上游收到全部 7 种 WebDAV 方法',
+    `seen=${mockLog.davMethods.join(',')}`
+  )
 
   // C2 GET 文件透传
   const c2 = await fetch(`${BASE}/aliyun-dav/plain.txt`)

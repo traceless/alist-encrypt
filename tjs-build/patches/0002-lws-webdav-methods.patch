@@ -1,0 +1,224 @@
+diff --git a/include/libwebsockets/lws-http.h b/include/libwebsockets/lws-http.h
+index bd593ce..344b1b5 100644
+--- a/include/libwebsockets/lws-http.h
++++ b/include/libwebsockets/lws-http.h
+@@ -351,6 +351,16 @@ enum lws_token_indexes {
+ #endif
+ 	WSI_TOKEN_X_AUTH_TOKEN,
+ 	WSI_TOKEN_DSS_SIGNATURE,
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS) || defined(LWS_HTTP_HEADERS_ALL)
++	/* WebDAV methods (tjs patch: extend lextable so lws does not reject them) */
++	WSI_TOKEN_PROPFIND_URI,
++	WSI_TOKEN_MKCOL_URI,
++	WSI_TOKEN_COPY_URI,
++	WSI_TOKEN_MOVE_URI,
++	WSI_TOKEN_PROPPATCH_URI,
++	WSI_TOKEN_LOCK_URI,
++	WSI_TOKEN_UNLOCK_URI,
++#endif
+ 
+ 	/****** add new things just above ---^ ******/
+ 
+@@ -893,6 +903,15 @@ enum {
+ 	LWSHUMETH_CONNECT,
+ 	LWSHUMETH_HEAD,
+ 	LWSHUMETH_COLON_PATH,
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS) || defined(LWS_HTTP_HEADERS_ALL)
++	LWSHUMETH_PROPFIND,
++	LWSHUMETH_MKCOL,
++	LWSHUMETH_COPY,
++	LWSHUMETH_MOVE,
++	LWSHUMETH_PROPPATCH,
++	LWSHUMETH_LOCK,
++	LWSHUMETH_UNLOCK,
++#endif
+ };
+ 
+ /**
+diff --git a/lib/core-net/client/connect2.c b/lib/core-net/client/connect2.c
+index 8270849..589a6f2 100644
+--- a/lib/core-net/client/connect2.c
++++ b/lib/core-net/client/connect2.c
+@@ -26,7 +26,10 @@
+ 
+ #if !defined(LWS_ROLE_H1) && !defined(LWS_ROLE_H2)
+ static const char * const http_methods[] = {
+-	"GET", "POST", "OPTIONS", "HEAD", "PUT", "PATCH", "DELETE", "CONNECT"
++	"GET", "POST", "OPTIONS", "HEAD", "PUT", "PATCH", "DELETE", "CONNECT",
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS) || defined(LWS_HTTP_HEADERS_ALL)
++	"PROPFIND", "MKCOL", "COPY", "MOVE", "PROPPATCH", "LOCK", "UNLOCK"
++#endif
+ };
+ 
+ int
+diff --git a/lib/roles/h1/ops-h1.c b/lib/roles/h1/ops-h1.c
+index bdd63b5..4f5555b 100644
+--- a/lib/roles/h1/ops-h1.c
++++ b/lib/roles/h1/ops-h1.c
+@@ -1055,7 +1055,12 @@ rops_adoption_bind_h1(struct lws *wsi, int type, const char *vh_prot_name)
+ #if defined(LWS_WITH_CLIENT)
+ 
+ static const char * const http_methods[] = {
+-	"GET", "POST", "OPTIONS", "HEAD", "PUT", "PATCH", "DELETE", "CONNECT"
++	"GET", "POST", "OPTIONS", "HEAD", "PUT", "PATCH", "DELETE", "CONNECT",
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS) || defined(LWS_HTTP_HEADERS_ALL)
++	/* WebDAV methods (tjs patch): client-side allowlist, otherwise
++	 * rops_client_bind_h1() matches no role and the request never leaves */
++	"PROPFIND", "MKCOL", "COPY", "MOVE", "PROPPATCH", "LOCK", "UNLOCK"
++#endif
+ };
+ 
+ int
+diff --git a/lib/roles/h2/http2.c b/lib/roles/h2/http2.c
+index 775a8fc..e2641c1 100644
+--- a/lib/roles/h2/http2.c
++++ b/lib/roles/h2/http2.c
+@@ -1623,7 +1623,10 @@ static const char * const method_names[] = {
+ #if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
+ 	"OPTIONS", "PUT", "PATCH", "DELETE",
+ #endif
+-	"CONNECT", "HEAD"
++	"CONNECT", "HEAD",
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
++	"PROPFIND", "MKCOL", "COPY", "MOVE", "PROPPATCH", "LOCK", "UNLOCK",
++#endif
+ };
+ static unsigned char method_index[] = {
+ 	WSI_TOKEN_GET_URI,
+@@ -1636,6 +1639,15 @@ static unsigned char method_index[] = {
+ #endif
+ 	WSI_TOKEN_CONNECT,
+ 	WSI_TOKEN_HEAD_URI,
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
++	WSI_TOKEN_PROPFIND_URI,
++	WSI_TOKEN_MKCOL_URI,
++	WSI_TOKEN_COPY_URI,
++	WSI_TOKEN_MOVE_URI,
++	WSI_TOKEN_PROPPATCH_URI,
++	WSI_TOKEN_LOCK_URI,
++	WSI_TOKEN_UNLOCK_URI,
++#endif
+ };
+ 
+ /*
+diff --git a/lib/roles/h3/ops-h3.c b/lib/roles/h3/ops-h3.c
+index 51dc05a..62d01a4 100644
+--- a/lib/roles/h3/ops-h3.c
++++ b/lib/roles/h3/ops-h3.c
+@@ -1493,7 +1493,11 @@ lws_h3_rx_stream_data(struct lws *wsi, const uint8_t *buf, size_t len)
+ 					#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
+ 						"OPTIONS", "PUT", "PATCH", "DELETE",
+ 					#endif
+-						"CONNECT", "HEAD"
++						"CONNECT", "HEAD",
++					#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
++						"PROPFIND", "MKCOL", "COPY", "MOVE",
++						"PROPPATCH", "LOCK", "UNLOCK",
++					#endif
+ 					};
+ 					static const unsigned char method_index[] = {
+ 						WSI_TOKEN_GET_URI,
+@@ -1506,6 +1510,15 @@ lws_h3_rx_stream_data(struct lws *wsi, const uint8_t *buf, size_t len)
+ 					#endif
+ 						WSI_TOKEN_CONNECT,
+ 						WSI_TOKEN_HEAD_URI,
++					#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
++						WSI_TOKEN_PROPFIND_URI,
++						WSI_TOKEN_MKCOL_URI,
++						WSI_TOKEN_COPY_URI,
++						WSI_TOKEN_MOVE_URI,
++						WSI_TOKEN_PROPPATCH_URI,
++						WSI_TOKEN_LOCK_URI,
++						WSI_TOKEN_UNLOCK_URI,
++					#endif
+ 					};
+ 					for (int n = 0; n < (int)LWS_ARRAY_SIZE(method_names); n++) {
+ 						if (p && !strcasecmp(p, method_names[n])) {
+diff --git a/lib/roles/http/lextable-strings.h b/lib/roles/http/lextable-strings.h
+index 22c40ed..ddc690e 100644
+--- a/lib/roles/http/lextable-strings.h
++++ b/lib/roles/http/lextable-strings.h
+@@ -130,6 +130,15 @@ static const char * const set[] = {
+ 
+ 	"x-auth-token:",
+ 	"x-amzn-dss-signature:",
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS) || defined(LWS_HTTP_HEADERS_ALL)
++	"propfind ",
++	"mkcol ",
++	"copy ",
++	"move ",
++	"proppatch ",
++	"lock ",
++	"unlock ",
++#endif
+ 
+ 	"", /* not matchable */
+ 
+diff --git a/lib/roles/http/minilex.c b/lib/roles/http/minilex.c
+index abfbe7f..e82f4c3 100644
+--- a/lib/roles/http/minilex.c
++++ b/lib/roles/http/minilex.c
+@@ -136,6 +136,13 @@ unsigned char filter_array[] = {
+ 	0xf0, /* protocol */
+ 	0xff, /* x-auth-token */
+ 	0xff, /* x-amzn-dss-signature */
++	0xaa, /* propfind */
++	0xaa, /* mkcol */
++	0xaa, /* copy */
++	0xaa, /* move */
++	0xaa, /* proppatch */
++	0xaa, /* lock */
++	0xaa, /* unlock */
+ 
+ 	0xff  /* not matchable */
+ };
+diff --git a/lib/roles/http/parsers.c b/lib/roles/http/parsers.c
+index 15ffb37..028cd70 100644
+--- a/lib/roles/http/parsers.c
++++ b/lib/roles/http/parsers.c
+@@ -1033,6 +1033,15 @@ static const unsigned char methods[] = {
+ #endif
+ 	WSI_TOKEN_CONNECT,
+ 	WSI_TOKEN_HEAD_URI,
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
++	WSI_TOKEN_PROPFIND_URI,
++	WSI_TOKEN_MKCOL_URI,
++	WSI_TOKEN_COPY_URI,
++	WSI_TOKEN_MOVE_URI,
++	WSI_TOKEN_PROPPATCH_URI,
++	WSI_TOKEN_LOCK_URI,
++	WSI_TOKEN_UNLOCK_URI,
++#endif
+ };
+ 
+ /*
+diff --git a/lib/roles/http/server/server.c b/lib/roles/http/server/server.c
+index c4cd811..ec2b76a 100644
+--- a/lib/roles/http/server/server.c
++++ b/lib/roles/http/server/server.c
+@@ -36,6 +36,9 @@ const char * const method_names[] = {
+ 	"CONNECT", "HEAD",
+ #ifdef LWS_WITH_HTTP2
+ 	":path",
++#endif
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
++	"PROPFIND", "MKCOL", "COPY", "MOVE", "PROPPATCH", "LOCK", "UNLOCK",
+ #endif
+ 	};
+ 
+@@ -1302,6 +1305,15 @@ static const unsigned char methods[] = {
+ #if defined(LWS_WITH_HTTP2) || defined(LWS_ROLE_H3)
+ 	WSI_TOKEN_HTTP_COLON_PATH,
+ #endif
++#if defined(LWS_WITH_HTTP_UNCOMMON_HEADERS)
++	WSI_TOKEN_PROPFIND_URI,
++	WSI_TOKEN_MKCOL_URI,
++	WSI_TOKEN_COPY_URI,
++	WSI_TOKEN_MOVE_URI,
++	WSI_TOKEN_PROPPATCH_URI,
++	WSI_TOKEN_LOCK_URI,
++	WSI_TOKEN_UNLOCK_URI,
++#endif
+ };
+ 
+ int

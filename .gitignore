@@ -29,6 +29,9 @@ logs/
 *.patch
 *.tmp
 
+# tjs-build 补丁集是构建必需品，须入库（覆盖上面的 *.patch）
+!tjs-build/patches/*.patch
+
 # system
 .DS_Store
 Thumbs.db
