@@ -1,0 +1,30 @@
+{
+  "aesctr": [
+    {
+      "plain": "test.txt",
+      "encoded": "NTO2tO7zfAhCthYM"
+    },
+    {
+      "plain": "电影_2024.4K.mkv",
+      "encoded": "3pWUvWLFKxQIYGH12bPkuDyJ8XIwnw"
+    },
+    {
+      "plain": "a very long file name with spaces and 多层目录/子目录/文档 v2 (最终版).pdf",
+      "encoded": "Pknh4zpvsAOSI6wNbwo35R4L-8OqeL5UEtCKpixU4rl12BAZ5oO7P50EbVFZvlYefh2ErfqqIvDFehHlhl_MDGm7Rciwi-aSmK8-fNgzncvcji7Xw3EM00yV"
+    }
+  ],
+  "chacha20": [
+    {
+      "plain": "test.txt",
+      "encoded": "kz0zL56rTkdPUfjh"
+    },
+    {
+      "plain": "电影_2024.4K.mkv",
+      "encoded": "UdEtI63HnPJMFU2i7GqY5W1TzjmXuQ"
+    },
+    {
+      "plain": "a very long file name with spaces and 多层目录/子目录/文档 v2 (最终版).pdf",
+      "encoded": "FU4w7ejP7MzUTELdBzXwnxUac9l7ESjX6ZoYuutz48yObq2r0_1bdtwvT83Aa6BZJBNmejQOkP-WYnlLRLo1DkdIUXuGWKeXbVjy9y8KmqzrVSt4gPnl1i8k"
+    }
+  ]
+}

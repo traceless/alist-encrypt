@@ -94,6 +94,24 @@ class TjsBuffer extends Uint8Array {
     return x instanceof TjsBuffer
   }
 
+  writeUInt32LE(value, offset = 0) {
+    new DataView(this.buffer, this.byteOffset, this.byteLength).setUint32(offset, value >>> 0, true)
+    return this
+  }
+
+  readUInt32LE(offset = 0) {
+    return new DataView(this.buffer, this.byteOffset, this.byteLength).getUint32(offset, true)
+  }
+
+  writeUInt32BE(value, offset = 0) {
+    new DataView(this.buffer, this.byteOffset, this.byteLength).setUint32(offset, value >>> 0, false)
+    return this
+  }
+
+  readUInt32BE(offset = 0) {
+    return new DataView(this.buffer, this.byteOffset, this.byteLength).getUint32(offset, false)
+  }
+
   toString(encoding = 'utf8') {
     const bytes = new Uint8Array(this.buffer, this.byteOffset, this.byteLength)
     if (encoding === 'utf8' || encoding === 'utf-8' || encoding === 'ascii') {

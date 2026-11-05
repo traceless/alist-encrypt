@@ -1,12 +1,14 @@
 /**
- * tjs 版 HTTP 出站实现（Web 流，P2）：与 httpClient.js 的 node 版业务语义逐段对齐
+ * tjs 版 HTTP 出站实现（Web 流，P2/P3）：与 httpClient.js 的 node 版业务语义逐段对齐
  * （公共业务段在 proxyCommon.js），差异收敛在流处理层——
- *   - 请求体：incoming shim 的 body 即 Web ReadableStream（request.pipe 的加密上传为 P3 插槽）
+ *   - 请求体：incoming shim 的 body 即 Web ReadableStream；加密上传经
+ *     body.pipeThrough(encryptTransform)（等价 node 的 request.pipe(encryptTransform)，
+ *     transform 为 Web TransformStream 形态，由 flowEnc 按运行时返回）
  *   - 响应体：后台泵（不 await，与 node pipe 的异步语义一致）写入 outgoing shim，
  *     背压经 await response.write() → TransformStream 高水位 → 上游 fetch body 传递，
- *     最终由 tjs httpserver 读 _readable 输出，避免大文件内存堆积
- *   - encrypt/decryptTransform（node 流形态）显式拒绝（保险丝，P3 交付 Web 流形态；
- *     加密路由当前在 new FlowEnc 构造处更早失败，透传流量不触达）
+ *     最终由 tjs httpserver 读 _readable 输出，避免大文件内存堆积；
+ *     解密经 httpResp.body.pipeThrough(decryptTransform)（等价 node 的
+ *     upstream.pipe(decryptTransform).pipe(response)，302 响应同样挂解密流）
  *
  * node 端也会加载本文件顶层（httpClient.js 的分发 import）：
  * 顶层仅 Web 标准 API 与纯函数，无 tjs 全局引用，node-safe。
@@ -16,12 +18,9 @@ import { logger } from './../common/logger.js'
 import { hasBody, relaxTlsOnce, applyProxyResponse } from './proxyCommon.js'
 
 export async function httpProxyTjs(request, response, encryptTransform, decryptTransform) {
-  if (encryptTransform || decryptTransform) {
-    throw new Error('tjs 分支加密 transform 由 P3 交付（当前不应触达：new FlowEnc 构造会更早失败）')
-  }
   const { method, headers, urlAddr, passwdInfo, url, fileSize } = request
   const reqId = randomUUID().substring(30)
-  logger.debug('@@request_proxy: ', reqId, method, urlAddr, headers, false, false)
+  logger.debug('@@request_proxy: ', reqId, method, urlAddr, headers, !!encryptTransform, !!decryptTransform)
   relaxTlsOnce(urlAddr)
 
   // 本地连接关闭时中断上游请求（等价原版 httpReq.destroy()；tjs 下 close 由泵失败路径触发）
@@ -31,7 +30,11 @@ export async function httpProxyTjs(request, response, encryptTransform, decryptT
     ac.abort()
   })
 
-  const body = hasBody(method) ? request.body : undefined
+  let body = hasBody(method) ? request.body : undefined
+  if (body && encryptTransform) {
+    // 加密上传（P3）：请求体经加密 TransformStream（等价 node 的 request.pipe(encryptTransform)）
+    body = request.body.pipeThrough(encryptTransform)
+  }
   if (body) {
     // tjs fetch client（lws）对「显式 content-length 头 + body」的组合会发出畸形请求
     // （实测上游 node http 解析失败直接回 400）；剥离后由 lws client 自动计算。
@@ -64,7 +67,8 @@ export async function httpProxyTjs(request, response, encryptTransform, decryptT
     return
   }
   // 后台泵：上游 → outgoing（不 await，与 node pipe 异步语义一致）
-  pumpToResponse(httpResp.body, response, reqId)
+  // 解密下载（P3）：挂解密 TransformStream（等价 node 的 upstream.pipe(decryptTransform).pipe(response)）
+  pumpToResponse(decryptTransform ? httpResp.body.pipeThrough(decryptTransform) : httpResp.body, response, reqId)
 }
 
 export async function httpClientTjs(request, response) {
