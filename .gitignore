@@ -18,7 +18,7 @@ outFile/
 .idea/
 .trae/
 /agent/
-.ab/
+# .ab/ 曾因未入库丢失并重建过一次，现已纳入版本管理
 
 # 临时文件
 logs/
